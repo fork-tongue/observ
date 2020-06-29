@@ -1,1 +1,3 @@
 poetry.lock
+*.egg-info/
+__pycache__

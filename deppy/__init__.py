@@ -1,1 +1,147 @@
 __version__ = "0.1.0"
+
+
+from typing import Union, Any
+
+
+class Dep:
+    _registry = {}
+    _uid = 0
+    target: "Watcher" = None
+    _target_stack: list = []
+
+    def __init__(self) -> None:
+        self.id = self._uid
+        self._uid += 1
+        self._subs = []
+
+    def add_sub(self, sub: "Watcher") -> None:
+        self._subs.append(sub)
+
+    def remove_sub(self, sub: "Watcher") -> None:
+        self._subs.remove(sub)
+
+    def depend(self) -> None:
+        if self.target:
+            self.target.add_dep(self)
+
+    @classmethod
+    def get(cls, obj: Union[dict, list], key: Any) -> "Dep":
+        _hash = f"{id(obj)}/{key}"
+        if _hash not in cls._registry:
+            cls._registry[_hash] = cls()
+        return cls._registry[_hash]
+
+    @classmethod
+    def push_target(cls, target: "Watcher") -> None:
+        cls._target_stack.append(target)
+        cls.target = target
+
+    @classmethod
+    def pop_target(cls) -> None:
+        cls._target_stack.pop()
+        cls.target = cls._target_stack[-1] if cls._target_stack else None
+
+    def notify(self):
+        for sub in sorted(self._subs, key=lambda s: s.id):
+            sub.update()
+
+
+class Watcher:
+    _uid = 0
+
+    def __init__(self, fn) -> None:
+        self.id = self._uid
+        self._uid += 1
+        self.fn = fn
+        self._deps, self._new_deps = [], []
+        self._dep_ids, self._new_dep_ids = set(), set()
+        self.value = None
+        self._dirty = True
+
+    def update(self) -> None:
+        self._dirty = True
+
+    def evaluate(self) -> None:
+        if self._dirty:
+            self.value = self.get()
+            self._dirty = False
+
+    def get(self) -> Any:
+        Dep.push_target(self)
+        value = self.fn()
+        Dep.pop_target()
+        self.cleanup_deps()
+        return value
+
+    def add_dep(self, dep: Dep) -> None:
+        if dep.id not in self._new_dep_ids:
+            self._new_dep_ids.add(dep.id)
+            self._new_deps.append(dep)
+            if dep.id not in self._dep_ids:
+                dep.add_sub(self)
+
+    def cleanup_deps(self) -> None:
+        # unsubscribe to dependencies on which we no longer depend
+        for dep in self._deps:
+            if dep.id not in self._new_dep_ids:
+                dep.remove_sub(self)
+        # swap old and new dependency trackers
+        self._dep_ids, self._new_dep_ids, self._deps = (
+            self._new_dep_ids,
+            self._dep_ids,
+            self._new_deps,
+        )
+        # clear new dependency lists for next use
+        self._new_dep_ids.clear()
+        self._new_deps.clear()
+
+    def depend(self) -> None:
+        if Dep.target:
+            for dep in self._deps:
+                dep.depend()
+
+    def teardown(self) -> None:
+        for dep in self._deps:
+            dep.remove_sub(self)
+
+
+class ObservableDict(dict):
+    def __getitem__(self, key: Any) -> Any:
+        Dep.get(self, key).depend()
+        return super().__getitem__(key)
+
+    def __setitem__(self, key: Any, new_value: Any) -> None:
+        value = super().__getitem__(key)
+        if new_value == value:
+            return
+        super().__setitem__(key, new_value)
+        Dep.get(self, key).notify()
+
+
+def cached(fn, _registry={}):
+    if fn not in _registry:
+        _registry[fn] = Watcher(fn)
+    watcher = _registry[fn]
+
+    def getter():
+        watcher.evaluate()
+        watcher.depend()
+        return watcher.value
+
+    return getter
+
+
+if __name__ == "__main__":
+    a = ObservableDict({"foo": 5})
+
+    def bla():
+        print("bla is running")
+        return a["foo"] * 5
+
+    cached_bla = cached(bla)
+    print(cached_bla())
+    print(cached_bla())
+    a["foo"] = 10
+    print(cached_bla())
+    print(cached_bla())
