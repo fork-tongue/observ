@@ -12,7 +12,7 @@ class Dep:
 
     def __init__(self) -> None:
         self.id = self._uid
-        self._uid += 1
+        type(self)._uid += 1
         self._subs = []
 
     def add_sub(self, sub: "Watcher") -> None:
@@ -52,7 +52,7 @@ class Watcher:
 
     def __init__(self, fn) -> None:
         self.id = self._uid
-        self._uid += 1
+        type(self)._uid += 1
         self.fn = fn
         self._deps, self._new_deps = [], []
         self._dep_ids, self._new_dep_ids = set(), set()
@@ -66,7 +66,7 @@ class Watcher:
         if self._dirty:
             self.value = self.get()
             self._dirty = False
-
+ 
     def get(self) -> Any:
         Dep.push_target(self)
         value = self.fn()
@@ -87,11 +87,8 @@ class Watcher:
             if dep.id not in self._new_dep_ids:
                 dep.remove_sub(self)
         # swap old and new dependency trackers
-        self._dep_ids, self._new_dep_ids, self._deps = (
-            self._new_dep_ids,
-            self._dep_ids,
-            self._new_deps,
-        )
+        self._dep_ids, self._new_dep_ids = self._new_dep_ids, self._dep_ids
+        self._deps, self._new_deps = self._new_deps, self._deps
         # clear new dependency lists for next use
         self._new_dep_ids.clear()
         self._new_deps.clear()
@@ -104,6 +101,9 @@ class Watcher:
     def teardown(self) -> None:
         for dep in self._deps:
             dep.remove_sub(self)
+
+    def __del__(self) -> None:
+        self.teardown()
 
 
 class ObservableDict(dict):
@@ -121,23 +121,25 @@ class ObservableDict(dict):
 
 def cached(fn, _registry={}):
     if fn not in _registry:
-        _registry[fn] = Watcher(fn)
-    watcher = _registry[fn]
-
-    def getter():
-        watcher.evaluate()
-        watcher.depend()
-        return watcher.value
-
-    return getter
+        watcher = Watcher(fn)
+        def getter():
+            watcher.evaluate()
+            watcher.depend()
+            return watcher.value
+        getter.watcher = watcher
+        _registry[fn] = getter
+    return _registry[fn]
 
 
 if __name__ == "__main__":
-    a = ObservableDict({"foo": 5})
+    a = ObservableDict({"foo": 5, "bar": 3, "quux": 10})
 
     def bla():
         print("bla is running")
-        return a["foo"] * 5
+        if a["quux"] == 10:
+            return a["foo"] * 5
+        else:
+            return a["bar"] * 5
 
     cached_bla = cached(bla)
     print(cached_bla())
@@ -145,3 +147,5 @@ if __name__ == "__main__":
     a["foo"] = 10
     print(cached_bla())
     print(cached_bla())
+
+    del cached_bla
