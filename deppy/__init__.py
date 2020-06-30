@@ -3,6 +3,7 @@ __version__ = "0.1.0"
 
 from itertools import count
 from typing import Union, Any
+from functools import lru_cache
 
 
 _ids = count()
@@ -25,7 +26,7 @@ class Dep:
         if self.stack:
             self.stack[-1].add_dep(self)
 
-    def notify(self):
+    def notify(self) -> None:
         for sub in sorted(self._subs, key=lambda s: s.id):
             sub.update()
 
@@ -42,8 +43,7 @@ class Watcher:
     def __init__(self, fn) -> None:
         self.id = next(_ids)
         self.fn = fn
-        self._deps, self._new_deps = [], []
-        self._dep_ids, self._new_dep_ids = set(), set()
+        self._deps, self._new_deps = set(), set()
         self.value = None
         self._dirty = True
 
@@ -63,22 +63,16 @@ class Watcher:
         return value
 
     def add_dep(self, dep: Dep) -> None:
-        if dep.id not in self._new_dep_ids:
-            self._new_dep_ids.add(dep.id)
-            self._new_deps.append(dep)
-            if dep.id not in self._dep_ids:
+        if dep not in self._new_deps:
+            self._new_deps.add(dep)
+            if dep not in self._deps:
                 dep.add_sub(self)
 
     def cleanup_deps(self) -> None:
-        # unsubscribe to dependencies on which we no longer depend
         for dep in self._deps:
-            if dep.id not in self._new_dep_ids:
+            if dep not in self._new_deps:
                 dep.remove_sub(self)
-        # swap old and new dependency trackers
-        self._dep_ids, self._new_dep_ids = self._new_dep_ids, self._dep_ids
         self._deps, self._new_deps = self._new_deps, self._deps
-        # clear new dependency lists for next use
-        self._new_dep_ids.clear()
         self._new_deps.clear()
 
     def depend(self) -> None:
@@ -107,16 +101,15 @@ class ObservableDict(dict):
         get_dep(self, key).notify()
 
 
-def cached(fn, _registry={}):
-    if fn not in _registry:
-        watcher = Watcher(fn)
-        def getter():
-            watcher.evaluate()
-            watcher.depend()
-            return watcher.value
-        getter.watcher = watcher
-        _registry[fn] = getter
-    return _registry[fn]
+@lru_cache(maxsize=0)
+def cached(fn):
+    watcher = Watcher(fn)
+    def getter():
+        watcher.evaluate()
+        watcher.depend()
+        return watcher.value
+    getter.watcher = watcher
+    return getter
 
 
 if __name__ == "__main__":
