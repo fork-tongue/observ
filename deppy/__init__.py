@@ -7,8 +7,7 @@ from typing import Union, Any
 class Dep:
     _registry = {}
     _uid = 0
-    target: "Watcher" = None
-    _target_stack: list = []
+    stack = []
 
     def __init__(self) -> None:
         self.id = self._uid
@@ -22,8 +21,8 @@ class Dep:
         self._subs.remove(sub)
 
     def depend(self) -> None:
-        if self.target:
-            self.target.add_dep(self)
+        if self.stack:
+            self.stack[-1].add_dep(self)
 
     @classmethod
     def get(cls, obj: Union[dict, list], key: Any) -> "Dep":
@@ -31,16 +30,6 @@ class Dep:
         if _hash not in cls._registry:
             cls._registry[_hash] = cls()
         return cls._registry[_hash]
-
-    @classmethod
-    def push_target(cls, target: "Watcher") -> None:
-        cls._target_stack.append(target)
-        cls.target = target
-
-    @classmethod
-    def pop_target(cls) -> None:
-        cls._target_stack.pop()
-        cls.target = cls._target_stack[-1] if cls._target_stack else None
 
     def notify(self):
         for sub in sorted(self._subs, key=lambda s: s.id):
@@ -68,9 +57,9 @@ class Watcher:
             self._dirty = False
  
     def get(self) -> Any:
-        Dep.push_target(self)
+        Dep.stack.append(self)
         value = self.fn()
-        Dep.pop_target()
+        Dep.stack.pop()
         self.cleanup_deps()
         return value
 
@@ -94,7 +83,7 @@ class Watcher:
         self._new_deps.clear()
 
     def depend(self) -> None:
-        if Dep.target:
+        if Dep.stack:
             for dep in self._deps:
                 dep.depend()
 
