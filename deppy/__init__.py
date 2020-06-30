@@ -45,15 +45,15 @@ class Watcher:
         self.fn = fn
         self._deps, self._new_deps = set(), set()
         self.value = None
-        self._dirty = True
+        self.dirty = True
 
     def update(self) -> None:
-        self._dirty = True
+        self.dirty = True
 
     def evaluate(self) -> None:
-        if self._dirty:
+        if self.dirty:
             self.value = self.get()
-            self._dirty = False
+            self.dirty = False
  
     def get(self) -> Any:
         Dep.stack.append(self)
@@ -105,8 +105,10 @@ class ObservableDict(dict):
 def cached(fn):
     watcher = Watcher(fn)
     def getter():
-        watcher.evaluate()
-        watcher.depend()
+        if watcher.dirty:
+            watcher.evaluate()
+        if Dep.stack:
+            watcher.depend()
         return watcher.value
     getter.watcher = watcher
     return getter
@@ -125,7 +127,7 @@ if __name__ == "__main__":
     cached_bla = cached(bla)
     print(cached_bla())
     print(cached_bla())
-    a["foo"] = 10
+    a["quux"] = 25
     print(cached_bla())
     print(cached_bla())
 
