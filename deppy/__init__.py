@@ -45,13 +45,15 @@ def traverse(obj):
 
 
 def _traverse(obj, seen):
-    val_iter = None
+    seen.add(id(obj))
     if isinstance(obj, dict):
         val_iter = iter(obj.values())
     elif isinstance(obj, (list, tuple, set)):
         val_iter = iter(obj)
-    if val_iter:
-        for v in val_iter:
+    else:
+        val_iter = iter(())
+    for v in val_iter:
+        if isinstance(v, Container) and id(v) not in seen:
             _traverse(v, seen)
 
 
