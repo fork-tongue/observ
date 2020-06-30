@@ -1,17 +1,18 @@
 __version__ = "0.1.0"
 
 
+from itertools import count
 from typing import Union, Any
 
 
+_ids = count()
+
+
 class Dep:
-    _registry = {}
-    _uid = 0
     stack = []
 
     def __init__(self) -> None:
-        self.id = self._uid
-        type(self)._uid += 1
+        self.id = next(_ids)
         self._subs = []
 
     def add_sub(self, sub: "Watcher") -> None:
@@ -24,24 +25,22 @@ class Dep:
         if self.stack:
             self.stack[-1].add_dep(self)
 
-    @classmethod
-    def get(cls, obj: Union[dict, list], key: Any) -> "Dep":
-        _hash = f"{id(obj)}/{key}"
-        if _hash not in cls._registry:
-            cls._registry[_hash] = cls()
-        return cls._registry[_hash]
-
     def notify(self):
         for sub in sorted(self._subs, key=lambda s: s.id):
             sub.update()
 
 
-class Watcher:
-    _uid = 0
+def get_dep(obj: Any, key: Any) -> "Dep":
+    if not hasattr(obj, '__deps__'):
+        setattr(obj, '__deps__', {})
+    if key not in obj.__deps__:
+        obj.__deps__[key] = Dep()
+    return obj.__deps__[key]
 
+
+class Watcher:
     def __init__(self, fn) -> None:
-        self.id = self._uid
-        type(self)._uid += 1
+        self.id = next(_ids)
         self.fn = fn
         self._deps, self._new_deps = [], []
         self._dep_ids, self._new_dep_ids = set(), set()
@@ -97,7 +96,7 @@ class Watcher:
 
 class ObservableDict(dict):
     def __getitem__(self, key: Any) -> Any:
-        Dep.get(self, key).depend()
+        get_dep(self, key).depend()
         return super().__getitem__(key)
 
     def __setitem__(self, key: Any, new_value: Any) -> None:
@@ -105,7 +104,7 @@ class ObservableDict(dict):
         if new_value == value:
             return
         super().__setitem__(key, new_value)
-        Dep.get(self, key).notify()
+        get_dep(self, key).notify()
 
 
 def cached(fn, _registry={}):
