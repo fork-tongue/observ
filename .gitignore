@@ -1,3 +1,4 @@
 poetry.lock
 *.egg-info/
 __pycache__
+.vscode
