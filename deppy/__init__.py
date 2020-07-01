@@ -183,9 +183,7 @@ class ObservableSet(set):
 
 
 def make_reactive(obj, deep=True):
-    if not isinstance(obj, Container):
-        return obj
-    elif isinstance(obj, dict):
+    if isinstance(obj, dict):
         reactive = ObservableDict(obj)
         if deep:
             for k, v in reactive.items():
@@ -208,6 +206,8 @@ def make_reactive(obj, deep=True):
             if not deep
             else ObservableSet(make_reactive(v) for v in obj)
         )
+    elif not isinstance(obj, Container):
+        return obj
     else:
         raise NotImplementedError(f"Don't know how to make {type(obj)} reactive")
 
@@ -227,6 +227,7 @@ def cached(fn):
 
 
 if __name__ == "__main__":
+
     a = make_reactive(
         {"foo": 5, "bar": [6, 7, 8], "quux": 10, "quuz": {"a": 1, "b": 2}}
     )
