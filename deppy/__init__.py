@@ -3,8 +3,8 @@ __version__ = "0.1.0"
 
 from itertools import count
 from typing import Union, Any
-from functools import lru_cache
 from collections.abc import Container
+from weakref import WeakSet
 
 
 _ids = count()
@@ -33,6 +33,8 @@ class Dep:
 
 
 def get_dep(obj, key=None) -> "Dep":
+    """Store Dep objects on the containers they decorate such that
+    their lifetimes are linked"""
     if not hasattr(obj, "__deps__"):
         setattr(obj, "__deps__", {})
     if key not in obj.__deps__:
@@ -61,7 +63,8 @@ class Watcher:
     def __init__(self, fn, lazy=True, deep=False, callback=None) -> None:
         self.id = next(_ids)
         self.fn = fn
-        self._deps, self._new_deps = set(), set()
+        # use weakset here; if a dependency vanishes, we don't want to keep it alive here
+        self._deps, self._new_deps = WeakSet(), WeakSet()
 
         self.callback = callback
         self.deep = deep
@@ -209,7 +212,6 @@ def make_reactive(obj, deep=True):
         raise NotImplementedError(f"Don't know how to make {type(obj)} reactive")
 
 
-@lru_cache(maxsize=0)
 def cached(fn):
     watcher = Watcher(fn)
 
