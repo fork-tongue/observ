@@ -1,4 +1,4 @@
-from deppy import observe, computed, watch
+from observ import observe, computed, watch
 
 
 if __name__ == "__main__":
@@ -29,18 +29,18 @@ if __name__ == "__main__":
     assert computed_bla() == 120
     assert execute_count == 3
 
+    @computed
     def bla2():
         global execute_count
         execute_count += 1
         return a["foo"] * computed_bla()
 
-    computed_bla2 = computed(bla2)
-    assert computed_bla2() == 600
-    assert computed_bla2() == 600
+    assert bla2() == 600
+    assert bla2() == 600
     assert execute_count == 4
     a["quuz"]["b"] = 4
-    assert computed_bla2() == 800
-    assert computed_bla2() == 800
+    assert bla2() == 800
+    assert bla2() == 800
     assert execute_count == 6
 
     called = 0

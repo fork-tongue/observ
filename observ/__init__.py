@@ -5,6 +5,7 @@ from itertools import count
 from typing import Union, Any
 from collections.abc import Container
 from weakref import WeakSet
+from functools import wraps
 
 
 class Dep:
@@ -211,6 +212,7 @@ def observe(obj, deep=True):
 def computed(fn):
     watcher = Watcher(fn)
 
+    @wraps(fn)
     def getter():
         if watcher.dirty:
             watcher.evaluate()

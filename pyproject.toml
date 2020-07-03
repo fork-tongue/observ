@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "deppy"
+name = "observ"
 version = "0.1.0"
 description = ""
 authors = ["Korijn van Golen <korijn@gmail.com>"]
