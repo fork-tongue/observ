@@ -16,7 +16,7 @@ React to changes in observable state with callbacks. Returns a watcher object th
 
 * `func = observ.computed(func)`
 
-Define computed state with functions and recompute lazily. Returns a caching copy of the function which only recomputes the output if any of the state it depends on becomes dirty. Can be used as a function decorator.
+Define computed state with functions and recompute lazily. Returns a wrapped copy of the function which only recomputes the output if any of the state it depends on becomes dirty. Can be used as a function decorator.
 
 ## Quick start and example
 
