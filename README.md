@@ -6,15 +6,17 @@ Observ is a Python port of [Vue.js](https://vuejs.org/)' [computed properties an
 
 ## API
 
-* `state = observ.observe(state)`
+`from observ import observe, computed, watch`
+
+* `state = observe(state)`
 
 Observe nested structures of dicts, lists, tuples and sets. Returns an observable clone of the state input object.
 
-* `observ.watch(func, callback, deep=False, immediate=False)`
+* `watch(func, callback, deep=False, immediate=False)`
 
 React to changes in observable state with callbacks. Returns a watcher object that can be `del`eted to disable the callback.
 
-* `func = observ.computed(func)`
+* `func = computed(func)`
 
 Define computed state with functions and recompute lazily. Returns a wrapped copy of the function which only recomputes the output if any of the state it depends on becomes dirty. Can be used as a function decorator.
 
