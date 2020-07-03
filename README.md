@@ -14,11 +14,11 @@ Observe nested structures of dicts, lists, tuples and sets. Returns an observabl
 
 * `watch(func, callback, deep=False, immediate=False)`
 
-React to changes in observable state with callbacks. Returns a watcher object that can be `del`eted to disable the callback.
+React to changes in the state accessed in `func` with `callback(old_value, new_value)`. Returns a watcher object that can be `del`eted to disable the callback.
 
 * `func = computed(func)`
 
-Define computed state with functions and recompute lazily. Returns a wrapped copy of the function which only recomputes the output if any of the state it depends on becomes dirty. Can be used as a function decorator.
+Define computed state based on observable state with `func` and recompute lazily. Returns a wrapped copy of the function which only recomputes the output if any of the state it depends on becomes dirty. Can be used as a function decorator.
 
 ## Quick start and example
 
