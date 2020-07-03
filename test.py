@@ -49,7 +49,7 @@ if __name__ == "__main__":
         global called
         called += 1
 
-    watcher = watch(lambda: a["quuz"], deep=True, callback=_callback, immediate=True)
+    watcher = watch(lambda: a["quuz"], _callback, deep=True, immediate=True)
     assert not watcher.dirty
     assert watcher.value == a["quuz"]
     assert len(watcher._deps) > 1

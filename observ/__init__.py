@@ -224,7 +224,7 @@ def computed(fn):
     return getter
 
 
-def watch(fn, callback=None, deep=False, immediate=False):
+def watch(fn, callback, deep=False, immediate=False):
     watcher = Watcher(fn, lazy=False, deep=deep, callback=callback)
     if immediate:
         watcher.evaluate()
