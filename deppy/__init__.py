@@ -7,18 +7,14 @@ from collections.abc import Container
 from weakref import WeakSet
 
 
-_ids = count()
-
-
 class Dep:
     stack = []
 
     def __init__(self) -> None:
-        self.id = next(_ids)
-        self._subs = []
+        self._subs = WeakSet()
 
     def add_sub(self, sub: "Watcher") -> None:
-        self._subs.append(sub)
+        self._subs.add(sub)
 
     def remove_sub(self, sub: "Watcher") -> None:
         self._subs.remove(sub)
@@ -59,11 +55,13 @@ def _traverse(obj, seen):
             _traverse(v, seen)
 
 
+_ids = count()
+
+
 class Watcher:
     def __init__(self, fn, lazy=True, deep=False, callback=None) -> None:
         self.id = next(_ids)
         self.fn = fn
-        # use weakset here; if a dependency vanishes, we don't want to keep it alive here
         self._deps, self._new_deps = WeakSet(), WeakSet()
 
         self.callback = callback
@@ -182,29 +180,27 @@ class ObservableSet(set):
             get_dep(self).notify()
 
 
-def make_reactive(obj, deep=True):
+def observe(obj, deep=True):
     if isinstance(obj, dict):
         reactive = ObservableDict(obj)
         if deep:
             for k, v in reactive.items():
-                reactive[k] = make_reactive(v)
+                reactive[k] = observe(v)
         return reactive
     elif isinstance(obj, list):
         reactive = ObservableList(obj)
         if deep:
             for i, v in enumerate(reactive):
-                reactive[i] = make_reactive(v)
+                reactive[i] = observe(v)
         return reactive
     elif isinstance(obj, tuple):
         reactive = obj  # tuples are immutable
         if deep:
-            reactive = tuple(make_reactive(v) for v in reactive)
+            reactive = tuple(observe(v) for v in reactive)
         return reactive
     elif isinstance(obj, set):
         return (
-            ObservableSet(obj)
-            if not deep
-            else ObservableSet(make_reactive(v) for v in obj)
+            ObservableSet(obj) if not deep else ObservableSet(observe(v) for v in obj)
         )
     elif not isinstance(obj, Container):
         return obj
@@ -212,7 +208,7 @@ def make_reactive(obj, deep=True):
         raise NotImplementedError(f"Don't know how to make {type(obj)} reactive")
 
 
-def cached(fn):
+def computed(fn):
     watcher = Watcher(fn)
 
     def getter():
@@ -226,63 +222,8 @@ def cached(fn):
     return getter
 
 
-if __name__ == "__main__":
-
-    a = make_reactive(
-        {"foo": 5, "bar": [6, 7, 8], "quux": 10, "quuz": {"a": 1, "b": 2}}
-    )
-    execute_count = 0
-
-    def bla():
-        global execute_count
-        execute_count += 1
-        multi = 0
-        if a["quux"] == 10:
-            multi = a["foo"] * 5
-        else:
-            multi = a["bar"][-1] * 5
-        return multi * a["quuz"]["b"]
-
-    cached_bla = cached(bla)
-    assert cached_bla() == 50
-    assert cached_bla() == 50
-    assert execute_count == 1
-    a["quux"] = 25
-    assert cached_bla() == 80
-    assert cached_bla() == 80
-    assert execute_count == 2
-    a["quuz"]["b"] = 3
-    assert cached_bla() == 120
-    assert cached_bla() == 120
-    assert execute_count == 3
-
-    def bla2():
-        global execute_count
-        execute_count += 1
-        return a["foo"] * cached_bla()
-
-    cached_bla2 = cached(bla2)
-    assert cached_bla2() == 600
-    assert cached_bla2() == 600
-    assert execute_count == 4
-    a["quuz"]["b"] = 4
-    assert cached_bla2() == 800
-    assert cached_bla2() == 800
-    assert execute_count == 6
-
-    called = 0
-
-    def _callback(old_value, new_value):
-        global called
-        called += 1
-
-    watcher = Watcher(lambda: a["quuz"], lazy=False, deep=True, callback=_callback)
-    assert not watcher.dirty
-    assert watcher.value == a["quuz"]
-    assert len(watcher._deps) == 2
-    assert called == 0
-    a["quuz"]["b"] = 3
-    assert not watcher.dirty
-    assert watcher.value == a["quuz"]
-    assert len(watcher._deps) == 2
-    assert called == 1
+def watch(fn, callback=None, deep=False, immediate=False):
+    watcher = Watcher(fn, lazy=False, deep=deep, callback=callback)
+    if immediate:
+        watcher.evaluate()
+    return watcher
