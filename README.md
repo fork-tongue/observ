@@ -20,7 +20,7 @@ Define computed state with functions and recompute lazily. Returns a caching cop
 
 ## Quick start and example
 
-Install observ in your Celery workers via pip/pipenv/poetry:
+Install observ with pip/pipenv/poetry:
 
 `pip install observ`
 
