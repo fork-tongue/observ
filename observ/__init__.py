@@ -235,7 +235,7 @@ class ObservableList(list):
             get_dep(self).depend()
         return super().index(*args, **kwargs)
 
-    def copy(self, value):
+    def copy(self):
         if Dep.stack:
             get_dep(self).depend()
         return super().copy()
