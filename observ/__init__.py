@@ -144,22 +144,181 @@ class ObservableDict(dict):
 
 
 class ObservableList(list):
-    # TODO cover all important methods
-    def __getitem__(self, key: Any) -> Any:
+    # WRITE
+
+    def append(self, value):
+        retval = super().append(value)
+        get_dep(self).notify()
+        return retval
+
+    def clear(self):
+        retval = super().clear()
+        get_dep(self).notify()
+        return retval
+
+    def extend(self, value):
+        retval = super().extend(value)
+        get_dep(self).notify()
+        return retval
+
+    def insert(self, index, value):
+        retval = super().insert(index, value)
+        get_dep(self).notify()
+        return retval
+
+    def pop(self, index):
+        retval = super().pop(index)
+        get_dep(self).notify()
+        return retval
+
+    def remove(self, value):
+        retval = super().remove(value)
+        get_dep(self).notify()
+        return retval
+
+    def reverse(self):
+        retval = super().reverse()
+        get_dep(self).notify()
+        return retval
+
+    def sort(self, *args, **kwargs):
+        retval = super().sort(*args, **kwargs)
+        get_dep(self).notify()
+        return retval
+
+    def __setattr__(self, name, value):
+        retval = super().__setattr__(name, value)
+        get_dep(self).notify()
+        return retval
+
+    def __setitem__(self, key, value):
+        old_value = super().__getitem__(key)
+        retval = super().__setitem__(key, value)
+        if old_value != value:
+            get_dep(self).notify()
+        return retval
+
+    def __add__(self, value):
+        retval = super().__add__(value)
+        get_dep(self).notify()
+        return retval
+
+    def __delattr__(self, name):
+        retval = super().__delattr__(name)
+        get_dep(self).notify()
+        return retval
+
+    def __delitem__(self, key):
+        retval = super().__delitem__(key)
+        get_dep(self).notify()
+        return retval
+
+    def __iadd__(self, value):
+        retval = super().__iadd__(value)
+        get_dep(self).notify()
+        return retval
+
+    def __imul__(self, value):
+        retval = super().__imul__(value)
+        get_dep(self).notify()
+        return retval
+
+    # READ
+
+    def count(self, value):
         if Dep.stack:
             get_dep(self).depend()
-        return super().__getitem__(key)
+        return super().count(value)
+
+    def index(self, *args, **kwargs):
+        if Dep.stack:
+            get_dep(self).depend()
+        return super().index(*args, **kwargs)
+
+    def copy(self, value):
+        if Dep.stack:
+            get_dep(self).depend()
+        return super().copy()
+
+    def __getitem__(self, s):
+        if Dep.stack:
+            get_dep(self).depend()
+        return super().__getitem__(s)
+
+    def __hash__(self):
+        if Dep.stack:
+            get_dep(self).depend()
+        return super().__hash__()
+
+    def __contains__(self, key):
+        if Dep.stack:
+            get_dep(self).depend()
+        return super().__contains__(key)
+
+    def __eq__(self, value):
+        if Dep.stack:
+            get_dep(self).depend()
+        return super().__eq__(value)
+
+    def __ge__(self, value):
+        if Dep.stack:
+            get_dep(self).depend()
+        return super().__ge__(value)
+
+    def __getattribute__(self, name):
+        if Dep.stack and name != '__deps__':
+            get_dep(self).depend()
+        return super().__getattribute__(name)
+
+    def __gt__(self, value):
+        if Dep.stack:
+            get_dep(self).depend()
+        return super().__gt__(value)
+
+    def __le__(self, value):
+        if Dep.stack:
+            get_dep(self).depend()
+        return super().__le__(value)
+
+    def __lt__(self, value):
+        if Dep.stack:
+            get_dep(self).depend()
+        return super().__lt__(value)
+
+    def __mul__(self, value):
+        if Dep.stack:
+            get_dep(self).depend()
+        return super().__mul__(value)
+
+    def __ne__(self, value):
+        if Dep.stack:
+            get_dep(self).depend()
+        return super().__ne__(value)
+
+    def __rmul__(self, value):
+        if Dep.stack:
+            get_dep(self).depend()
+        return super().__rmul__(value)
 
     def __iter__(self):
         if Dep.stack:
             get_dep(self).depend()
         return super().__iter__()
 
-    def __setitem__(self, key: Any, new_value: Any) -> None:
-        value = super().__getitem__(key)
-        super().__setitem__(key, new_value)
-        if new_value != value:
-            get_dep(self).notify()
+    def __len__(self):
+        if Dep.stack:
+            get_dep(self).depend()
+        return super().__len__()
+
+    def __repr__(self):
+        if Dep.stack:
+            get_dep(self).depend()
+        return super().__repr__()
+
+    def __str__(self):
+        if Dep.stack:
+            get_dep(self).depend()
+        return super().__str__()
 
 
 class ObservableSet(set):

@@ -57,3 +57,11 @@ if __name__ == "__main__":
     a["quuz"]["b"] = 3
     assert not watcher.dirty
     assert called == 1
+
+    assert computed_bla() == 120
+    assert execute_count == 7
+    assert not computed_bla.__watcher__.dirty
+    a["bar"].extend([9, 10])
+    assert computed_bla.__watcher__.dirty
+    assert computed_bla() == 150
+    assert execute_count == 8
