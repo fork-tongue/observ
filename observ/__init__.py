@@ -29,16 +29,6 @@ class Dep:
             sub.update()
 
 
-def get_dep(obj, key=None) -> "Dep":
-    """Store Dep objects on the containers they decorate such that
-    their lifetimes are linked"""
-    if not hasattr(obj, "__deps__"):
-        setattr(obj, "__deps__", {})
-    if key not in obj.__deps__:
-        obj.__deps__[key] = Dep()
-    return obj.__deps__[key]
-
-
 def traverse(obj):
     _traverse(obj, set())
 
@@ -123,221 +113,216 @@ class Watcher:
         self.teardown()
 
 
+def make_observable(cls):
+    def read(fn):
+        @wraps(fn)
+        def inner(self, *args, **kwargs):
+            if Dep.stack:
+                self.__dep__.depend()
+            return fn(self, *args, **kwargs)
+
+        return inner
+
+    def read_key(fn):
+        @wraps(fn)
+        def inner(self, *args, **kwargs):
+            if Dep.stack:
+                key = args[0]  # TODO: test key
+                self.__keydeps__[key].depend()
+                # self.__dep__.depend()  # TODO: is this needed? doesn't appear to be
+            return fn(self, *args, **kwargs)
+
+        return inner
+
+    def write(fn):
+        @wraps(fn)
+        def inner(self, *args, **kwargs):
+            retval = fn(self, *args, **kwargs)
+            self.__dep__.notify()
+            return retval
+
+        return inner
+
+    def write_key(fn):
+        @wraps(fn)
+        def inner(self, *args, **kwargs):
+            retval = fn(self, *args, **kwargs)
+            # TODO prevent firing if value hasn't actually changed?
+            key = args[0]  # TODO: test key
+            if key not in self.__keydeps__:
+                self.__keydeps__[key] = Dep()
+            self.__keydeps__[key].notify()
+            self.__dep__.notify()
+            return retval
+
+        return inner
+
+    todo = [
+        ("_READERS", read),
+        ("_KEYREADERS", read_key),
+        ("_WRITERS", write),
+        ("_KEYWRITERS", write_key),
+    ]
+
+    for category, decorate in todo:
+        for name in getattr(cls, category, set()):
+            fn = getattr(cls, name)
+            setattr(cls, name, decorate(fn))
+
+    return cls
+
+
+@make_observable
 class ObservableDict(dict):
-    # TODO cover all important methods
-    def __getitem__(self, key: Any) -> Any:
-        if Dep.stack:
-            get_dep(self, key).depend()
-        return super().__getitem__(key)
+    _READERS = {
+        "values",
+        "copy",
+        "items",
+        "keys",
+        "__eq__",
+        "__format__",
+        "__ge__",
+        "__gt__",
+        "__hash__",
+        "__iter__",
+        "__le__",
+        "__len__",
+        "__lt__",
+        "__ne__",
+        "__reduce__",
+        "__reduce_ex__",
+        "__repr__",
+        "__sizeof__",
+        "__str__",
+    }
+    _KEYREADERS = {
+        "get",
+        "__contains__",
+        "__getitem__",
+    }
+    _WRITERS = {
+        "clear",
+        "update",
+        "popitem",
+    }
+    _KEYWRITERS = {
+        "pop",
+        "setdefault",
+        "__delitem__",
+        "__setitem__",
+    }
 
-    def values(self):
-        if Dep.stack:
-            get_dep(self).depend()
-        return super().values()
-
-    def __setitem__(self, key: Any, new_value: Any) -> None:
-        value = super().__getitem__(key)
-        super().__setitem__(key, new_value)
-        if new_value != value:
-            get_dep(self, key).notify()
-            get_dep(self).notify()
+    @wraps(dict.__init__)
+    def __init__(self, *args, **kwargs):
+        dict.__init__(self, *args, **kwargs)
+        self.__keydeps__ = {key: Dep() for key in dict.keys(self)}
+        self.__dep__ = Dep()
 
 
+@make_observable
 class ObservableList(list):
-    # WRITE
+    _READERS = {
+        "count",
+        "index",
+        "count",
+        "index",
+        "copy",
+        "__add__",
+        "__getitem__",
+        "__hash__",
+        "__contains__",
+        "__eq__",
+        "__ge__",
+        "__gt__",
+        "__le__",
+        "__lt__",
+        "__mul__",
+        "__ne__",
+        "__rmul__",
+        "__iter__",
+        "__len__",
+        "__repr__",
+        "__str__",
+    }
+    _WRITERS = {
+        "append",
+        "extend",
+        "clear",
+        "extend",
+        "insert",
+        "pop",
+        "remove",
+        "reverse",
+        "sort",
+        "__setitem__",
+        "__delitem__",
+        "__iadd__",
+        "__imul__",
+    }
 
-    def append(self, value):
-        retval = super().append(value)
-        get_dep(self).notify()
-        return retval
-
-    def clear(self):
-        retval = super().clear()
-        get_dep(self).notify()
-        return retval
-
-    def extend(self, value):
-        retval = super().extend(value)
-        get_dep(self).notify()
-        return retval
-
-    def insert(self, index, value):
-        retval = super().insert(index, value)
-        get_dep(self).notify()
-        return retval
-
-    def pop(self, index):
-        retval = super().pop(index)
-        get_dep(self).notify()
-        return retval
-
-    def remove(self, value):
-        retval = super().remove(value)
-        get_dep(self).notify()
-        return retval
-
-    def reverse(self):
-        retval = super().reverse()
-        get_dep(self).notify()
-        return retval
-
-    def sort(self, *args, **kwargs):
-        retval = super().sort(*args, **kwargs)
-        get_dep(self).notify()
-        return retval
-
-    def __setattr__(self, name, value):
-        retval = super().__setattr__(name, value)
-        get_dep(self).notify()
-        return retval
-
-    def __setitem__(self, key, value):
-        old_value = super().__getitem__(key)
-        retval = super().__setitem__(key, value)
-        if old_value != value:
-            get_dep(self).notify()
-        return retval
-
-    def __add__(self, value):
-        retval = super().__add__(value)
-        get_dep(self).notify()
-        return retval
-
-    def __delattr__(self, name):
-        retval = super().__delattr__(name)
-        get_dep(self).notify()
-        return retval
-
-    def __delitem__(self, key):
-        retval = super().__delitem__(key)
-        get_dep(self).notify()
-        return retval
-
-    def __iadd__(self, value):
-        retval = super().__iadd__(value)
-        get_dep(self).notify()
-        return retval
-
-    def __imul__(self, value):
-        retval = super().__imul__(value)
-        get_dep(self).notify()
-        return retval
-
-    # READ
-
-    def count(self, value):
-        if Dep.stack:
-            get_dep(self).depend()
-        return super().count(value)
-
-    def index(self, *args, **kwargs):
-        if Dep.stack:
-            get_dep(self).depend()
-        return super().index(*args, **kwargs)
-
-    def copy(self):
-        if Dep.stack:
-            get_dep(self).depend()
-        return super().copy()
-
-    def __getitem__(self, s):
-        if Dep.stack:
-            get_dep(self).depend()
-        return super().__getitem__(s)
-
-    def __hash__(self):
-        if Dep.stack:
-            get_dep(self).depend()
-        return super().__hash__()
-
-    def __contains__(self, key):
-        if Dep.stack:
-            get_dep(self).depend()
-        return super().__contains__(key)
-
-    def __eq__(self, value):
-        if Dep.stack:
-            get_dep(self).depend()
-        return super().__eq__(value)
-
-    def __ge__(self, value):
-        if Dep.stack:
-            get_dep(self).depend()
-        return super().__ge__(value)
-
-    def __getattribute__(self, name):
-        if Dep.stack and name != '__deps__':
-            get_dep(self).depend()
-        return super().__getattribute__(name)
-
-    def __gt__(self, value):
-        if Dep.stack:
-            get_dep(self).depend()
-        return super().__gt__(value)
-
-    def __le__(self, value):
-        if Dep.stack:
-            get_dep(self).depend()
-        return super().__le__(value)
-
-    def __lt__(self, value):
-        if Dep.stack:
-            get_dep(self).depend()
-        return super().__lt__(value)
-
-    def __mul__(self, value):
-        if Dep.stack:
-            get_dep(self).depend()
-        return super().__mul__(value)
-
-    def __ne__(self, value):
-        if Dep.stack:
-            get_dep(self).depend()
-        return super().__ne__(value)
-
-    def __rmul__(self, value):
-        if Dep.stack:
-            get_dep(self).depend()
-        return super().__rmul__(value)
-
-    def __iter__(self):
-        if Dep.stack:
-            get_dep(self).depend()
-        return super().__iter__()
-
-    def __len__(self):
-        if Dep.stack:
-            get_dep(self).depend()
-        return super().__len__()
-
-    def __repr__(self):
-        if Dep.stack:
-            get_dep(self).depend()
-        return super().__repr__()
-
-    def __str__(self):
-        if Dep.stack:
-            get_dep(self).depend()
-        return super().__str__()
+    @wraps(list.__init__)
+    def __init__(self, *args, **kwargs):
+        list.__init__(self, *args, **kwargs)
+        self.__dep__ = Dep()
 
 
+@make_observable
 class ObservableSet(set):
-    # TODO cover all important methods
-    def __contains__(self, obj: Any) -> Any:
-        if Dep.stack:
-            get_dep(self).depend()
-        return super().__contains__(obj)
+    _READERS = {
+        "copy",
+        "difference",
+        "intersection",
+        "isdisjoint",
+        "issubset",
+        "issuperset",
+        "symmetric_difference",
+        "union",
+        "__and__",
+        "__contains__",
+        "__dir__",
+        "__eq__",
+        "__format__",
+        "__ge__",
+        "__gt__",
+        "__hash__",
+        "__iand__",
+        "__ior__",
+        "__isub__",
+        "__iter__",
+        "__ixor__",
+        "__le__",
+        "__len__",
+        "__lt__",
+        "__ne__",
+        "__or__",
+        "__rand__",
+        "__reduce__",
+        "__reduce_ex__",
+        "__repr__",
+        "__ror__",
+        "__rsub__",
+        "__rxor__",
+        "__sizeof__",
+        "__str__",
+        "__sub__",
+        "__xor__",
+    }
+    _WRITERS = {
+        "add",
+        "clear",
+        "difference_update",
+        "intersection_update",
+        "discard",
+        "pop",
+        "remove",
+        "symmetric_difference_update",
+        "update",
+    }
 
-    def __iter__(self):
-        if Dep.stack:
-            get_dep(self).depend()
-        return super().__iter__()
-
-    def add(self, new_value: Any) -> None:
-        is_new = new_value not in self
-        super().add(new_value)
-        if is_new:
-            get_dep(self).notify()
+    @wraps(set.__init__)
+    def __init__(self, *args, **kwargs):
+        set.__init__(self, *args, **kwargs)
+        self.__dep__ = Dep()
 
 
 def observe(obj, deep=True):
