@@ -128,9 +128,8 @@ def make_observable(cls):
         @wraps(fn)
         def inner(self, *args, **kwargs):
             if Dep.stack:
-                key = args[0]  # TODO: test key
+                key = args[0]
                 self.__keydeps__[key].depend()
-                # self.__dep__.depend()  # TODO: is this needed? doesn't appear to be
             return fn(self, *args, **kwargs)
 
         return inner
@@ -149,7 +148,7 @@ def make_observable(cls):
         def inner(self, *args, **kwargs):
             retval = fn(self, *args, **kwargs)
             # TODO prevent firing if value hasn't actually changed?
-            key = args[0]  # TODO: test key
+            key = args[0]
             if key not in self.__keydeps__:
                 self.__keydeps__[key] = Dep()
             self.__keydeps__[key].notify()
@@ -208,6 +207,9 @@ class ObservableDict(dict):
         "__delitem__",
         "__setitem__",
     }
+
+    # TODO: also remove from __keydeps__ on delete? does it make sense?
+    # might lead to buildup of dep objects on long term
 
     @wraps(dict.__init__)
     def __init__(self, *args, **kwargs):

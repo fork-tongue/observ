@@ -58,7 +58,6 @@ def test_list_notify():
         "append": (5,),
         "extend": ([5],),
         "clear": (),
-        "extend": ([5],),
         "insert": (0, 5),
         "pop": (),
         "remove": (2,),
@@ -180,3 +179,93 @@ def test_set_depend():
         finally:
             Dep.stack.pop()
 
+
+def test_dict_notify():
+    args = {
+        "clear": (),
+        "update": ({5: 6},),
+        "popitem": (),
+    }
+    for name in ObservableDict._WRITERS:
+        coll = ObservableDict({2: 3})
+        coll.__dep__.notify = Mock()
+        for key in coll.__keydeps__.keys():
+            coll.__keydeps__[key].notify = Mock()
+        getattr(coll, name)(*args[name])
+        coll.__dep__.notify.assert_called_once()
+        for key in coll.__keydeps__.keys():
+            coll.__keydeps__[key].notify.assert_not_called()
+
+
+def test_dict_keynotify():
+    args = {
+        "pop": (2,),
+        "setdefault": (3, 5),
+        "__delitem__": (2,),
+        "__setitem__": (2, 4),
+    }
+    for name in ObservableDict._KEYWRITERS:
+        coll = ObservableDict({2: 3})
+        key = args[name][0]
+        is_new_key = key not in coll.__keydeps__
+        coll.__dep__.notify = Mock()
+        for k in coll.__keydeps__.keys():
+            coll.__keydeps__[k].notify = Mock()
+        getattr(coll, name)(*args[name])
+        coll.__dep__.notify.assert_called_once()
+        if is_new_key:
+            assert isinstance(coll.__keydeps__[key], Dep)
+        else:
+            coll.__keydeps__[key].notify.assert_called_once()
+
+
+def test_dict_depend():
+    args = {
+        "values": (),
+        "copy": (),
+        "items": (),
+        "keys": (),
+        "__eq__": ({},),
+        "__format__": ("",),
+        "__ge__": ({},),
+        "__gt__": ({},),
+        "__iter__": (),
+        "__le__": ({},),
+        "__len__": (),
+        "__lt__": ({},),
+        "__ne__": ({},),
+        "__repr__": (),
+        "__sizeof__": (),
+        "__str__": (),
+    }
+    for name in ObservableDict._READERS:
+        Dep.stack.append(None)
+        try:
+            coll = ObservableDict({2: 3})
+            coll.__dep__.depend = Mock()
+            for k in coll.__keydeps__.keys():
+                coll.__keydeps__[k].depend = Mock()
+            getattr(coll, name)(*args[name])
+            coll.__dep__.depend.assert_called()
+        finally:
+            Dep.stack.pop()
+
+
+def test_dict_keydepend():
+    args = {
+        "get": (2,),
+        "__contains__": (2,),
+        "__getitem__": (2,),
+    }
+    for name in ObservableDict._KEYREADERS:
+        Dep.stack.append(None)
+        try:
+            coll = ObservableDict({2: 3})
+            coll.__dep__.depend = Mock()
+            for k in coll.__keydeps__.keys():
+                coll.__keydeps__[k].depend = Mock()
+            getattr(coll, name)(*args[name])
+            coll.__dep__.depend.assert_not_called()
+            coll.__keydeps__[args[name][0]].depend.assert_called_once()
+        finally:
+            Dep.stack.pop()
