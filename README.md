@@ -39,7 +39,7 @@ Install observ with pip/pipenv/poetry:
 Example usage:
 
 ```python
->>> from observ import observe, computed, watch
+>>> from observ import computed, observe, watch
 >>>
 >>> a = observe({"foo": 5})
 >>>

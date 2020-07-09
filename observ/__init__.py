@@ -1,11 +1,11 @@
 __version__ = "0.1.0"
 
 
-from itertools import count
-from typing import Union, Any
 from collections.abc import Container
-from weakref import WeakSet
 from functools import wraps
+from itertools import count
+from typing import Any
+from weakref import WeakSet
 
 
 class Dep:
@@ -243,6 +243,11 @@ class ObservableList(list):
         "__len__",
         "__repr__",
         "__str__",
+        "__format__",
+        "__reduce__",
+        "__reduce_ex__",
+        "__reversed__",
+        "__sizeof__",
     }
     _WRITERS = {
         "append",
@@ -279,7 +284,6 @@ class ObservableSet(set):
         "union",
         "__and__",
         "__contains__",
-        "__dir__",
         "__eq__",
         "__format__",
         "__ge__",

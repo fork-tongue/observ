@@ -1,13 +1,12 @@
-from observ import observe, computed, watch
+from observ import computed, observe, watch
 
 
-if __name__ == "__main__":
-
+def test_usage():
     a = observe({"foo": 5, "bar": [6, 7, 8], "quux": 10, "quuz": {"a": 1, "b": 2}})
     execute_count = 0
 
     def bla():
-        global execute_count
+        nonlocal execute_count
         execute_count += 1
         multi = 0
         if a["quux"] == 10:
@@ -31,7 +30,7 @@ if __name__ == "__main__":
 
     @computed
     def bla2():
-        global execute_count
+        nonlocal execute_count
         execute_count += 1
         return a["foo"] * computed_bla()
 
@@ -46,7 +45,7 @@ if __name__ == "__main__":
     called = 0
 
     def _callback(old_value, new_value):
-        global called
+        nonlocal called
         called += 1
 
     watcher = watch(lambda: a["quuz"], _callback, deep=True, immediate=True)
