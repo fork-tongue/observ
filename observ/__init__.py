@@ -4,6 +4,7 @@ __version__ = "0.1.0"
 from collections.abc import Container
 from functools import wraps
 from itertools import count
+import sys
 from typing import Any
 from weakref import WeakSet
 
@@ -172,7 +173,6 @@ def make_observable(cls):
     return cls
 
 
-@make_observable
 class ObservableDict(dict):
     _READERS = {
         "values",
@@ -217,6 +217,11 @@ class ObservableDict(dict):
         dict.__init__(self, *args, **kwargs)
         self.__keydeps__ = {key: Dep() for key in dict.keys(self)}
         self.__dep__ = Dep()
+
+
+if sys.version_info >= (3, 8, 0):
+    ObservableDict._READERS.add("__reversed__")
+ObservableDict = make_observable(ObservableDict)
 
 
 @make_observable
