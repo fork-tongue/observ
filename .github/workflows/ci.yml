@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: Linux py36
+            pyversion: '3.6'
+          - name: Linux py37
+            pyversion: '3.7'
+          - name: Linux py38
+            pyversion: '3.8'
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.pyversion }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.pyversion }}
+      - name: Install poetry
+        run: |
+            curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
+      - name: Install dependencies
+        run: |
+            poetry install
+      - name: Lint (black and flake8) and test
+        run: |
+            poetry run test
