@@ -6,12 +6,7 @@ def test():
     try:
         run(["flake8"], check=True)
         run(
-            [
-                "pytest",
-                "--cov=observ",
-                "--cov-report=term-missing",
-            ],
-            check=True,
+            ["pytest", "--cov=observ", "--cov-report=term-missing"], check=True,
         )
     except CalledProcessError:
         sys.exit(1)

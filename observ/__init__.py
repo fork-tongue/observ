@@ -336,13 +336,19 @@ class ObservableSet(set):
 
 def observe(obj, deep=True):
     if isinstance(obj, dict):
-        reactive = ObservableDict(obj)
+        if not isinstance(obj, ObservableDict):
+            reactive = ObservableDict(obj)
+        else:
+            reactive = obj
         if deep:
             for k, v in reactive.items():
                 reactive[k] = observe(v)
         return reactive
     elif isinstance(obj, list):
-        reactive = ObservableList(obj)
+        if not isinstance(obj, ObservableList):
+            reactive = ObservableList(obj)
+        else:
+            reactive = obj
         if deep:
             for i, v in enumerate(reactive):
                 reactive[i] = observe(v)
@@ -353,9 +359,14 @@ def observe(obj, deep=True):
             reactive = tuple(observe(v) for v in reactive)
         return reactive
     elif isinstance(obj, set):
-        return (
-            ObservableSet(obj) if not deep else ObservableSet(observe(v) for v in obj)
-        )
+        if deep:
+            return ObservableSet(observe(v) for v in obj)
+        else:
+            if not isinstance(obj, ObservableSet):
+                reactive = ObservableSet(obj)
+            else:
+                reactive = obj
+            return reactive
     elif not isinstance(obj, Container):
         return obj
     else:
