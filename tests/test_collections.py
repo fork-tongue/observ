@@ -237,6 +237,7 @@ def test_dict_depend():
         "__repr__": (),
         "__sizeof__": (),
         "__str__": (),
+        "__reversed__": (),
     }
     for name in ObservableDict._READERS:
         Dep.stack.append(None)
