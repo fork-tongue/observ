@@ -1,4 +1,5 @@
 [![PyPI version](https://badge.fury.io/py/observ.svg)](https://badge.fury.io/py/observ)
+[![CI status](https://github.com/Korijn/observ/workflows/CI/badge.svg)](https://github.com/Korijn/observ/actions)
 
 # Observ 👁
 
