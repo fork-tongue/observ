@@ -157,11 +157,38 @@ def make_observable(cls):
 
         return inner
 
+    def delete(fn):
+        @wraps(fn)
+        def inner(self, *args, **kwargs):
+            retval = fn(self, *args, **kwargs)
+            self.__dep__.notify()
+            for key in self._orphaned_keydeps():
+                self.__keydeps__[key].notify()
+                del self.__keydeps__[key]
+            return retval
+
+        return inner
+
+    def delete_key(fn):
+        @wraps(fn)
+        def inner(self, *args, **kwargs):
+            retval = fn(self, *args, **kwargs)
+            # TODO prevent firing if value hasn't actually changed?
+            key = args[0]
+            self.__dep__.notify()
+            self.__keydeps__[key].notify()
+            del self.__keydeps__[key]
+            return retval
+
+        return inner
+
     todo = [
         ("_READERS", read),
         ("_KEYREADERS", read_key),
         ("_WRITERS", write),
         ("_KEYWRITERS", write_key),
+        ("_DELETERS", delete),
+        ("_KEYDELETERS", delete_key),
     ]
 
     for category, decorate in todo:
@@ -197,25 +224,29 @@ class ObservableDict(dict):
         "__getitem__",
     }
     _WRITERS = {
-        "clear",
         "update",
-        "popitem",
     }
     _KEYWRITERS = {
-        "pop",
         "setdefault",
-        "__delitem__",
         "__setitem__",
     }
-
-    # TODO: also remove from __keydeps__ on delete? does it make sense?
-    # might lead to buildup of dep objects on long term
+    _DELETERS = {
+        "clear",
+        "popitem",
+    }
+    _KEYDELETERS = {
+        "pop",
+        "__delitem__",
+    }
 
     @wraps(dict.__init__)
     def __init__(self, *args, **kwargs):
         dict.__init__(self, *args, **kwargs)
-        self.__keydeps__ = {key: Dep() for key in dict.keys(self)}
         self.__dep__ = Dep()
+        self.__keydeps__ = {key: Dep() for key in dict.keys(self)}
+
+    def _orphaned_keydeps(self):
+        return set(self.__keydeps__.keys()) - set(dict.keys(self))
 
 
 if sys.version_info >= (3, 8, 0):

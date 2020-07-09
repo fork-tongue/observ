@@ -14,6 +14,8 @@ WRAPATTRS = {
     "_KEYREADERS",
     "_WRITERS",
     "_KEYWRITERS",
+    "_DELETERS",
+    "_KEYDELETERS",
 }
 
 # we don't wrap these
@@ -36,6 +38,7 @@ EXCLUDED = {
     "__reduce__",
     "__reduce_ex__",
     "__hash__",
+    "_orphaned_keydeps",
 } | WRAPATTRS
 
 
@@ -182,9 +185,7 @@ def test_set_depend():
 
 def test_dict_notify():
     args = {
-        "clear": (),
         "update": ({5: 6},),
-        "popitem": (),
     }
     for name in ObservableDict._WRITERS:
         coll = ObservableDict({2: 3})
@@ -199,9 +200,7 @@ def test_dict_notify():
 
 def test_dict_keynotify():
     args = {
-        "pop": (2,),
         "setdefault": (3, 5),
-        "__delitem__": (2,),
         "__setitem__": (2, 4),
     }
     for name in ObservableDict._KEYWRITERS:
@@ -270,3 +269,37 @@ def test_dict_keydepend():
             coll.__keydeps__[args[name][0]].depend.assert_called_once()
         finally:
             Dep.stack.pop()
+
+
+def test_dict_delete_notify():
+    args = {
+        "clear": (),
+        "popitem": (),
+    }
+    for name in ObservableDict._DELETERS:
+        coll = ObservableDict({2: 3})
+        coll.__dep__.notify = Mock()
+        for key in coll.__keydeps__.keys():
+            coll.__keydeps__[key].notify = Mock()
+        getattr(coll, name)(*args[name])
+        coll.__dep__.notify.assert_called_once()
+        assert len(coll.__keydeps__) == 0
+
+
+def test_dict_delete_keynotify():
+    args = {
+        "pop": (2,),
+        "__delitem__": (2,),
+    }
+    for name in ObservableDict._KEYDELETERS:
+        coll = ObservableDict({2: 3})
+        key = args[name][0]
+        coll.__dep__.notify = Mock()
+        keymock = Mock()
+        coll.__keydeps__[key] = keymock
+        for k in coll.__keydeps__.keys():
+            coll.__keydeps__[k].notify = Mock()
+        getattr(coll, name)(*args[name])
+        coll.__dep__.notify.assert_called_once()
+        keymock.notify.assert_called_once()
+        assert len(coll.__keydeps__) == 0
