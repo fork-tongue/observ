@@ -10,7 +10,6 @@ def test():
                 "pytest",
                 "--cov=observ",
                 "--cov-report=term-missing",
-                "--cov-fail-under=95",
             ],
             check=True,
         )
