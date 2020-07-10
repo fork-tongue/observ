@@ -20,5 +20,5 @@ def test_observe_new_coll():
 
     # this will only trigger re-evaluation
     # if the list became observable
-    state["bar"][0] = [4]
+    state["bar"][0] = 4
     assert prop() == [4, 2, 3, 4, 2, 3, 4, 2, 3]

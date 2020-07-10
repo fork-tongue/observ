@@ -137,6 +137,8 @@ def make_observable(cls):
     def write(fn):
         @wraps(fn)
         def inner(self, *args, **kwargs):
+            args = tuple(observe(a) for a in args)
+            kwargs = {k: observe(v) for k, v in kwargs.items()}
             retval = fn(self, *args, **kwargs)
             self.__dep__.notify()
             return retval
@@ -146,6 +148,8 @@ def make_observable(cls):
     def write_key(fn):
         @wraps(fn)
         def inner(self, *args, **kwargs):
+            args = [args[0]] + [observe(a) for a in args[1:]]
+            kwargs = {k: observe(v) for k, v in kwargs.items()}
             retval = fn(self, *args, **kwargs)
             # TODO prevent firing if value hasn't actually changed?
             key = args[0]
@@ -356,7 +360,9 @@ class ObservableSet(set):
 
 
 def observe(obj, deep=True):
-    if isinstance(obj, dict):
+    if not isinstance(obj, (dict, list, tuple, set)):
+        return obj  # common case first
+    elif isinstance(obj, dict):
         if not isinstance(obj, ObservableDict):
             reactive = ObservableDict(obj)
         else:
@@ -388,10 +394,6 @@ def observe(obj, deep=True):
             else:
                 reactive = obj
             return reactive
-    elif not isinstance(obj, Container):
-        return obj
-    else:
-        raise NotImplementedError(f"Don't know how to make {type(obj)} reactive")
 
 
 def computed(fn):
