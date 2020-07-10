@@ -23,3 +23,20 @@ def test_deps_copy():
     assert prop() is not state
     assert len(prop.__watcher__._deps) == 3
     assert call_count == 2
+
+
+def test_deps_delete():
+    # test that dep objects are removed on delete
+    state = observe({"foo": 5, "bar": 6})
+
+    state["baz"] = 5
+    assert len(state.__keydeps__) == 3
+
+    del state["baz"]
+    assert len(state.__keydeps__) == 2
+
+    state.popitem()
+    assert len(state.__keydeps__) == 1
+
+    state.clear()
+    assert len(state.__keydeps__) == 0
