@@ -148,15 +148,18 @@ def make_observable(cls):
     def write_key(fn):
         @wraps(fn)
         def inner(self, *args, **kwargs):
-            args = [args[0]] + [observe(a) for a in args[1:]]
+            key = args[0]
+            is_new = key not in self.__keydeps__
+            old_value = cls.__getitem__(self, key) if not is_new else None
+            args = [key] + [observe(a) for a in args[1:]]
             kwargs = {k: observe(v) for k, v in kwargs.items()}
             retval = fn(self, *args, **kwargs)
-            # TODO prevent firing if value hasn't actually changed?
-            key = args[0]
-            if key not in self.__keydeps__:
+            new_value = cls.__getitem__(self, key)
+            if is_new:
                 self.__keydeps__[key] = Dep()
-            self.__keydeps__[key].notify()
-            self.__dep__.notify()
+            if old_value != new_value:
+                self.__keydeps__[key].notify()
+                self.__dep__.notify()
             return retval
 
         return inner
