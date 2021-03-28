@@ -39,6 +39,7 @@ EXCLUDED = {
     "__reduce_ex__",
     "__hash__",
     "_orphaned_keydeps",
+    "__class_getitem__",
 } | WRAPATTRS
 
 
@@ -186,6 +187,7 @@ def test_set_depend():
 def test_dict_notify():
     args = {
         "update": ({5: 6},),
+        "__ior__": ({5: 6},),
     }
     for name in ObservableDict._WRITERS:
         coll = ObservableDict({2: 3})
@@ -237,6 +239,9 @@ def test_dict_depend():
         "__sizeof__": (),
         "__str__": (),
         "__reversed__": (),
+        "__ror__": ({},),
+        "__or__": ({},),
+        "__ior__": ({},),
     }
     for name in ObservableDict._READERS:
         Dep.stack.append(None)

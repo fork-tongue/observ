@@ -258,6 +258,10 @@ class ObservableDict(dict):
 
 if sys.version_info >= (3, 8, 0):
     ObservableDict._READERS.add("__reversed__")
+if sys.version_info >= (3, 9, 0):
+    ObservableDict._READERS.add("__or__")
+    ObservableDict._READERS.add("__ror__")
+    ObservableDict._WRITERS.add("__ior__")
 ObservableDict = make_observable(ObservableDict)
 
 

@@ -2,11 +2,11 @@ from subprocess import CalledProcessError, run
 import sys
 
 
-def test():
+def test(args):
     try:
         run(["flake8"], check=True)
         run(
-            ["pytest", "--cov=observ", "--cov-report=term-missing"], check=True,
+            ["pytest", "--cov=observ", "--cov-report=term-missing"] + args, check=True,
         )
     except CalledProcessError:
         sys.exit(1)
@@ -15,7 +15,7 @@ def test():
 def main():
     cmd = sys.argv[0]
     if cmd == "test":
-        test()
+        test(sys.argv[1:])
     else:
         sys.exit(1)
 

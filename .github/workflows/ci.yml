@@ -21,6 +21,8 @@ jobs:
             pyversion: '3.7'
           - name: Linux py38
             pyversion: '3.8'
+          - name: Linux py39
+            pyversion: '3.9'
 
     steps:
       - uses: actions/checkout@v2
