@@ -31,8 +31,7 @@ class Display(QWidget):
                 return "Please click the button below"
             return f"Clicked {state['clicked']} times!"
 
-        self.watcher = watch(lambda: label_text(), self.update_label)
-        self.watcher.update()
+        self.watcher = watch(lambda: label_text(), self.update_label, immediate=True)
 
     def update_label(self, old_value, new_value):
         self.label.setText(new_value)
