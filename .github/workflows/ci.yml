@@ -21,6 +21,8 @@ jobs:
             pyversion: '3.7'
           - name: Linux py38
             pyversion: '3.8'
+          - name: Linux py39
+            pyversion: '3.9'
 
     steps:
       - uses: actions/checkout@v2
@@ -31,7 +33,7 @@ jobs:
       - name: Install poetry
         run: |
             curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
-            echo "::add-path::$HOME/.poetry/bin"
+            echo "$HOME/.poetry/bin" >> $GITHUB_PATH
       - name: Install dependencies
         run: |
             poetry install
