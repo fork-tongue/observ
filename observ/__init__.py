@@ -19,7 +19,10 @@ class Dep:
         self._subs.add(sub)
 
     def remove_sub(self, sub: "Watcher") -> None:
-        self._subs.remove(sub)
+        try:
+            self._subs.remove(sub)
+        except KeyError:
+            pass  # this can happen at shutdown of the app, which is fine
 
     def depend(self) -> None:
         if self.stack:
