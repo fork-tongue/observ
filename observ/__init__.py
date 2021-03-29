@@ -421,5 +421,6 @@ def computed(fn):
 def watch(fn, callback, deep=False, immediate=False):
     watcher = Watcher(fn, lazy=False, deep=deep, callback=callback)
     if immediate:
+        watcher.dirty = True
         watcher.evaluate()
     return watcher
