@@ -48,7 +48,7 @@ def test_usage():
         nonlocal called
         called += 1
 
-    watcher = watch(lambda: a["quuz"], _callback, deep=True, immediate=False)
+    watcher = watch(lambda: a["quuz"], _callback, sync=True, deep=True, immediate=False)
     assert not watcher.dirty
     assert watcher.value == a["quuz"]
     assert len(watcher._deps) > 1
@@ -75,7 +75,7 @@ def test_watch_immediate():
         nonlocal called
         called += 1
 
-    watcher = watch(lambda: a["quuz"], _callback, deep=True, immediate=True)
+    watcher = watch(lambda: a["quuz"], _callback, sync=True, deep=True, immediate=True)
     assert not watcher.dirty
     assert watcher.value == a["quuz"]
     assert len(watcher._deps) > 1
@@ -100,8 +100,8 @@ def test_usage_deep_vs_non_deep():
         nonlocal deep_called
         deep_called += 1
 
-    watcher = watch(lambda: a["foo"], _non_deep_callback)
-    deep_watcher = watch(lambda: a["foo"], _deep_callback, deep=True)
+    watcher = watch(lambda: a["foo"], _non_deep_callback, sync=True)
+    deep_watcher = watch(lambda: a["foo"], _deep_callback, sync=True, deep=True)
     assert not watcher.dirty
     assert not deep_watcher.dirty
     assert non_deep_called == 0

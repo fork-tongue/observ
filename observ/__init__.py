@@ -5,12 +5,12 @@ from collections.abc import Container
 from functools import wraps
 from itertools import count
 import sys
-from typing import Any
+from typing import Any, List
 from weakref import WeakSet
 
 
 class Dep:
-    stack = []
+    stack: List["Watcher"] = []
 
     def __init__(self) -> None:
         self._subs = WeakSet()
@@ -47,15 +47,78 @@ def _traverse(obj, seen):
             _traverse(v, seen)
 
 
+# Every Watcher gets a unique ID which is used to
+# keep track of the order in which subscribers will
+# be notified
 _ids = count()
 
 
+class Scheduler:
+    def __init__(self):
+        self._queue = []
+        self.flushing = False
+        self.has = set()
+        self.circular = {}
+        self.index = 0
+
+    def flush(self):
+        """Call this as many times as you want"""
+        if not self._queue:
+            return
+
+        self.flushing = True
+        self._queue.sort(key=lambda s: s.id)
+
+        while self.index < len(self._queue):
+            watcher = self._queue[self.index]
+            self.has.remove(watcher.id)
+            watcher.run()
+
+            if watcher.id in self.has:
+                self.circular[watcher.id] = self.circular.get(watcher.id, 0) + 1
+                if self.circular[watcher.id] > 100:
+                    # TODO: help user to figure out which watcher
+                    # or function this is about
+                    raise RecursionError("Infinite update loop detected")
+
+            self.index += 1
+
+        self._queue.clear()
+        self.flushing = False
+        self.has.clear()
+        self.circular.clear()
+        self.index = 0
+
+    def queue(self, watcher: "Watcher"):
+        if watcher.id in self.has:
+            return
+
+        self.has.add(watcher.id)
+        if not self.flushing:
+            self._queue.append(watcher)
+        else:
+            # If already flushing, splice the watcher based on its id
+            # If already past its id, it will be run next immediately.
+            i = len(self._queue) - 1
+            while i > self.index and self._queue[i].id > watcher.id:
+                i -= 1
+            self._queue.insert(i, watcher)
+
+
+# Construct global instance
+scheduler = Scheduler()
+
+
 class Watcher:
-    def __init__(self, fn, lazy=True, deep=False, callback=None) -> None:
+    def __init__(self, fn, sync=False, lazy=True, deep=False, callback=None) -> None:
+        """
+        sync: ignore the scheduler
+        """
         self.id = next(_ids)
         self.fn = fn
         self._deps, self._new_deps = WeakSet(), WeakSet()
 
+        self.sync = sync
         self.callback = callback
         self.deep = deep
         self.lazy = lazy
@@ -63,15 +126,23 @@ class Watcher:
         self.value = None if self.lazy else self.get()
 
     def update(self) -> None:
-        self.dirty = True
-        if not self.lazy:
-            self.evaluate()
+        if self.lazy:
+            self.dirty = True
+        elif self.sync:
+            self.run()
+        else:
+            scheduler.queue(self)
 
     def evaluate(self) -> None:
-        if self.dirty:
+        self.value = self.get()
+        self.dirty = False
+
+    def run(self) -> None:
+        """Called by scheduler"""
+        value = self.get()
+        if self.deep or isinstance(value, Container) or value != self.value:
             old_value = self.value
-            self.value = self.get()
-            self.dirty = False
+            self.value = value
             if self.callback:
                 self.callback(old_value, self.value)
 
@@ -140,6 +211,7 @@ def make_observable(cls):
             args = tuple(observe(a) for a in args)
             kwargs = {k: observe(v) for k, v in kwargs.items()}
             retval = fn(self, *args, **kwargs)
+            # TODO prevent firing if value hasn't actually changed?
             self.__dep__.notify()
             return retval
 
@@ -180,7 +252,6 @@ def make_observable(cls):
         @wraps(fn)
         def inner(self, *args, **kwargs):
             retval = fn(self, *args, **kwargs)
-            # TODO prevent firing if value hasn't actually changed?
             key = args[0]
             self.__dep__.notify()
             self.__keydeps__[key].notify()
@@ -367,6 +438,7 @@ class ObservableSet(set):
 
 
 def observe(obj, deep=True):
+    """Please be aware: this only works on plain data types!"""
     if not isinstance(obj, (dict, list, tuple, set)):
         return obj  # common case first
     elif isinstance(obj, dict):
@@ -418,9 +490,11 @@ def computed(fn):
     return getter
 
 
-def watch(fn, callback, deep=False, immediate=False):
-    watcher = Watcher(fn, lazy=False, deep=deep, callback=callback)
+def watch(fn, callback, sync=False, deep=False, immediate=False):
+    watcher = Watcher(fn, sync=sync, lazy=False, deep=deep, callback=callback)
     if immediate:
         watcher.dirty = True
         watcher.evaluate()
+        if watcher.callback:
+            watcher.callback(None, watcher.value)
     return watcher
