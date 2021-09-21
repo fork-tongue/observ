@@ -10,7 +10,7 @@ based on the state changes.
 from time import sleep
 
 from observ import observe, watch, scheduler
-from PyQt5.QtWidgets import (
+from PySide6.QtWidgets import (
     QApplication,
     QLabel,
     QProgressBar,
@@ -18,7 +18,7 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from PyQt5.QtCore import QObject, QThread, Signal, QTimer
+from PySide6.QtCore import QObject, QThread, Signal, QTimer
 
 
 class Display(QWidget):
@@ -145,4 +145,4 @@ if __name__ == "__main__":
     widget.show()
     widget.setWindowTitle("Clicked?")
 
-    app.exec_()
+    app.exec()
