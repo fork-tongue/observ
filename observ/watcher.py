@@ -79,6 +79,8 @@ class Watcher:
         Dep.stack.append(self)
         try:
             value = self.fn()
+        except Exception:
+            raise RuntimeError(f"Error occured while evaluating {self.fn_fqn}")
         finally:
             if self.deep:
                 traverse(value)
@@ -105,3 +107,7 @@ class Watcher:
         if Dep.stack:
             for dep in self._deps:
                 dep.depend()
+
+    @property
+    def fn_fqn(self) -> str:
+        return f"{self.fn.__module__}.{self.fn.__qualname__}"

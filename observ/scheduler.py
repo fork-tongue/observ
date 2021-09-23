@@ -3,6 +3,7 @@ The scheduler queues up and deduplicates re-evaluation of lazy Watchers
 and should be integrated in the event loop of your choosing.
 """
 from bisect import bisect
+import importlib
 
 
 class Scheduler:
@@ -19,10 +20,16 @@ class Scheduler:
         """
         Utility function for integration with Qt event loop
         """
-        # Currently only supports PySide6
-        from PySide6.QtCore import QTimer
+        for qt in ("PySide6", "PyQt6", "PySide2", "PyQt5", "PySide", "PyQt4"):
+            try:
+                QtCore = importlib.import_module(f"{qt}.QtCore")
+                break
+            except ImportError:
+                continue
+        else:
+            raise ImportError("Could not import QTimer")
 
-        self.timer = QTimer()
+        self.timer = QtCore.QTimer()
         self.timer.setSingleShot(True)
         self.timer.timeout.connect(scheduler.flush)
         # Set interval to 0 to trigger the timer as soon
@@ -58,7 +65,9 @@ class Scheduler:
             if watcher.id in self.has:
                 self.circular[watcher.id] = self.circular.get(watcher.id, 0) + 1
                 if self.circular[watcher.id] > 100:
-                    raise RecursionError(f"Infinite update loop detected in {watcher.fn.__module__}.{watcher.fn.__qualname__}")
+                    raise RecursionError(
+                        f"Infinite update loop detected in {watcher.fn_fqn}"
+                    )
 
             self.index += 1
 
