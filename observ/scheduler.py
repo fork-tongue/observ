@@ -72,6 +72,9 @@ class Scheduler:
         self.index = 0
 
     def queue(self, watcher: "Watcher"):  # noqa: F821
+        if not self.request_flush:
+            raise ValueError("Scheduler cannot flush without a request handler")
+
         if watcher.id in self.has:
             return
 
@@ -79,7 +82,7 @@ class Scheduler:
         if not self.flushing:
             self._queue.append(watcher)
             self._queue_indices.append(watcher.id)
-            if not self.waiting and self.request_flush:
+            if not self.waiting:
                 self.waiting = True
                 self.request_flush()
         else:
