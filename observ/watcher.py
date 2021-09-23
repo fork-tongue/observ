@@ -109,7 +109,3 @@ class Watcher:
     @property
     def fn_fqn(self) -> str:
         return f"{self.fn.__module__}.{self.fn.__qualname__}"
-
-    @property
-    def callback_fqn(self) -> str:
-        return f"{self.callback.__module__}.{self.callback.__qualname__}"
