@@ -105,3 +105,7 @@ class Watcher:
         if Dep.stack:
             for dep in self._deps:
                 dep.depend()
+
+    @property
+    def fn_fqn(self) -> str:
+        return f"{self.fn.__module__}.{self.fn.__qualname__}"
