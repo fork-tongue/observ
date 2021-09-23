@@ -68,7 +68,10 @@ def test_list_notify():
         "remove": (2,),
         "reverse": (),
         "sort": (),
-        "__setitem__": (0, 5,),
+        "__setitem__": (
+            0,
+            5,
+        ),
         "__delitem__": (0,),
         "__iadd__": ([5],),
         "__imul__": (5,),

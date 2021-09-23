@@ -48,7 +48,10 @@ class Display(QWidget):
             return state["progress"] > 0
 
         self.watcher = watch(label_text, self.update_label, immediate=True)
-        self.progress_watch = watch(lambda: state["progress"], self.update_progress,)
+        self.progress_watch = watch(
+            lambda: state["progress"],
+            self.update_progress,
+        )
         self.progress_visible = watch(
             progress_visible, self.update_visibility, immediate=True
         )
