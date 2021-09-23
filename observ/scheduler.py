@@ -27,7 +27,7 @@ class Scheduler:
             except ImportError:
                 continue
         else:
-            raise ImportError("Could not import QTimer")
+            raise ImportError("Could not import QtCore")
 
         self.timer = QtCore.QTimer()
         self.timer.setSingleShot(True)
