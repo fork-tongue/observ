@@ -45,6 +45,7 @@ class Display(QWidget):
             return f"Clicked {state['clicked']} times!"
 
         def progress_visible():
+            self.state["progress"] += 1
             return state["progress"] > 0
 
         self.watcher = watch(label_text, self.update_label, immediate=True)

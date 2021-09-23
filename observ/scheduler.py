@@ -66,7 +66,8 @@ class Scheduler:
                 self.circular[watcher.id] = self.circular.get(watcher.id, 0) + 1
                 if self.circular[watcher.id] > 100:
                     raise RecursionError(
-                        f"Infinite update loop detected in {watcher.fn_fqn}"
+                        "Infinite update loop detected in watched"
+                        f" expression {watcher.fn_fqn}"
                     )
 
             self.index += 1
