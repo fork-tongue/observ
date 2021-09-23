@@ -1,24 +1,25 @@
 [tool.poetry]
 name = "observ"
-version = "0.3.0"
-description = ""
+version = "0.4.0"
+description = "Reactive state management for Python"
 authors = ["Korijn van Golen <korijn@gmail.com>"]
 license = "MIT"
 homepage = "https://github.com/Korijn/observ"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.6"
+python = ">=3.6,<3.10"
 
 [tool.poetry.dev-dependencies]
-black = "^19.10b0"
-flake8 = "^3.8.3"
-flake8-black = "^0.2.0"
-flake8-import-order = "^0.18.1"
-flake8-print = "^3.1.4"
-pytest = "^5.4.3"
-pytest-cov = "^2.10.0"
-# PyQt5 = "^5.15.4"  # needed for PyQt example
+black = "*"
+flake8 = "*"
+flake8-black = "*"
+flake8-import-order = "*"
+flake8-print = "*"
+pytest = "*"
+pytest-cov = "*"
+PySide6 = "*"
+twine = "*"
 
 [build-system]
 requires = ["poetry>=0.12"]

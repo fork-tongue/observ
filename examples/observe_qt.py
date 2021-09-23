@@ -7,9 +7,19 @@ adjusts the state while the other watches the state
 and updates the label whenever a computed property
 based on the state changes.
 """
+from time import sleep
 
-from observ import computed, observe, watch
-from PyQt5.QtWidgets import QApplication, QLabel, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtCore import QObject, QThread, Signal
+from PySide6.QtWidgets import (
+    QApplication,
+    QLabel,
+    QProgressBar,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+
+from observ import observe, scheduler, watch
 
 
 class Display(QWidget):
@@ -19,22 +29,60 @@ class Display(QWidget):
         self.state = state
 
         self.label = QLabel()
+        self.progress = QProgressBar()
+        self.progress.setMinimum(0)
+        self.progress.setMaximum(100)
 
         layout = QVBoxLayout()
         layout.addWidget(self.label)
+        layout.addWidget(self.progress)
 
         self.setLayout(layout)
 
-        @computed
         def label_text():
             if state["clicked"] == 0:
                 return "Please click the button below"
             return f"Clicked {state['clicked']} times!"
 
+        def progress_visible():
+            return state["progress"] > 0
+
         self.watcher = watch(label_text, self.update_label, immediate=True)
+        self.progress_watch = watch(
+            lambda: state["progress"],
+            self.update_progress,
+        )
+        self.progress_visible = watch(
+            progress_visible, self.update_visibility, immediate=True
+        )
+
+    def update_progress(self, old_value, new_value):
+        # Trigger another watcher during scheduler flush
+        if new_value == 50:
+            self.state["clicked"] += 0.5
+        self.progress.setValue(new_value)
 
     def update_label(self, old_value, new_value):
         self.label.setText(new_value)
+
+    def update_visibility(self, old_value, new_value):
+        self.progress.setVisible(new_value)
+
+
+class LongJob(QObject):
+    progress = Signal(int)
+    result = Signal(int)
+    finished = Signal()
+
+    def run(self):
+        self.progress.emit(0)
+        for i in range(100):
+            sleep(1 / 100.0)
+            self.progress.emit(i + 1)
+
+        self.progress.emit(0)
+        self.result.emit(1)
+        self.finished.emit()
 
 
 class Controls(QWidget):
@@ -56,7 +104,26 @@ class Controls(QWidget):
         self.reset.clicked.connect(self.on_reset_clicked)
 
     def on_button_clicked(self):
-        self.state["clicked"] += 1
+        self.thread = QThread()
+        self.worker = LongJob()
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+
+        self.thread.start()
+
+        def progress(x):
+            self.state["progress"] = x
+
+        def bump(x):
+            self.state["clicked"] += x * 0.5
+
+        self.button.setEnabled(False)
+        self.thread.finished.connect(lambda: self.button.setEnabled(True))
+        self.worker.result.connect(lambda x: bump(x))
+        self.worker.progress.connect(lambda x: progress(x))
 
     def on_reset_clicked(self):
         self.state["clicked"] = 0
@@ -64,9 +131,11 @@ class Controls(QWidget):
 
 if __name__ == "__main__":
     # Define some state
-    state = observe({"clicked": 0})
+    state = observe({"clicked": 0, "progress": 0})
 
     app = QApplication([])
+
+    scheduler.register_qt()
 
     # Create layout and pass state to widgets
     layout = QVBoxLayout()
@@ -78,4 +147,4 @@ if __name__ == "__main__":
     widget.show()
     widget.setWindowTitle("Clicked?")
 
-    app.exec_()
+    app.exec()

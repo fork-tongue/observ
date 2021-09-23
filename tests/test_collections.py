@@ -1,6 +1,7 @@
 from unittest.mock import Mock
 
-from observ import Dep, ObservableDict, ObservableList, ObservableSet
+from observ.dep import Dep
+from observ.observables import ObservableDict, ObservableList, ObservableSet
 
 
 COLLECTIONS = {
@@ -67,7 +68,10 @@ def test_list_notify():
         "remove": (2,),
         "reverse": (),
         "sort": (),
-        "__setitem__": (0, 5,),
+        "__setitem__": (
+            0,
+            5,
+        ),
         "__delitem__": (0,),
         "__iadd__": ([5],),
         "__imul__": (5,),
