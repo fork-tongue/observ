@@ -9,7 +9,7 @@ based on the state changes.
 """
 from time import sleep
 
-from PySide6.QtCore import QObject, QThread, QTimer, Signal
+from PySide6.QtCore import QObject, QThread, Signal
 from PySide6.QtWidgets import (
     QApplication,
     QLabel,
@@ -48,14 +48,13 @@ class Display(QWidget):
             return state["progress"] > 0
 
         self.watcher = watch(label_text, self.update_label, immediate=True)
-        self.progress_watch = watch(
-            lambda: state["progress"],
-            lambda _, new: self.progress.setValue(new),
-            immediate=True,
-        )
+        self.progress_watch = watch(lambda: state["progress"], self.update_progress,)
         self.progress_visible = watch(
             progress_visible, self.update_visibility, immediate=True
         )
+
+    def update_progress(self, old_value, new_value):
+        self.progress.setValue(new_value)
 
     def update_label(self, old_value, new_value):
         self.label.setText(new_value)
@@ -72,7 +71,7 @@ class LongJob(QObject):
     def run(self):
         self.progress.emit(0)
         for i in range(100):
-            sleep(2 / 100.0)
+            sleep(1 / 100.0)
             self.progress.emit(i + 1)
 
         self.progress.emit(0)
@@ -130,11 +129,7 @@ if __name__ == "__main__":
 
     app = QApplication([])
 
-    # Use a timer to run the scheduler
-    timer = QTimer()
-    timer.timeout.connect(scheduler.flush)
-    timer.setInterval(1000 / 60)
-    timer.start()
+    scheduler.register_qt()
 
     # Create layout and pass state to widgets
     layout = QVBoxLayout()

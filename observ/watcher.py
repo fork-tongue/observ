@@ -38,7 +38,10 @@ _ids = count()
 class Watcher:
     def __init__(self, fn, sync=False, lazy=True, deep=False, callback=None) -> None:
         """
-        sync: ignore the scheduler
+        sync: Ignore the scheduler
+        lazy: Only reevalutate when value is requested
+        deep: Deep watch the watched value
+        callback: Method to call when value has changed
         """
         self.id = next(_ids)
         self.fn = fn
