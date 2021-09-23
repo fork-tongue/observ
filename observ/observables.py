@@ -1,3 +1,7 @@
+"""
+observe converts plain datastructures (dict, list, set) to
+proxied versions of those datastructures to make them reactive.
+"""
 from functools import wraps
 import sys
 

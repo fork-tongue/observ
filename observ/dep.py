@@ -1,3 +1,7 @@
+"""
+Deps implement the classic observable pattern, and
+are attached to observable datastructures.
+"""
 from typing import List
 from weakref import WeakSet
 

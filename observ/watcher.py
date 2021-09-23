@@ -1,3 +1,8 @@
+"""
+watchers perform dependency tracking via functions acting on
+observable datastructures, and optionally trigger callback when
+a change is detected.
+"""
 from collections.abc import Container
 from itertools import count
 from typing import Any

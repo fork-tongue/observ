@@ -1,3 +1,9 @@
+"""
+The scheduler queues up and deduplicates re-evaluation of lazy Watchers
+and should be integrated in the event loop of your choosing.
+"""
+
+
 class Scheduler:
     def __init__(self):
         self._queue = []

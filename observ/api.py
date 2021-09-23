@@ -1,3 +1,6 @@
+"""
+Defines the public API for observ users
+"""
 from functools import wraps
 
 from .dep import Dep
