@@ -54,6 +54,9 @@ class Display(QWidget):
         )
 
     def update_progress(self, old_value, new_value):
+        # Trigger another watcher during scheduler flush
+        if new_value == 50:
+            self.state["clicked"] += 0.5
         self.progress.setValue(new_value)
 
     def update_label(self, old_value, new_value):
@@ -112,7 +115,7 @@ class Controls(QWidget):
             self.state["progress"] = x
 
         def bump(x):
-            self.state["clicked"] += x
+            self.state["clicked"] += x * 0.5
 
         self.button.setEnabled(False)
         self.thread.finished.connect(lambda: self.button.setEnabled(True))

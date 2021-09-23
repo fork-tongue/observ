@@ -2,11 +2,13 @@
 The scheduler queues up and deduplicates re-evaluation of lazy Watchers
 and should be integrated in the event loop of your choosing.
 """
+from bisect import bisect
 
 
 class Scheduler:
     def __init__(self):
         self._queue = []
+        self._queue_indices = []
         self.flushing = False
         self.has = set()
         self.circular = {}
@@ -46,10 +48,11 @@ class Scheduler:
         self.flushing = True
         self.waiting = False
         self._queue.sort(key=lambda s: s.id)
+        self._queue_indices.sort()
 
         while self.index < len(self._queue):
             watcher = self._queue[self.index]
-            self.has.remove(watcher.id)
+            self.has.discard(watcher.id)
             watcher.run()
 
             if watcher.id in self.has:
@@ -62,6 +65,7 @@ class Scheduler:
             self.index += 1
 
         self._queue.clear()
+        self._queue_indices.clear()
         self.flushing = False
         self.has.clear()
         self.circular.clear()
@@ -74,16 +78,19 @@ class Scheduler:
         self.has.add(watcher.id)
         if not self.flushing:
             self._queue.append(watcher)
+            self._queue_indices.append(watcher.id)
             if not self.waiting and self.request_flush:
                 self.waiting = True
                 self.request_flush()
         else:
             # If already flushing, splice the watcher based on its id
             # If already past its id, it will be run next immediately.
-            i = len(self._queue) - 1
-            while i > self.index and self._queue[i].id > watcher.id:
-                i -= 1
+            # Last part of the queue should stay ordered, in order to
+            # properly make use of bisect and avoid deadlocks
+            i = bisect(self._queue_indices[self.index + 1 :], watcher.id)
+            i += self.index + 1
             self._queue.insert(i, watcher)
+            self._queue_indices.insert(i, watcher.id)
 
 
 # Construct global instance
