@@ -105,10 +105,3 @@ class Watcher:
         if Dep.stack:
             for dep in self._deps:
                 dep.depend()
-
-    def teardown(self) -> None:
-        for dep in self._deps:
-            dep.remove_sub(self)
-
-    def __del__(self) -> None:
-        self.teardown()
