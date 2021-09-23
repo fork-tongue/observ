@@ -15,6 +15,7 @@ jobs:
     name: Lint and test on ${{ matrix.name }}
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         include:
           - name: Linux py36
@@ -34,7 +35,7 @@ jobs:
       - name: Install poetry
         run: pip install "poetry>=1.1.8,<1.2"
       - name: Install dependencies
-        run: poetry install
+        run: poetry install --extras "lint test"
       - name: Lint
         run: poetry run flake8
       - name: Test
@@ -52,11 +53,11 @@ jobs:
     - name: Install poetry
       run: pip install "poetry>=1.1.8,<1.2"
     - name: Install dependencies
-      run: poetry install
+      run: poetry install --extras "release"
     - name: Build wheel
       run: poetry build
     - name: Twine check
-      run: twine check dist/*
+      run: poetry run twine check dist/*
     - name: Upload wheel artifact
       uses: actions/upload-artifact@v2
       with:
