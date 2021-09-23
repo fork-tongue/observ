@@ -9,7 +9,6 @@ based on the state changes.
 """
 from time import sleep
 
-from observ import observe, scheduler, watch
 from PySide6.QtCore import QObject, QThread, QTimer, Signal
 from PySide6.QtWidgets import (
     QApplication,
@@ -19,6 +18,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from observ import observe, scheduler, watch
 
 
 class Display(QWidget):

@@ -1,6 +1,7 @@
 from unittest.mock import Mock
 
-from observ import Dep, ObservableDict, ObservableList, ObservableSet
+from observ.dep import Dep
+from observ.observables import ObservableDict, ObservableList, ObservableSet
 
 
 COLLECTIONS = {
