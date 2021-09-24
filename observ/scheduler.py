@@ -16,6 +16,7 @@ class Scheduler:
         self.index = 0
         self.waiting = False
         self.request_flush = self.request_flush_raise
+        self.detect_cycles = True
 
     def request_flush_raise(self):
         """
@@ -69,7 +70,7 @@ class Scheduler:
             self.has.discard(watcher.id)
             watcher.run()
 
-            if watcher.id in self.has:
+            if self.detect_cycles:  # and watcher.id in self.has:
                 self.circular[watcher.id] = self.circular.get(watcher.id, 0) + 1
                 if self.circular[watcher.id] > 100:
                     raise RecursionError(
