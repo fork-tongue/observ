@@ -33,5 +33,5 @@ def watch(fn, callback, sync=False, deep=False, immediate=False):
         watcher.dirty = True
         watcher.evaluate()
         if watcher.callback:
-            watcher.callback(None, watcher.value)
+            watcher.run_callback(None, watcher.value)
     return watcher

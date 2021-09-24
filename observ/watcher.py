@@ -53,6 +53,7 @@ class Watcher:
         self.lazy = lazy
         self.dirty = self.lazy
         self.value = None if self.lazy else self.get()
+        self._number_of_callback_args = None
 
     def update(self) -> None:
         if self.lazy:
@@ -73,7 +74,37 @@ class Watcher:
             old_value = self.value
             self.value = value
             if self.callback:
-                self.callback(old_value, self.value)
+                self.run_callback(old_value, self.value)
+
+    def run_callback(self, old, new):
+        """
+        Runs the callback. When the number of arguments is still unknown
+        for the callback, it will fall into the try/except contstruct
+        to figure out the right number of arguments.
+        After running the callback one time, the number of arguments
+        is known and the callback can be called with the correct
+        amount of arguments.
+        """
+        if self._number_of_callback_args == 1:
+            self.callback(new)
+            return
+        if self._number_of_callback_args == 2:
+            self.callback(old, new)
+            return
+        if self._number_of_callback_args == 0:
+            self.callback()
+            return
+
+        try:
+            self.callback(new)
+            self._number_of_callback_args = 1
+        except TypeError:
+            try:
+                self.callback(old, new)
+                self._number_of_callback_args = 2
+            except TypeError:
+                self.callback()
+                self._number_of_callback_args = 0
 
     def get(self) -> Any:
         Dep.stack.append(self)
