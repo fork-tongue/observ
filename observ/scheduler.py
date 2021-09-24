@@ -3,6 +3,7 @@ The scheduler queues up and deduplicates re-evaluation of lazy Watchers
 and should be integrated in the event loop of your choosing.
 """
 from bisect import bisect
+from collections import defaultdict
 import importlib
 
 
@@ -12,7 +13,7 @@ class Scheduler:
         self._queue_indices = []
         self.flushing = False
         self.has = set()
-        self.circular = {}
+        self.circular = defaultdict(int)
         self.index = 0
         self.waiting = False
         self.request_flush = self.request_flush_raise
@@ -71,7 +72,7 @@ class Scheduler:
             watcher.run()
 
             if self.detect_cycles:  # and watcher.id in self.has:
-                self.circular[watcher.id] = self.circular.get(watcher.id, 0) + 1
+                self.circular[watcher.id] += 1
                 if self.circular[watcher.id] > 100:
                     raise RecursionError(
                         "Infinite update loop detected in watched"

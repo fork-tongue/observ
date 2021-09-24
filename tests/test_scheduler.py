@@ -147,12 +147,6 @@ def test_queue_cycle_indirect(noop_request_flush):
     calls_1 = 0
     calls_2 = 0
 
-    def exp_1():
-        if state["foo"] == 5:
-            return state["foo"]
-        else:
-            return state["bar"]
-
     def cb_1(old, new):
         nonlocal calls_1
         calls_1 += 1
