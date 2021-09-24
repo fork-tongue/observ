@@ -15,6 +15,19 @@ class Scheduler:
         self.circular = {}
         self.index = 0
         self.waiting = False
+        self.request_flush = self.request_flush_raise
+
+    def request_flush_raise(self):
+        """
+        Error raising default request flusher.
+        """
+        raise ValueError("No flush request handler registered")
+
+    def register_request_flush(self, callback):
+        """
+        Register callback for registering a call to flush
+        """
+        self.request_flush = callback
 
     def register_qt(self):
         """
@@ -35,13 +48,7 @@ class Scheduler:
         # Set interval to 0 to trigger the timer as soon
         # as possible (when Qt is done processing events)
         self.timer.setInterval(0)
-        self.register_flush_request(self.timer.start)
-
-    def register_flush_request(self, request_flush):
-        """
-        Register callback for registering a call to flush
-        """
-        self.request_flush = request_flush
+        self.register_request_flush(self.timer.start)
 
     def flush(self):
         """
@@ -72,6 +79,9 @@ class Scheduler:
 
             self.index += 1
 
+        self.clear()
+
+    def clear(self):
         self._queue.clear()
         self._queue_indices.clear()
         self.flushing = False
@@ -80,9 +90,6 @@ class Scheduler:
         self.index = 0
 
     def queue(self, watcher: "Watcher"):  # noqa: F821
-        if not self.request_flush:
-            raise ValueError("Scheduler cannot flush without a request handler")
-
         if watcher.id in self.has:
             return
 
