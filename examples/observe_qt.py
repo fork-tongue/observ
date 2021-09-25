@@ -27,6 +27,7 @@ class Display(QWidget):
         super().__init__(*args, **kwargs)
 
         self.state = state
+        self.watchers = {}
 
         self.label = QLabel()
         self.progress = QProgressBar()
@@ -44,29 +45,19 @@ class Display(QWidget):
                 return "Please click the button below"
             return f"Clicked {state['clicked']} times!"
 
-        def progress_visible():
-            return state["progress"] > 0
-
-        self.watcher = watch(label_text, self.update_label, immediate=True)
-        self.progress_watch = watch(
-            lambda: state["progress"],
-            self.update_progress,
+        self.watchers["label"] = watch(label_text, self.label.setText, immediate=True)
+        self.watchers["progress_visible"] = watch(
+            lambda: state["progress"] > 0, self.progress.setVisible, immediate=True
         )
-        self.progress_visible = watch(
-            progress_visible, self.update_visibility, immediate=True
+        self.watchers["progress"] = watch(
+            lambda: state["progress"], self.update_progress
         )
 
-    def update_progress(self, old_value, new_value):
+    def update_progress(self, new, old):
         # Trigger another watcher during scheduler flush
-        if new_value == 50:
+        if new == 50:
             self.state["clicked"] += 0.5
-        self.progress.setValue(new_value)
-
-    def update_label(self, old_value, new_value):
-        self.label.setText(new_value)
-
-    def update_visibility(self, old_value, new_value):
-        self.progress.setVisible(new_value)
+        self.progress.setValue(new)
 
 
 class LongJob(QObject):
@@ -122,8 +113,8 @@ class Controls(QWidget):
 
         self.button.setEnabled(False)
         self.thread.finished.connect(lambda: self.button.setEnabled(True))
-        self.worker.result.connect(lambda x: bump(x))
-        self.worker.progress.connect(lambda x: progress(x))
+        self.worker.result.connect(bump)
+        self.worker.progress.connect(progress)
 
     def on_reset_clicked(self):
         self.state["clicked"] = 0
@@ -135,6 +126,7 @@ if __name__ == "__main__":
 
     app = QApplication([])
 
+    # Register with Qt's event loop
     scheduler.register_qt()
 
     # Create layout and pass state to widgets
