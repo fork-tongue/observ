@@ -4,6 +4,7 @@ observable datastructures, and optionally trigger callback when
 a change is detected.
 """
 from collections.abc import Container
+import inspect
 from itertools import count
 from typing import Any
 from weakref import WeakSet
@@ -33,6 +34,15 @@ def _traverse(obj, seen):
 # keep track of the order in which subscribers will
 # be notified
 _ids = count()
+
+
+class WrongNumberOfArgumentsError(TypeError):
+    """
+    Error that is used to signal that the wrong number of arguments is
+    used for the callback
+    """
+
+    pass
 
 
 class Watcher:
@@ -74,9 +84,9 @@ class Watcher:
             old_value = self.value
             self.value = value
             if self.callback:
-                self.run_callback(old_value, self.value)
+                self.run_callback(self.value, old_value)
 
-    def run_callback(self, old, new):
+    def run_callback(self, new, old):
         """
         Runs the callback. When the number of arguments is still unknown
         for the callback, it will fall into the try/except contstruct
@@ -89,22 +99,42 @@ class Watcher:
             self.callback(new)
             return
         if self._number_of_callback_args == 2:
-            self.callback(old, new)
+            self.callback(new, old)
             return
         if self._number_of_callback_args == 0:
             self.callback()
             return
 
         try:
-            self.callback(new)
+            self._run_callback(new)
             self._number_of_callback_args = 1
-        except TypeError:
+        except WrongNumberOfArgumentsError:
             try:
-                self.callback(old, new)
+                self._run_callback(new, old)
                 self._number_of_callback_args = 2
-            except TypeError:
-                self.callback()
+            except WrongNumberOfArgumentsError:
+                self._run_callback()
                 self._number_of_callback_args = 0
+
+    def _run_callback(self, *args):
+        """
+        Run the callback with the given arguments. When the callback
+        raises a TypeError, check to see if the error results from
+        within the callback or from calling the callback with the
+        wrong number of arguments.
+        Raises WrongNumberOfArgumentsError if callback was called
+        with the wrong number of arguments.
+        """
+        try:
+            self.callback(*args)
+        except TypeError as e:
+            frames = inspect.trace()
+            try:
+                if len(frames) != 1:
+                    raise
+                raise WrongNumberOfArgumentsError(str(e)) from e
+            finally:
+                del frames
 
     def get(self) -> Any:
         Dep.stack.append(self)

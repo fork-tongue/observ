@@ -53,11 +53,11 @@ class Display(QWidget):
             lambda: state["progress"], self.update_progress
         )
 
-    def update_progress(self, old_value, new_value):
+    def update_progress(self, new, old):
         # Trigger another watcher during scheduler flush
-        if new_value == 50:
+        if new == 50:
             self.state["clicked"] += 0.5
-        self.progress.setValue(new_value)
+        self.progress.setValue(new)
 
 
 class LongJob(QObject):

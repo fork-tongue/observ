@@ -1,6 +1,7 @@
 import pytest
 
 from observ import computed, observe, watch
+from observ.watcher import WrongNumberOfArgumentsError
 
 
 def test_usage():
@@ -141,7 +142,25 @@ def test_callback_signatures():
         nonlocal called
         called += 1
 
-    with pytest.raises(TypeError):
-        watcher = watch(  # noqa: F841
+    # Test specifically for WrongNumberOfArgumentsError
+    with pytest.raises(WrongNumberOfArgumentsError):
+        watcher = watch(
             lambda: a["foo"], too_complex_callback, sync=True, immediate=True
         )
+    assert called == 3
+
+    # This method accepts all kinds of signatures
+    # but raises a TypeError within the callback
+    def method_raises_type_error(*args):
+        nonlocal called
+        called += 1
+        empty_callback(0)
+
+    watcher = None
+    # This should raise a TypeError specifically
+    with pytest.raises(TypeError) as e:
+        watcher = watch(  # noqa: F841
+            lambda: a["foo"], method_raises_type_error, sync=True, immediate=True
+        )
+    assert called == 4
+    assert not isinstance(e, WrongNumberOfArgumentsError)
