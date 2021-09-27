@@ -13,8 +13,9 @@ def observe(obj, deep=True, readonly=False):
     if not isinstance(obj, (dict, list, tuple, set)):
         return obj  # common case first
     elif isinstance(obj, dict):
+        cls = ReadonlyDictProxy if readonly else DictProxy
         if not isinstance(obj, DictProxyBase):
-            reactive = ReadonlyDictProxy(obj) if readonly else DictProxy(obj)
+            reactive = cls(obj)
         else:
             reactive = obj
         if deep:
@@ -22,8 +23,9 @@ def observe(obj, deep=True, readonly=False):
                 reactive[k] = observe(v, deep=deep, readonly=readonly)
         return reactive
     elif isinstance(obj, list):
+        cls = ReadonlyListProxy if readonly else ListProxy
         if not isinstance(obj, ListProxyBase):
-            reactive = ReadonlyListProxy(obj) if readonly else ListProxy(obj)
+            reactive = cls(obj)
         else:
             reactive = obj
         if deep:
