@@ -46,7 +46,7 @@ class ProxyDb:
     def attrs(self, proxy):
         return self.db[id(proxy.obj)]["attrs"]
 
-    def proxy(self, obj, readonly=False, shallow=False):
+    def get_proxy(self, obj, readonly=False, shallow=False):
         return next(iter(self.db[id(obj)]["proxies"][readonly][shallow]), None)
 
 
@@ -74,7 +74,7 @@ def proxy(obj, readonly=False, shallow=False):
     if isinstance(obj, Proxy) and not (readonly and not obj.readonly):
         return obj
     # there may already be a proxy for this object
-    if (existing_proxy := proxy_db.proxy(obj, readonly=readonly, shallow=shallow)) is not None:
+    if (existing_proxy := proxy_db.get_proxy(obj, readonly=readonly, shallow=shallow)) is not None:
         return existing_proxy
     # otherwise, create a new proxy
     return Proxy(obj, readonly=readonly, shallow=shallow)
@@ -103,6 +103,9 @@ def read_trap(method, obj_cls):
         if Dep.stack:
             proxy_db.attrs(self)["dep"].depend()
         value = fn(self.obj, *args, **kwargs)
+        if self.shallow:
+            return value
+        return proxy(value, readonly=self.readonly)
 
     return trap
 
