@@ -3,64 +3,111 @@ observe converts plain datastructures (dict, list, set) to
 proxied versions of those datastructures to make them reactive.
 """
 from functools import wraps
-import sys
+import weakref
 
 from .dep import Dep
 
 
-def observe(obj, deep=True, readonly=False):
+class ProxyDb:
+    def __init__(self):
+        self.db = {}
+
+    def reference(self, proxy):
+        obj_id = id(proxy.obj)
+        if obj_id not in self.db:
+            self.db[obj_id] = {
+                "ref": 0,
+                "attrs": {},
+                "proxies": {
+                    # readonly
+                    True: {
+                        # shallow
+                        True: weakref.WeakSet(),
+                        False: weakref.WeakSet(),
+                    },
+                    False: {
+                        True: weakref.WeakSet(),
+                        False: weakref.WeakSet(),
+                    },
+                },
+            }
+        self.db[obj_id]["proxies"][proxy.readonly][proxy.shallow].add(proxy)
+        self.db[obj_id]["ref"] += 1
+
+    def dereference(self, proxy):
+        obj_id = id(proxy.obj)
+        self.db[obj_id]["ref"] -= 1
+        self.db[obj_id]["proxies"][proxy.readonly][proxy.shallow].remove(proxy)
+        if self.db[obj_id]["ref"] == 0:
+            del self.db[obj_id]
+        elif self.db[obj_id]["ref"] < 0:
+            raise RuntimeError("ye olde 'this should never happen'")
+
+    def attrs(self, proxy):
+        return self.db[id(proxy.obj)]["attrs"]
+
+    def proxy(self, obj, readonly=False, shallow=False):
+        return next(iter(self.db[id(obj)]["proxies"][readonly][shallow]), None)
+
+
+proxy_db = ProxyDb()
+
+
+class Proxy:
+    def __init__(self, obj, readonly=False, shallow=False):
+        self.obj = obj
+        self.readonly = readonly
+        self.shallow = shallow
+        proxy_db.reference(self)
+
+    def __del__(self):
+        proxy_db.dereference(self)
+
+
+def proxy(obj, readonly=False, shallow=False):
     """Please be aware: this only works on plain data types!"""
+    # we can only wrap the following datatypes
     if not isinstance(obj, (dict, list, tuple, set)):
-        return obj  # common case first
-    elif isinstance(obj, dict):
-        cls = ReadonlyDictProxy if readonly else DictProxy
-        if not isinstance(obj, DictProxyBase):
-            reactive = cls(obj)
-        else:
-            reactive = obj
-        if deep:
-            for k, v in reactive.items():
-                reactive[k] = observe(v, deep=deep, readonly=readonly)
-        return reactive
-    elif isinstance(obj, list):
-        cls = ReadonlyListProxy if readonly else ListProxy
-        if not isinstance(obj, ListProxyBase):
-            reactive = cls(obj)
-        else:
-            reactive = obj
-        if deep:
-            for i, v in enumerate(reactive):
-                reactive[i] = observe(v, deep=deep, readonly=readonly)
-        return reactive
-    elif isinstance(obj, tuple):
-        reactive = obj  # tuples are immutable
-        if deep:
-            reactive = tuple(observe(v, deep=deep, readonly=readonly) for v in reactive)
-        return reactive
-    elif isinstance(obj, set):
-        cls = ReadonlySetProxy if readonly else SetProxy
-        if deep:
-            return cls({observe(v, deep=deep, readonly=readonly) for v in obj})
-        else:
-            if not isinstance(obj, SetProxyBase):
-                reactive = cls(obj)
-            else:
-                reactive = obj
-            return reactive
+        return obj
+    # the object may be a proxy already
+    # (exception is when we want a readonly proxy on a writable proxy)
+    if isinstance(obj, Proxy) and not (readonly and not obj.readonly):
+        return obj
+    # there may already be a proxy for this object
+    if (existing_proxy := proxy_db.proxy(obj, readonly=readonly, shallow=shallow)) is not None:
+        return existing_proxy
+    # otherwise, create a new proxy
+    return Proxy(obj, readonly=readonly, shallow=shallow)
 
 
-def read_trap(method, proxy_cls, obj_cls):
+def reactive(obj):
+    return proxy(obj)
+
+
+def readonly(obj):
+    return proxy(obj, readonly=True)
+
+
+def shallow_reactive(obj):
+    return proxy(obj, shallow=True)
+
+
+def shallow_readonly(obj):
+    return proxy(obj, shallow=True, readonly=True)
+
+
+def read_trap(method, obj_cls):
     fn = getattr(obj_cls, method)
     @wraps(fn)
-    def inner(self, *args, **kwargs):
+    def trap(self, *args, **kwargs):
         if Dep.stack:
-            self.__dep__.depend()
-        return fn(self, *args, **kwargs)
+            proxy_db.attrs(self)["dep"].depend()
+        value = fn(self.obj, *args, **kwargs)
 
-    return inner
+    return trap
 
 
-def read_key_trap(method, proxy_cls, obj_cls):
+def read_key_trap(method, obj_cls):
     fn = getattr(obj_cls, method)
     @wraps(fn)
     def inner(self, *args, **kwargs):
@@ -72,7 +119,7 @@ def read_key_trap(method, proxy_cls, obj_cls):
     return inner
 
 
-def write_trap(method, proxy_cls, obj_cls):
+def write_trap(method, obj_cls):
     fn = getattr(obj_cls, method)
     @wraps(fn)
     def inner(self, *args, **kwargs):
@@ -86,7 +133,7 @@ def write_trap(method, proxy_cls, obj_cls):
     return inner
 
 
-def write_key_trap(method, proxy_cls, obj_cls):
+def write_key_trap(method, obj_cls):
     fn = getattr(obj_cls, method)
     getitem_fn = getattr(obj_cls, "__getitem__")
     @wraps(fn)
@@ -108,7 +155,7 @@ def write_key_trap(method, proxy_cls, obj_cls):
     return inner
 
 
-def delete_trap(method, proxy_cls, obj_cls):
+def delete_trap(method, obj_cls):
     fn = getattr(obj_cls, method)
     @wraps(fn)
     def inner(self, *args, **kwargs):
@@ -122,7 +169,7 @@ def delete_trap(method, proxy_cls, obj_cls):
     return inner
 
 
-def delete_key_trap(method, proxy_cls, obj_cls):
+def delete_key_trap(method, obj_cls):
     fn = getattr(obj_cls, method)
     @wraps(fn)
     def inner(self, *args, **kwargs):
@@ -149,7 +196,7 @@ class ReadonlyError(Exception):
     pass
 
 
-def readonly_trap(method, proxy_cls, obj_cls):
+def readonly_trap(method, obj_cls):
     fn = getattr(obj_cls, method)
     @wraps(fn)
     def inner(self, *args, **kwargs):
