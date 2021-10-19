@@ -1,22 +1,24 @@
 from unittest.mock import Mock
 
 from observ.dep import Dep
-from observ.observables import ObservableDict, ObservableList, ObservableSet
+from observ.observables import dict_traps, list_traps, set_traps
+from observ.observables import DictProxy, ListProxy, SetProxy
+from observ.observables import proxy_db
 
 
 COLLECTIONS = {
-    ObservableList,
-    ObservableSet,
-    ObservableDict,
+    ListProxy: list_traps,
+    SetProxy: set_traps,
+    DictProxy: dict_traps,
 }
 
 WRAPATTRS = {
-    "_READERS",
-    "_KEYREADERS",
-    "_WRITERS",
-    "_KEYWRITERS",
-    "_DELETERS",
-    "_KEYDELETERS",
+    "READERS",
+    "KEYREADERS",
+    "WRITERS",
+    "KEYWRITERS",
+    "DELETERS",
+    "KEYDELETERS",
 }
 
 # we don't wrap these
@@ -41,7 +43,9 @@ EXCLUDED = {
     "__hash__",
     "_orphaned_keydeps",
     "__class_getitem__",
-} | WRAPATTRS
+    # __del__ is custom method on Proxy
+    "__del__",
+}
 
 
 def test_wrapping_complete():
@@ -49,7 +53,7 @@ def test_wrapping_complete():
         # ensure we're not wrapping anything more than once
         wrap_list = []
         for attr in WRAPATTRS:
-            wrap_list += list(getattr(coll, attr, set()))
+            wrap_list += list(COLLECTIONS[coll].get(attr, set()))
         assert len(wrap_list) == len(set(wrap_list))
 
         # ensure we're wrapping everything
@@ -76,10 +80,10 @@ def test_list_notify():
         "__iadd__": ([5],),
         "__imul__": (5,),
     }
-    for name in ObservableList._WRITERS:
-        coll = ObservableList([2])
+    for name in COLLECTIONS[ListProxy]["WRITERS"]:
+        coll = ListProxy([2])
         mock = Mock()
-        coll.__dep__.notify = mock
+        proxy_db.attrs(coll)["dep"].notify = mock
         getattr(coll, name)(*args[name])
         mock.assert_called_once()
 
@@ -108,12 +112,12 @@ def test_list_depend():
         "__reversed__": (),
         "__sizeof__": (),
     }
-    for name in ObservableList._READERS:
-        Dep.stack.append(None)
+    for name in COLLECTIONS[ListProxy]["READERS"]:
+        Dep.stack.append(Mock())
         try:
-            coll = ObservableList([2])
+            coll = ListProxy([2])
             mock = Mock()
-            coll.__dep__.depend = mock
+            proxy_db.attrs(coll)["dep"].depend = mock
             getattr(coll, name)(*args[name])
             mock.assert_called()
         finally:
@@ -132,10 +136,10 @@ def test_set_notify():
         "symmetric_difference_update": ({3},),
         "update": ({3},),
     }
-    for name in ObservableSet._WRITERS:
-        coll = ObservableSet({2})
+    for name in COLLECTIONS[SetProxy]["WRITERS"]:
+        coll = SetProxy({2})
         mock = Mock()
-        coll.__dep__.notify = mock
+        proxy_db.attrs(coll)["dep"].notify = mock
         getattr(coll, name)(*args[name])
         mock.assert_called_once()
 
@@ -176,12 +180,12 @@ def test_set_depend():
         "__sub__": ({3},),
         "__xor__": ({3},),
     }
-    for name in ObservableSet._READERS:
-        Dep.stack.append(None)
+    for name in COLLECTIONS[SetProxy]["READERS"]:
+        Dep.stack.append(Mock())
         try:
-            coll = ObservableSet({2})
+            coll = SetProxy({2})
             mock = Mock()
-            coll.__dep__.depend = mock
+            proxy_db.attrs(coll)["dep"].depend = mock
             getattr(coll, name)(*args[name])
             mock.assert_called()
         finally:
@@ -193,15 +197,15 @@ def test_dict_notify():
         "update": ({5: 6},),
         "__ior__": ({5: 6},),
     }
-    for name in ObservableDict._WRITERS:
-        coll = ObservableDict({2: 3})
-        coll.__dep__.notify = Mock()
-        for key in coll.__keydeps__.keys():
-            coll.__keydeps__[key].notify = Mock()
+    for name in COLLECTIONS[DictProxy]["WRITERS"]:
+        coll = DictProxy({2: 3})
+        proxy_db.attrs(coll)["dep"].notify = Mock()
+        for key in proxy_db.attrs(coll)["keydep"].keys():
+            proxy_db.attrs(coll)["keydep"][key].notify = Mock()
         getattr(coll, name)(*args[name])
-        coll.__dep__.notify.assert_called_once()
-        for key in coll.__keydeps__.keys():
-            coll.__keydeps__[key].notify.assert_not_called()
+        proxy_db.attrs(coll)["dep"].notify.assert_called_once()
+        for key in proxy_db.attrs(coll)["keydep"].keys():
+            proxy_db.attrs(coll)["keydep"][key].notify.assert_not_called()
 
 
 def test_dict_keynotify():
@@ -209,19 +213,19 @@ def test_dict_keynotify():
         "setdefault": (3, 5),
         "__setitem__": (2, 4),
     }
-    for name in ObservableDict._KEYWRITERS:
-        coll = ObservableDict({2: 3})
+    for name in COLLECTIONS[DictProxy]["KEYWRITERS"]:
+        coll = DictProxy({2: 3})
         key = args[name][0]
-        is_new_key = key not in coll.__keydeps__
-        coll.__dep__.notify = Mock()
-        for k in coll.__keydeps__.keys():
-            coll.__keydeps__[k].notify = Mock()
+        is_new_key = key not in proxy_db.attrs(coll)["keydep"]
+        proxy_db.attrs(coll)["dep"].notify = Mock()
+        for k in proxy_db.attrs(coll)["keydep"].keys():
+            proxy_db.attrs(coll)["keydep"][k].notify = Mock()
         getattr(coll, name)(*args[name])
-        coll.__dep__.notify.assert_called_once()
+        proxy_db.attrs(coll)["dep"].notify.assert_called_once()
         if is_new_key:
-            assert isinstance(coll.__keydeps__[key], Dep)
+            assert isinstance(proxy_db.attrs(coll)["keydep"][key], Dep)
         else:
-            coll.__keydeps__[key].notify.assert_called_once()
+            proxy_db.attrs(coll)["keydep"][key].notify.assert_called_once()
 
 
 def test_dict_depend():
@@ -247,15 +251,15 @@ def test_dict_depend():
         "__or__": ({},),
         "__ior__": ({},),
     }
-    for name in ObservableDict._READERS:
-        Dep.stack.append(None)
+    for name in COLLECTIONS[DictProxy]["READERS"]:
+        Dep.stack.append(Mock())
         try:
-            coll = ObservableDict({2: 3})
-            coll.__dep__.depend = Mock()
-            for k in coll.__keydeps__.keys():
-                coll.__keydeps__[k].depend = Mock()
+            coll = DictProxy({2: 3})
+            proxy_db.attrs(coll)["dep"].depend = Mock()
+            for k in proxy_db.attrs(coll)["keydep"].keys():
+                proxy_db.attrs(coll)["keydep"][k].depend = Mock()
             getattr(coll, name)(*args[name])
-            coll.__dep__.depend.assert_called()
+            proxy_db.attrs(coll)["dep"].depend.assert_called()
         finally:
             Dep.stack.pop()
 
@@ -266,16 +270,16 @@ def test_dict_keydepend():
         "__contains__": (2,),
         "__getitem__": (2,),
     }
-    for name in ObservableDict._KEYREADERS:
+    for name in COLLECTIONS[DictProxy]["KEYREADERS"]:
         Dep.stack.append(None)
         try:
-            coll = ObservableDict({2: 3})
-            coll.__dep__.depend = Mock()
-            for k in coll.__keydeps__.keys():
-                coll.__keydeps__[k].depend = Mock()
+            coll = DictProxy({2: 3})
+            proxy_db.attrs(coll)["dep"].depend = Mock()
+            for k in proxy_db.attrs(coll)["keydep"].keys():
+                proxy_db.attrs(coll)["keydep"][k].depend = Mock()
             getattr(coll, name)(*args[name])
-            coll.__dep__.depend.assert_not_called()
-            coll.__keydeps__[args[name][0]].depend.assert_called_once()
+            proxy_db.attrs(coll)["dep"].depend.assert_not_called()
+            proxy_db.attrs(coll)["keydep"][args[name][0]].depend.assert_called_once()
         finally:
             Dep.stack.pop()
 
@@ -285,14 +289,14 @@ def test_dict_delete_notify():
         "clear": (),
         "popitem": (),
     }
-    for name in ObservableDict._DELETERS:
-        coll = ObservableDict({2: 3})
-        coll.__dep__.notify = Mock()
-        for key in coll.__keydeps__.keys():
-            coll.__keydeps__[key].notify = Mock()
+    for name in COLLECTIONS[DictProxy]["DELETERS"]:
+        coll = DictProxy({2: 3})
+        proxy_db.attrs(coll)["dep"].notify = Mock()
+        for key in proxy_db.attrs(coll)["keydep"].keys():
+            proxy_db.attrs(coll)["keydep"][key].notify = Mock()
         getattr(coll, name)(*args[name])
-        coll.__dep__.notify.assert_called_once()
-        assert len(coll.__keydeps__) == 0
+        proxy_db.attrs(coll)["dep"].notify.assert_called_once()
+        assert len(proxy_db.attrs(coll)["keydep"]) == 0
 
 
 def test_dict_delete_keynotify():
@@ -300,15 +304,15 @@ def test_dict_delete_keynotify():
         "pop": (2,),
         "__delitem__": (2,),
     }
-    for name in ObservableDict._KEYDELETERS:
-        coll = ObservableDict({2: 3})
+    for name in COLLECTIONS[DictProxy]["KEYDELETERS"]:
+        coll = DictProxy({2: 3})
         key = args[name][0]
-        coll.__dep__.notify = Mock()
+        proxy_db.attrs(coll)["dep"].notify = Mock()
         keymock = Mock()
-        coll.__keydeps__[key] = keymock
-        for k in coll.__keydeps__.keys():
-            coll.__keydeps__[k].notify = Mock()
+        proxy_db.attrs(coll)["keydep"][key] = keymock
+        for k in proxy_db.attrs(coll)["keydep"].keys():
+            proxy_db.attrs(coll)["keydep"][k].notify = Mock()
         getattr(coll, name)(*args[name])
-        coll.__dep__.notify.assert_called_once()
+        proxy_db.attrs(coll)["dep"].notify.assert_called_once()
         keymock.notify.assert_called_once()
-        assert len(coll.__keydeps__) == 0
+        assert len(proxy_db.attrs(coll)["keydep"]) == 0
