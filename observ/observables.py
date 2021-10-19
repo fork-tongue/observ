@@ -58,7 +58,14 @@ class ProxyDb:
         """
         obj_id = id(proxy.target)
         self.db[obj_id]["ref"] -= 1
-        self.db[obj_id]["proxies"][proxy.readonly][proxy.shallow].remove(proxy)
+        try:
+            self.db[obj_id]["proxies"][proxy.readonly][proxy.shallow].remove(proxy)
+        except KeyError:
+            # During assertion errors in the test suite, the proxy might
+            # already be removed from the WeakSet, so this try/except is
+            # to make sure you won't see a KeyError when an assertion error
+            # occurs.
+            pass
         if self.db[obj_id]["ref"] == 0:
             del self.db[obj_id]
         elif self.db[obj_id]["ref"] < 0:
