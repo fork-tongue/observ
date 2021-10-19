@@ -4,7 +4,7 @@ proxied versions of those datastructures to make them reactive.
 """
 from functools import wraps
 import sys
-import weakref
+from weakref import WeakSet
 
 from .dep import Dep
 
@@ -26,21 +26,26 @@ class ProxyDb:
         """
         Adds a reference to the collection for the wrapped object's id
         """
-        obj_id = id(proxy.obj)
+        obj_id = id(proxy.target)
+        attrs = (
+            {"dep": Dep(), "keydep": {key: Dep() for key in dict.keys(proxy.target)}}
+            if isinstance(proxy.target, dict)
+            else {"dep": Dep()}
+        )
         if obj_id not in self.db:
             self.db[obj_id] = {
-                "ref": 0,
-                "attrs": {},
+                "ref": 0,  # ref counter
+                "attrs": attrs,  # dep, keydep
                 "proxies": {
                     # readonly
                     True: {
                         # shallow
-                        True: weakref.WeakSet(),
-                        False: weakref.WeakSet(),
+                        True: WeakSet(),
+                        False: WeakSet(),
                     },
                     False: {
-                        True: weakref.WeakSet(),
-                        False: weakref.WeakSet(),
+                        True: WeakSet(),
+                        False: WeakSet(),
                     },
                 },
             }
@@ -51,25 +56,25 @@ class ProxyDb:
         """
         Removes the reference of the proxy for the wrapped object's id
         """
-        obj_id = id(proxy.obj)
+        obj_id = id(proxy.target)
         self.db[obj_id]["ref"] -= 1
         self.db[obj_id]["proxies"][proxy.readonly][proxy.shallow].remove(proxy)
         if self.db[obj_id]["ref"] == 0:
             del self.db[obj_id]
         elif self.db[obj_id]["ref"] < 0:
-            raise RuntimeError("ye olde 'this should never happen'")
+            raise RuntimeError("ye olde 'this should never happen'  ¯\\_(ツ)_/¯")
 
     def attrs(self, proxy):
-        return self.db[id(proxy.obj)]["attrs"]
+        return self.db[id(proxy.target)]["attrs"]
 
-    def get_proxy(self, obj, readonly=False, shallow=False):
+    def get_proxy(self, target, readonly=False, shallow=False):
         """
         Returns a proxy from the collection for the given object and configuration.
         Will return None if there is no proxy for the object's id.
         """
-        if id(obj) not in self.db:
+        if id(target) not in self.db:
             return None
-        return next(iter(self.db[id(obj)]["proxies"][readonly][shallow]), None)
+        return next(iter(self.db[id(target)]["proxies"][readonly][shallow]), None)
 
 
 # Create a global proxy collection
@@ -83,8 +88,8 @@ class Proxy:
     destroying a Proxy will remove that reference.
     """
 
-    def __init__(self, obj, readonly=False, shallow=False):
-        self.obj = obj
+    def __init__(self, target, readonly=False, shallow=False):
+        self.target = target
         self.readonly = readonly
         self.shallow = shallow
         proxy_db.reference(self)
@@ -93,7 +98,7 @@ class Proxy:
         proxy_db.dereference(self)
 
 
-def proxy(obj, readonly=False, shallow=False):
+def proxy(target, readonly=False, shallow=False):
     """
     Returns a Proxy for the given object. If a proxy for the given
     configuration already exists, it will return that instead of
@@ -102,8 +107,8 @@ def proxy(obj, readonly=False, shallow=False):
     Please be aware: this only works on plain data types!
     """
     # We can only wrap the following datatypes
-    if not isinstance(obj, (dict, list, tuple, set)):
-        return obj
+    if not isinstance(target, (dict, list, tuple, set)):
+        return target
     # The object may be a proxy already
     # (exception is when we want a readonly proxy on a writable proxy)
     # FIXME: Could be that we also have to check for shallow??
@@ -111,31 +116,41 @@ def proxy(obj, readonly=False, shallow=False):
     # target[ReactiveFlags.RAW] && !(isReadonly && target[ReactiveFlags.IS_REACTIVE])
     # We could also just use:
     #   if isinstance()
-    if isinstance(obj, Proxy) and not (readonly and not obj.readonly):
-        return obj
+    if isinstance(target, Proxy) and not (readonly and not target.readonly):
+        return target
     # There may already be a proxy for this object
     if (
-        existing_proxy := proxy_db.get_proxy(obj, readonly=readonly, shallow=shallow)
+        existing_proxy := proxy_db.get_proxy(target, readonly=readonly, shallow=shallow)
     ) is not None:
         return existing_proxy
     # Otherwise, create a new proxy
-    return Proxy(obj, readonly=readonly, shallow=shallow)
+    proxy_type = None
+    if isinstance(target, dict):
+        proxy_type = DictProxy if not readonly else ReadonlyDictProxy
+    elif isinstance(target, list):
+        proxy_type = ListProxy if not readonly else ReadonlyListProxy
+    elif isinstance(target, set):
+        proxy_type = SetProxy if not readonly else ReadonlySetProxy
+    elif isinstance(target, tuple):
+        # FIXME: think of what needs to be done for tuple
+        proxy_type = Proxy
+    return proxy_type(target, readonly=readonly, shallow=shallow)
 
 
-def reactive(obj):
-    return proxy(obj)
+def reactive(target):
+    return proxy(target)
 
 
-def readonly(obj):
-    return proxy(obj, readonly=True)
+def readonly(target):
+    return proxy(target, readonly=True)
 
 
-def shallow_reactive(obj):
-    return proxy(obj, shallow=True)
+def shallow_reactive(target):
+    return proxy(target, shallow=True)
 
 
-def shallow_readonly(obj):
-    return proxy(obj, shallow=True, readonly=True)
+def shallow_readonly(target):
+    return proxy(target, shallow=True, readonly=True)
 
 
 def read_trap(method, obj_cls):
@@ -143,9 +158,11 @@ def read_trap(method, obj_cls):
 
     @wraps(fn)
     def trap(self, *args, **kwargs):
+        # If we are tracking changes
         if Dep.stack:
+            # Mark as a dependency
             proxy_db.attrs(self)["dep"].depend()
-        value = fn(self.obj, *args, **kwargs)
+        value = fn(self.target, *args, **kwargs)
         if self.shallow:
             return value
         return proxy(value, readonly=self.readonly)
@@ -158,10 +175,12 @@ def read_key_trap(method, obj_cls):
 
     @wraps(fn)
     def inner(self, *args, **kwargs):
+        # If we are tracking changes
         if Dep.stack:
+            # Mark as a dependency
             key = args[0]
-            self.__keydeps__[key].depend()
-        return fn(self, *args, **kwargs)
+            proxy_db.attrs(self)["keydep"][key].depend()
+        return fn(self.target, *args, **kwargs)
 
     return inner
 
@@ -173,9 +192,9 @@ def write_trap(method, obj_cls):
     def inner(self, *args, **kwargs):
         args = tuple(observe(a) for a in args)
         kwargs = {k: observe(v) for k, v in kwargs.items()}
-        retval = fn(self, *args, **kwargs)
+        retval = fn(self.target, *args, **kwargs)
         # TODO: prevent firing if value hasn't actually changed?
-        self.__dep__.notify()
+        proxy_db.attrs(self)["dep"].notify()
         return retval
 
     return inner
@@ -188,17 +207,17 @@ def write_key_trap(method, obj_cls):
     @wraps(fn)
     def inner(self, *args, **kwargs):
         key = args[0]
-        is_new = key not in self.__keydeps__
-        old_value = getitem_fn(self, key) if not is_new else None
+        is_new = key not in proxy_db.attrs(self)["keydep"]
+        old_value = getitem_fn(self.target, key) if not is_new else None
         args = [key] + [observe(a) for a in args[1:]]
         kwargs = {k: observe(v) for k, v in kwargs.items()}
-        retval = fn(self, *args, **kwargs)
-        new_value = getitem_fn(self, key)
+        retval = fn(self.target, *args, **kwargs)
+        new_value = getitem_fn(self.target, key)
         if is_new:
-            self.__keydeps__[key] = Dep()
+            proxy_db.attrs(self)["keydep"][key] = Dep()
         if old_value != new_value:
-            self.__keydeps__[key].notify()
-            self.__dep__.notify()
+            proxy_db.attrs(self)["keydep"][key].notify()
+            proxy_db.attrs(self)["dep"].notify()
         return retval
 
     return inner
@@ -209,11 +228,11 @@ def delete_trap(method, obj_cls):
 
     @wraps(fn)
     def inner(self, *args, **kwargs):
-        retval = fn(self, *args, **kwargs)
-        self.__dep__.notify()
+        retval = fn(self.target, *args, **kwargs)
+        proxy_db.attrs(self)["dep"].notify()
         for key in self._orphaned_keydeps():
-            self.__keydeps__[key].notify()
-            del self.__keydeps__[key]
+            proxy_db.attrs(self)["keydep"][key].notify()
+            del proxy_db.attrs(self)["keydep"][key]
         return retval
 
     return inner
@@ -224,11 +243,11 @@ def delete_key_trap(method, obj_cls):
 
     @wraps(fn)
     def inner(self, *args, **kwargs):
-        retval = fn(self, *args, **kwargs)
+        retval = fn(self.target, *args, **kwargs)
         key = args[0]
-        self.__dep__.notify()
-        self.__keydeps__[key].notify()
-        del self.__keydeps__[key]
+        proxy_db.attrs(self)["dep"].notify()
+        proxy_db.attrs(self)["keydep"][key].notify()
+        del proxy_db.attrs(self)["keydep"][key]
         return retval
 
     return inner
@@ -326,13 +345,11 @@ if sys.version_info >= (3, 9, 0):
 
 
 class DictProxyBase(Proxy):
-    def __init__(self, obj):
-        super().__init__(obj)
-        self.__dep__ = Dep()
-        self.__keydeps__ = {key: Dep() for key in self.obj.keys()}
+    def __init__(self, target, readonly=False, shallow=False):
+        super().__init__(target, readonly=readonly, shallow=shallow)
 
     def _orphaned_keydeps(self):
-        return set(self.__keydeps__.keys()) - set(self.obj.keys())
+        return set(proxy_db.attrs(self)["keydep"].keys()) - set(self.target.keys())
 
 
 class DictProxy(DictProxyBase):
@@ -340,7 +357,8 @@ class DictProxy(DictProxyBase):
 
 
 class ReadonlyDictProxy(DictProxyBase):
-    pass
+    def __init__(self, target):
+        super().__init__(target, readonly=True, shallow=False)
 
 
 make_observable(DictProxy, dict, dict_traps, trap_map)
@@ -389,9 +407,8 @@ list_traps = {
 
 
 class ListProxyBase(Proxy):
-    def __init__(self, obj):
-        super().__init__(obj)
-        self.__dep__ = Dep()
+    def __init__(self, target, readonly=False, shallow=False):
+        super().__init__(target, readonly=readonly, shallow=shallow)
 
 
 class ListProxy(ListProxyBase):
@@ -399,7 +416,8 @@ class ListProxy(ListProxyBase):
 
 
 class ReadonlyListProxy(ListProxyBase):
-    pass
+    def __init__(self, target):
+        super().__init__(target, readonly=True, shallow=False)
 
 
 make_observable(ListProxy, list, list_traps, trap_map)
@@ -457,9 +475,8 @@ set_traps = {
 
 
 class SetProxyBase(Proxy):
-    def __init__(self, obj):
-        super().__init__(obj)
-        self.__dep__ = Dep()
+    def __init__(self, target, readonly=False, shallow=False):
+        super().__init__(target, readonly=readonly, shallow=shallow)
 
 
 class SetProxy(SetProxyBase):
@@ -467,12 +484,13 @@ class SetProxy(SetProxyBase):
 
 
 class ReadonlySetProxy(SetProxyBase):
-    pass
+    def __init__(self, target):
+        super().__init__(target, readonly=True)
 
 
 make_observable(SetProxy, set, set_traps, trap_map)
 make_observable(ReadonlySetProxy, set, set_traps, trap_map_readonly)
 
 
-def observe(obj, deep=True):
-    raise NotImplementedError
+def observe(target, deep=True):
+    return reactive(target=target)

@@ -1,4 +1,4 @@
-from observ.observables import Proxy, proxy, proxy_db
+from observ.observables import DictProxy, Proxy, proxy, proxy_db
 
 
 def test_proxy():
@@ -10,13 +10,13 @@ def test_proxy():
 
     assert isinstance(wrapped_data, Proxy)
     assert obj_id in proxy_db.db
-    assert wrapped_data.obj is data
+    assert wrapped_data.target is data
 
     # Retrieve the proxy from the proxy_db
     referenced_proxy = proxy_db.get_proxy(data)
 
     assert referenced_proxy is wrapped_data
-    assert referenced_proxy.obj is wrapped_data.obj
+    assert referenced_proxy.target is wrapped_data.target
 
     # Destroy the second proxy
     del referenced_proxy
@@ -40,3 +40,23 @@ def test_multiple_proxy_calls():
 
     assert first_proxy is second_proxy
     assert second_proxy is third_proxy
+
+
+def test_dict_proxy():
+    data = {"foo": "bar"}
+
+    proxied = proxy(data)
+    assert isinstance(proxied, DictProxy)
+    assert proxied["foo"] == "bar"
+
+    proxied["foo"] = "baz"
+
+    assert proxied["foo"] == "baz"
+
+    proxied["lorem"] = "ipsum"
+
+    assert proxied["lorem"] == "ipsum"
+
+    del proxied["lorem"]
+    assert "lorem" not in proxied
+    assert len(proxied) == 1
