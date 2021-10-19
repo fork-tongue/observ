@@ -2,11 +2,13 @@ import pytest
 
 from observ.observables import (
     DictProxy,
+    ListProxy,
     Proxy,
     proxy,
     proxy_db,
     ReadonlyDictProxy,
     ReadonlyError,
+    SetProxy,
 )
 
 
@@ -51,6 +53,29 @@ def test_multiple_proxy_calls():
     assert second_proxy is third_proxy
 
 
+def test_list_proxy():
+    data = [1, 2, 3]
+    proxied = proxy(data)
+    assert isinstance(proxied, ListProxy)
+    assert proxied[0] == 1
+    assert len(proxied) == 3
+    assert 1 in proxied
+
+
+def test_list_proxy_deep():
+    data = [1, {"foo": "bar"}]
+    proxied = proxy(data)
+    assert isinstance(proxied[1], DictProxy)
+
+
+def test_set_proxy():
+    data = {1, 2, 3}
+    proxied = proxy(data)
+    assert isinstance(proxied, SetProxy)
+    assert len(proxied) == 3
+    assert 1 in proxied
+
+
 def test_dict_proxy():
     data = {"foo": "bar"}
 
@@ -79,3 +104,10 @@ def test_readonly_dict_proxy():
 
     with pytest.raises(ReadonlyError):
         readonly_proxy["foo"] = "baz"
+
+
+def test_nested_dict_proxy():
+    data = {"foo": "bar", "baz": {"lorem": "ipsum"}}
+    proxied = proxy(data)
+    assert isinstance(proxied, DictProxy)
+    assert isinstance(proxied["baz"], DictProxy)

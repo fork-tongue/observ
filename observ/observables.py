@@ -165,9 +165,7 @@ def read_trap(method, obj_cls):
 
     @wraps(fn)
     def trap(self, *args, **kwargs):
-        # If we are tracking changes
         if Dep.stack:
-            # Mark as a dependency
             proxy_db.attrs(self)["dep"].depend()
         value = fn(self.target, *args, **kwargs)
         if self.shallow:
@@ -182,12 +180,13 @@ def read_key_trap(method, obj_cls):
 
     @wraps(fn)
     def inner(self, *args, **kwargs):
-        # If we are tracking changes
         if Dep.stack:
-            # Mark as a dependency
             key = args[0]
             proxy_db.attrs(self)["keydep"][key].depend()
-        return fn(self.target, *args, **kwargs)
+        value = fn(self.target, *args, **kwargs)
+        if self.shallow:
+            return value
+        return proxy(value, readonly=self.readonly)
 
     return inner
 
