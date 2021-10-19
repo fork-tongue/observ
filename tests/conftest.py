@@ -1,6 +1,7 @@
 import pytest
 
 from observ import scheduler
+from observ.observables import proxy_db
 
 
 def noop():
@@ -23,3 +24,8 @@ def clear():
         yield
     finally:
         scheduler.clear()
+
+
+@pytest.fixture(autouse=True)
+def clear_proxy_db():
+    proxy_db.db = {}

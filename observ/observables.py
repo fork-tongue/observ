@@ -57,6 +57,8 @@ class ProxyDb:
         Removes the reference of the proxy for the wrapped object's id
         """
         obj_id = id(proxy.target)
+        if obj_id not in self.db:
+            return
         self.db[obj_id]["ref"] -= 1
         try:
             self.db[obj_id]["proxies"][proxy.readonly][proxy.shallow].remove(proxy)
@@ -113,23 +115,26 @@ def proxy(target, readonly=False, shallow=False):
 
     Please be aware: this only works on plain data types!
     """
+    # The object may be a proxy already
+    # (exception is when we want a readonly proxy on a writable proxy)
+    if isinstance(target, Proxy):
+        if not (readonly and not target.readonly):
+            return target
+        else:
+            # Unpack the target from the proxy to create
+            # a new proxy further down this function
+            target = target.target
+
+    # There may already be a proxy for this object
+    if not isinstance(target, Proxy):
+        existing_proxy = proxy_db.get_proxy(target, readonly=readonly, shallow=shallow)
+        if existing_proxy is not None:
+            return existing_proxy
+
     # We can only wrap the following datatypes
     if not isinstance(target, (dict, list, tuple, set)):
         return target
-    # The object may be a proxy already
-    # (exception is when we want a readonly proxy on a writable proxy)
-    # FIXME: Could be that we also have to check for shallow??
-    # https://github.com/vuejs/vue-next/blob/master/packages/reactivity/src/reactive.ts#L195
-    # target[ReactiveFlags.RAW] && !(isReadonly && target[ReactiveFlags.IS_REACTIVE])
-    # We could also just use:
-    #   if isinstance()
-    if isinstance(target, Proxy) and not (readonly and not target.readonly):
-        return target
-    # There may already be a proxy for this object
-    if (
-        existing_proxy := proxy_db.get_proxy(target, readonly=readonly, shallow=shallow)
-    ) is not None:
-        return existing_proxy
+
     # Otherwise, create a new proxy
     proxy_type = None
     if isinstance(target, dict):
@@ -498,5 +503,5 @@ make_observable(SetProxy, set, set_traps, trap_map)
 make_observable(ReadonlySetProxy, set, set_traps, trap_map_readonly)
 
 
-def observe(target, deep=True):
+def observe(target):
     return reactive(target=target)

@@ -4,6 +4,77 @@ from observ import computed, observe, watch
 from observ.watcher import WrongNumberOfArgumentsError
 
 
+def test_usage_dict():
+    a = observe({"foo": "bar"})
+    called = 0
+    values = ()
+
+    def _callback(new, old):
+        nonlocal called
+        nonlocal values
+        called += 1
+        values = (new, old)
+
+    watcher = watch(lambda: a["foo"], _callback, sync=True)
+
+    assert not watcher.dirty
+    assert called == 0
+    a["foo"] = "baz"
+    assert called == 1
+    assert values[0] == "baz"
+    assert values[1] == "bar"
+
+
+def test_usage_dict_new_key():
+    a = observe({"foo": "bar"})
+    called = 0
+
+    def _callback(new, old):
+        nonlocal called
+        called += 1
+
+    watcher = watch(lambda: len(a), _callback, sync=True)
+
+    assert not watcher.dirty
+    assert called == 0
+    a["quuz"] = "quur"
+    assert called == 1
+    assert len(a) == 2
+    assert a["quuz"] == "quur"
+
+
+def test_usage_list():
+    a = observe([1, 2])
+    called = 0
+
+    def _callback():
+        nonlocal called
+        called += 1
+
+    watcher = watch(lambda: len(a), _callback, sync=True)
+    assert not watcher.dirty
+    assert called == 0
+    a.append(3)
+    assert called == 1
+    assert len(a) == 3
+
+
+def test_usage_set():
+    a = observe({1, 2})
+    called = 0
+
+    def _callback():
+        nonlocal called
+        called += 1
+
+    watcher = watch(lambda: len(a), _callback, sync=True)
+    assert not watcher.dirty
+    assert called == 0
+    a.add(3)
+    assert called == 1
+    assert len(a) == 3
+
+
 def test_usage():
     a = observe({"foo": 5, "bar": [6, 7, 8], "quux": 10, "quuz": {"a": 1, "b": 2}})
     execute_count = 0
@@ -47,7 +118,7 @@ def test_usage():
 
     called = 0
 
-    def _callback(old_value, new_value):
+    def _callback():
         nonlocal called
         called += 1
 
@@ -93,13 +164,13 @@ def test_usage_deep_vs_non_deep():
 
     non_deep_called = 0
 
-    def _non_deep_callback(old_value, new_value):
+    def _non_deep_callback(new):
         nonlocal non_deep_called
         non_deep_called += 1
 
     deep_called = 0
 
-    def _deep_callback(old_value, new_value):
+    def _deep_callback():
         nonlocal deep_called
         deep_called += 1
 
@@ -131,14 +202,14 @@ def test_callback_signatures():
     watcher = watch(lambda: a["foo"], simple_callback, sync=True, immediate=True)
     assert called == 2
 
-    def full_callback(old, new):
+    def full_callback(new, old):
         nonlocal called
         called += 1
 
     watcher = watch(lambda: a["foo"], full_callback, sync=True, immediate=True)
     assert called == 3
 
-    def too_complex_callback(old, new, other):
+    def too_complex_callback(new, old, other):
         nonlocal called
         called += 1
 
