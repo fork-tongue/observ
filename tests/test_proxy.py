@@ -1,4 +1,13 @@
-from observ.observables import DictProxy, Proxy, proxy, proxy_db
+import pytest
+
+from observ.observables import (
+    DictProxy,
+    Proxy,
+    proxy,
+    proxy_db,
+    ReadonlyDictProxy,
+    ReadonlyError,
+)
 
 
 def test_proxy():
@@ -60,3 +69,13 @@ def test_dict_proxy():
     del proxied["lorem"]
     assert "lorem" not in proxied
     assert len(proxied) == 1
+
+
+def test_readonly_dict_proxy():
+    data = {"foo": "bar"}
+    readonly_proxy = proxy(data, readonly=True)
+
+    assert isinstance(readonly_proxy, ReadonlyDictProxy)
+
+    with pytest.raises(ReadonlyError):
+        readonly_proxy["foo"] = "baz"

@@ -357,8 +357,8 @@ class DictProxy(DictProxyBase):
 
 
 class ReadonlyDictProxy(DictProxyBase):
-    def __init__(self, target):
-        super().__init__(target, readonly=True, shallow=False)
+    def __init__(self, target, shallow=False, **kwargs):
+        super().__init__(target, shallow=shallow, **{**kwargs, "readonly": True})
 
 
 make_observable(DictProxy, dict, dict_traps, trap_map)
@@ -416,8 +416,8 @@ class ListProxy(ListProxyBase):
 
 
 class ReadonlyListProxy(ListProxyBase):
-    def __init__(self, target):
-        super().__init__(target, readonly=True, shallow=False)
+    def __init__(self, target, shallow=False, **kwargs):
+        super().__init__(target, shallow=shallow, **{**kwargs, "readonly": True})
 
 
 make_observable(ListProxy, list, list_traps, trap_map)
@@ -484,8 +484,8 @@ class SetProxy(SetProxyBase):
 
 
 class ReadonlySetProxy(SetProxyBase):
-    def __init__(self, target):
-        super().__init__(target, readonly=True)
+    def __init__(self, target, shallow=False, **kwargs):
+        super().__init__(target, shallow=shallow, **{**kwargs, "readonly": True})
 
 
 make_observable(SetProxy, set, set_traps, trap_map)
