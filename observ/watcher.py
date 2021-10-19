@@ -18,7 +18,7 @@ def traverse(obj):
     Recursively traverse the whole tree to make sure
     that all values have been 'get'
     """
-    return _traverse(obj, set())
+    _traverse(obj, set())
 
 
 def _traverse(obj, seen: set):
