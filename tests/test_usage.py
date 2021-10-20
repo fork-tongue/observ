@@ -252,7 +252,7 @@ def test_dict_iter():
             if key == "foo":
                 return value
 
-    watcher = watch(_expr, _called, sync=True, immediate=True)
+    watcher = watch(_expr, _called, sync=True, immediate=True, deep=True)
 
     assert len(calls) == 1
     assert isinstance(state, Proxy)
