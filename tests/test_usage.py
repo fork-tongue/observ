@@ -1,6 +1,7 @@
 import pytest
 
 from observ import computed, observe, watch
+from observ.observables import Proxy
 from observ.watcher import WrongNumberOfArgumentsError
 
 
@@ -235,3 +236,28 @@ def test_callback_signatures():
         )
     assert called == 4
     assert not isinstance(e, WrongNumberOfArgumentsError)
+
+
+def test_dict_iter():
+    state = observe({"foo": {"bar": 5}})
+
+    calls = []
+
+    def _called(new):
+        nonlocal calls
+        calls.append(new)
+
+    def _expr():
+        for key, value in state.items():
+            if key == "foo":
+                return value
+
+    watcher = watch(_expr, _called, sync=True, immediate=True)
+
+    assert len(calls) == 1
+    assert isinstance(state, Proxy)
+
+    # fails because the value is not wrapped
+    state["foo"]["bar"] += 1
+    assert len(calls) == 2
+    assert isinstance(watcher.value, Proxy)
