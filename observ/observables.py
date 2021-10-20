@@ -355,6 +355,8 @@ if sys.version_info >= (3, 9, 0):
     dict_traps["WRITERS"].add("__ior__")
 
 
+# TODO: should this subclass dict, so that users can work with
+# isinstance(x, dict) on their state objects?
 class DictProxyBase(Proxy):
     def __init__(self, target, readonly=False, shallow=False):
         super().__init__(target, readonly=readonly, shallow=shallow)

@@ -238,7 +238,7 @@ def test_callback_signatures():
     assert not isinstance(e, WrongNumberOfArgumentsError)
 
 
-def test_dict_iter():
+def test_dict_items():
     state = observe({"foo": {"bar": 5}})
 
     calls = []
@@ -255,9 +255,75 @@ def test_dict_iter():
     watcher = watch(_expr, _called, sync=True, immediate=True, deep=True)
 
     assert len(calls) == 1
-    assert isinstance(state, Proxy)
 
-    # fails because the value is not wrapped
+    # fails because items is not proxied and thus
+    # the value is not wrapped
     state["foo"]["bar"] += 1
     assert len(calls) == 2
+    assert isinstance(watcher.value, Proxy)
+
+
+def test_list_iter():
+    state = observe([{"b": 5}])
+
+    calls = []
+
+    def _called(new):
+        nonlocal calls
+        calls.append(new)
+
+    def _expr():
+        for x in state:
+            return x["b"]
+
+    watcher = watch(_expr, _called, sync=True, immediate=True)
+
+    assert len(calls) == 1
+
+    # fails because __iter__ is not proxied and thus
+    # the value is not wrapped
+    state[0]["b"] = 6
+    assert len(calls) == 2
+
+
+def test_list_reversed():
+    state = observe([{"b": 5}])
+
+    calls = []
+
+    def _called(new):
+        nonlocal calls
+        calls.append(new)
+
+    def _expr():
+        for x in reversed(state):
+            return x["b"]
+
+    watcher = watch(_expr, _called, sync=True, immediate=True, deep=True)
+
+    assert len(calls) == 1
+
+    # fails because __reversed__ is not proxied and thus
+    # the value is not wrapped
+    state[0]["b"] = 6
+    assert len(calls) == 2
+
+
+def test_isinstance():
+    state = observe(["a", {"b": 5}])
+
+    calls = []
+
+    def _called(new):
+        nonlocal calls
+        calls.append(new)
+
+    def _expr():
+        if isinstance(state[1], dict):
+            return state[1]
+
+    watcher = watch(_expr, _called, sync=True, immediate=True)
+
+    assert len(calls) == 1
+    # fails because our proxies don't pass the isinstance test
     assert isinstance(watcher.value, Proxy)
