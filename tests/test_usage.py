@@ -326,4 +326,5 @@ def test_isinstance():
 
     assert len(calls) == 1
     # fails because our proxies don't pass the isinstance test
+    # unclear if we _want_ them to pass?
     assert isinstance(watcher.value, Proxy)
