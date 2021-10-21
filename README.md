@@ -17,9 +17,9 @@ Observ provides the following two benefits for stateful applications:
 
 ## API
 
-`from observ import observe, computed, watch`
+`from observ import reactive, computed, watch`
 
-* `state = observe(state)`
+* `state = reactive(state)`
 
 Observe nested structures of dicts, lists, tuples and sets. Returns an observable clone of the state input object.
 

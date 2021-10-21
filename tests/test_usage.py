@@ -1,12 +1,12 @@
 import pytest
 
-from observ import computed, observe, watch
+from observ import computed, reactive, watch
 from observ.observables import Proxy
 from observ.watcher import WrongNumberOfArgumentsError
 
 
 def test_usage_dict():
-    a = observe({"foo": "bar"})
+    a = reactive({"foo": "bar"})
     called = 0
     values = ()
 
@@ -27,7 +27,7 @@ def test_usage_dict():
 
 
 def test_usage_dict_new_key():
-    a = observe({"foo": "bar"})
+    a = reactive({"foo": "bar"})
     called = 0
 
     def _callback(new, old):
@@ -45,7 +45,7 @@ def test_usage_dict_new_key():
 
 
 def test_usage_list():
-    a = observe([1, 2])
+    a = reactive([1, 2])
     called = 0
 
     def _callback():
@@ -61,7 +61,7 @@ def test_usage_list():
 
 
 def test_usage_set():
-    a = observe({1, 2})
+    a = reactive({1, 2})
     called = 0
 
     def _callback():
@@ -77,7 +77,7 @@ def test_usage_set():
 
 
 def test_usage():
-    a = observe({"foo": 5, "bar": [6, 7, 8], "quux": 10, "quuz": {"a": 1, "b": 2}})
+    a = reactive({"foo": 5, "bar": [6, 7, 8], "quux": 10, "quuz": {"a": 1, "b": 2}})
     execute_count = 0
 
     def bla():
@@ -142,7 +142,7 @@ def test_usage():
 
 
 def test_watch_immediate():
-    a = observe({"foo": 5, "bar": [6, 7, 8], "quux": 10, "quuz": {"a": 1, "b": 2}})
+    a = reactive({"foo": 5, "bar": [6, 7, 8], "quux": 10, "quuz": {"a": 1, "b": 2}})
 
     called = 0
 
@@ -161,7 +161,7 @@ def test_watch_immediate():
 
 
 def test_usage_deep_vs_non_deep():
-    a = observe({"foo": [0, 1]})
+    a = reactive({"foo": [0, 1]})
 
     non_deep_called = 0
 
@@ -186,7 +186,7 @@ def test_usage_deep_vs_non_deep():
 
 
 def test_callback_signatures():
-    a = observe({"foo": 0})
+    a = reactive({"foo": 0})
     called = 0
 
     def empty_callback():
@@ -239,7 +239,7 @@ def test_callback_signatures():
 
 
 def test_dict_keys():
-    state = observe({"foo": {"bar": 5}})
+    state = reactive({"foo": {"bar": 5}})
 
     calls = []
 
@@ -262,7 +262,7 @@ def test_dict_keys():
 
 
 def test_dict_values():
-    state = observe({"foo": {"bar": 5}})
+    state = reactive({"foo": {"bar": 5}})
 
     calls = []
 
@@ -284,7 +284,7 @@ def test_dict_values():
 
 
 def test_dict_items():
-    state = observe({"foo": {"bar": 5}})
+    state = reactive({"foo": {"bar": 5}})
 
     calls = []
 
@@ -306,7 +306,7 @@ def test_dict_items():
 
 
 def test_list_iter():
-    state = observe([{"b": 5}])
+    state = reactive([{"b": 5}])
 
     calls = []
 
@@ -327,7 +327,7 @@ def test_list_iter():
 
 
 def test_list_reversed():
-    state = observe([{"b": 5}])
+    state = reactive([{"b": 5}])
 
     calls = []
 
@@ -348,7 +348,7 @@ def test_list_reversed():
 
 
 def test_isinstance():
-    state = observe(["a", {"b": 5}])
+    state = reactive(["a", {"b": 5}])
 
     calls = []
 

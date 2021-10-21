@@ -1,4 +1,4 @@
-from observ import computed, observe
+from observ import computed, reactive
 from observ.observables import proxy_db
 
 
@@ -6,7 +6,7 @@ def test_deps_copy():
     # this test proves that even though we have
     # redundant deps we don't redundantly recompute
     # FIXME: I don't think this test works as intended anymore
-    state = observe({"foo": 5, "bar": 6})
+    state = reactive({"foo": 5, "bar": 6})
     call_count = 0
 
     @computed
@@ -31,7 +31,7 @@ def test_deps_copy():
 
 def test_deps_delete():
     # test that dep objects are removed on delete
-    state = observe({"foo": 5, "bar": 6})
+    state = reactive({"foo": 5, "bar": 6})
 
     state["baz"] = 5
     assert len(proxy_db.attrs(state)["keydep"]) == 3

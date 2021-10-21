@@ -4,12 +4,12 @@ Defines the public API for observ users
 from functools import wraps
 
 from .dep import Dep
-from .observables import observe
+from .observables import reactive
 from .scheduler import scheduler
 from .watcher import Watcher
 
 
-__all__ = ("observe", "computed", "watch", "scheduler")
+__all__ = ("reactive", "computed", "watch", "scheduler")
 
 
 def computed(fn):
