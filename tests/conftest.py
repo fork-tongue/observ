@@ -1,3 +1,5 @@
+import gc
+
 import pytest
 
 from observ import scheduler
@@ -28,4 +30,10 @@ def clear():
 
 @pytest.fixture(autouse=True)
 def clear_proxy_db():
-    proxy_db.db = {}
+    # Would be nice to do this at the end of runs, but
+    # it seems that pytest keeps some references to some objects
+    # so we're not able to guarentee that the db can be
+    # cleared properly afterwards.
+    # Running gc at the beginning does actually work.
+    gc.collect()
+    assert len(proxy_db.db) == 0

@@ -50,6 +50,33 @@ def test_proxy_lifecycle():
     assert obj_id not in proxy_db.db
 
 
+def test_proxy_lifecycle_auto():
+    # Call proxy to wrap the data object
+    wrapped_data = proxy({"foo": "bar"})
+    obj_id = id(wrapped_data.target)
+
+    assert isinstance(wrapped_data, Proxy)
+    assert obj_id in proxy_db.db
+    # assert wrapped_data.target is data
+
+    # Retrieve the proxy from the proxy_db
+    referenced_proxy = proxy_db.get_proxy(wrapped_data.target)
+
+    assert referenced_proxy is wrapped_data
+    assert referenced_proxy.target is wrapped_data.target
+
+    # Destroy the second proxy
+    del referenced_proxy
+
+    assert obj_id in proxy_db.db
+    assert proxy_db.get_proxy(wrapped_data.target) is not None
+
+    # Destroy the original proxy
+    del wrapped_data
+
+    assert obj_id not in proxy_db.db
+
+
 def test_multiple_proxy_calls():
     data = {"foo": "bar"}
 

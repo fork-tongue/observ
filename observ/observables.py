@@ -50,15 +50,13 @@ class ProxyDb:
         Creates an entry for the given target (object) and adds a strong
         reference. The items
         """
-        attrs = (
-            {
-                "dep": Dep(),
-                "keydep": {key: Dep() for key in dict.keys(target)},
-            }
-            if isinstance(target, dict)
-            else {"dep": Dep()}
-        )
+        attrs = {
+            "dep": Dep(),
+        }
+        if isinstance(target, dict):
+            attrs["keydep"] = {key: Dep() for key in target.keys()}
         self.db[id(target)] = {
+            "refs": 0,
             "target": target,
             "attrs": attrs,  # dep, keydep
             "proxies": {
@@ -85,6 +83,21 @@ class ProxyDb:
             self.register_target(proxy.target)
 
         self.db[obj_id]["proxies"][proxy.readonly][proxy.shallow].add(proxy)
+        self.db[obj_id]["refs"] += 1
+
+    def dereference(self, proxy):
+        """
+        Removes a reference from the
+        """
+        obj_id = id(proxy.target)
+        self.db[obj_id]["refs"] -= 1
+
+        if self.db[obj_id]["refs"] <= 0:
+            ref_count = sys.getrefcount(self.db[obj_id]["target"])
+            # Ref count is still 3 here because of the reference through proxy.target
+            if ref_count <= 3:
+                # We are the last to hold a reference!
+                del self.db[obj_id]
 
     def attrs(self, proxy):
         return self.db[id(proxy.target)]["attrs"]
@@ -115,6 +128,9 @@ class Proxy:
         self.readonly = readonly
         self.shallow = shallow
         proxy_db.reference(self)
+
+    def __del__(self):
+        proxy_db.dereference(self)
 
 
 def proxy(target, readonly=False, shallow=False):
