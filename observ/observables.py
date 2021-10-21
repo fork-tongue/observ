@@ -244,8 +244,8 @@ def write_trap(method, obj_cls):
 
     @wraps(fn)
     def inner(self, *args, **kwargs):
-        args = tuple(reactive(a) for a in args)
-        kwargs = {k: reactive(v) for k, v in kwargs.items()}
+        args = tuple(proxy(a) for a in args)
+        kwargs = {k: proxy(v) for k, v in kwargs.items()}
         retval = fn(self.target, *args, **kwargs)
         # TODO: prevent firing if value hasn't actually changed?
         proxy_db.attrs(self)["dep"].notify()
@@ -263,8 +263,8 @@ def write_key_trap(method, obj_cls):
         key = args[0]
         is_new = key not in proxy_db.attrs(self)["keydep"]
         old_value = getitem_fn(self.target, key) if not is_new else None
-        args = [key] + [reactive(a) for a in args[1:]]
-        kwargs = {k: reactive(v) for k, v in kwargs.items()}
+        args = [key] + [proxy(a) for a in args[1:]]
+        kwargs = {k: proxy(v) for k, v in kwargs.items()}
         retval = fn(self.target, *args, **kwargs)
         new_value = getitem_fn(self.target, key)
         if is_new:
