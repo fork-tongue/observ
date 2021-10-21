@@ -2,7 +2,7 @@
 observe converts plain datastructures (dict, list, set) to
 proxied versions of those datastructures to make them reactive.
 """
-from functools import wraps
+from functools import partial, wraps
 import gc
 import sys
 from weakref import WeakSet
@@ -175,20 +175,10 @@ def proxy(target, readonly=False, shallow=False):
     return proxy_type(target, readonly=readonly, shallow=shallow)
 
 
-def reactive(target):
-    return proxy(target)
-
-
-def readonly(target):
-    return proxy(target, readonly=True)
-
-
-def shallow_reactive(target):
-    return proxy(target, shallow=True)
-
-
-def shallow_readonly(target):
-    return proxy(target, shallow=True, readonly=True)
+reactive = partial(proxy)
+readonly = partial(proxy, readonly=True)
+shallow_reactive = partial(proxy, shallow=True)
+shallow_readonly = partial(proxy, shallow=True, readonly=True)
 
 
 class ProxiedItemsIterator:
@@ -239,10 +229,7 @@ def iterate_trap(method, obj_cls):
         if method == "items":
             return ProxiedItemsIterator(iterator, readonly=self.readonly)
         else:
-
-            def proxied(value):
-                return proxy(value, readonly=self.readonly)
-
+            proxied = partial(proxy, readonly=self.readonly)
             return map(proxied, iterator)
 
     return trap
@@ -368,7 +355,7 @@ trap_map_readonly = {
 }
 
 
-def make_observable(proxy_cls, obj_cls, traps, trap_map):
+def make_reactive(proxy_cls, obj_cls, traps, trap_map):
     for trap_type, methods in traps.items():
         for method in methods:
             trap = trap_map[trap_type](method, obj_cls)
@@ -443,8 +430,8 @@ class ReadonlyDictProxy(DictProxyBase):
         super().__init__(target, shallow=shallow, **{**kwargs, "readonly": True})
 
 
-make_observable(DictProxy, dict, dict_traps, trap_map)
-make_observable(ReadonlyDictProxy, dict, dict_traps, trap_map_readonly)
+make_reactive(DictProxy, dict, dict_traps, trap_map)
+make_reactive(ReadonlyDictProxy, dict, dict_traps, trap_map_readonly)
 
 
 list_traps = {
@@ -504,8 +491,8 @@ class ReadonlyListProxy(ListProxyBase):
         super().__init__(target, shallow=shallow, **{**kwargs, "readonly": True})
 
 
-make_observable(ListProxy, list, list_traps, trap_map)
-make_observable(ReadonlyListProxy, list, list_traps, trap_map_readonly)
+make_reactive(ListProxy, list, list_traps, trap_map)
+make_reactive(ReadonlyListProxy, list, list_traps, trap_map_readonly)
 
 
 set_traps = {
@@ -574,5 +561,5 @@ class ReadonlySetProxy(SetProxyBase):
         super().__init__(target, shallow=shallow, **{**kwargs, "readonly": True})
 
 
-make_observable(SetProxy, set, set_traps, trap_map)
-make_observable(ReadonlySetProxy, set, set_traps, trap_map_readonly)
+make_reactive(SetProxy, set, set_traps, trap_map)
+make_reactive(ReadonlySetProxy, set, set_traps, trap_map_readonly)
