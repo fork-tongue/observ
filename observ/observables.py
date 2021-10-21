@@ -181,26 +181,6 @@ shallow_reactive = partial(proxy, shallow=True)
 shallow_readonly = partial(proxy, shallow=True, readonly=True)
 
 
-class ProxiedItemsIterator:
-    def __init__(self, iterator, readonly=False):
-        self.iterator = iterator
-        self.readonly = readonly
-
-    def __iter__(self):
-        self._iter = self.iterator.__iter__()
-        return self
-
-    def __next__(self):
-        if hasattr(self, "_iter"):
-            key, value = self._iter.__next__()
-        else:
-            key, value = self.iterator.__next__()
-        return (
-            proxy(key, readonly=self.readonly),
-            proxy(value, readonly=self.readonly),
-        )
-
-
 def read_trap(method, obj_cls):
     fn = getattr(obj_cls, method)
 
@@ -227,7 +207,15 @@ def iterate_trap(method, obj_cls):
         if self.shallow:
             return iterator
         if method == "items":
-            return ProxiedItemsIterator(iterator, readonly=self.readonly)
+
+            def proxy_dict_items(iterator, readonly=False):
+                for key, value in iterator:
+                    yield (
+                        proxy(key, readonly=readonly),
+                        proxy(value, readonly=readonly),
+                    )
+
+            return proxy_dict_items(iterator, readonly=self.readonly)
         else:
             proxied = partial(proxy, readonly=self.readonly)
             return map(proxied, iterator)
