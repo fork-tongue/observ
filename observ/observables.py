@@ -202,7 +202,7 @@ class ProxiedItemsIterator:
 
     def __next__(self):
         if hasattr(self, "_iter"):
-            key, value = self._iter.__next__()  # .__next__()
+            key, value = self._iter.__next__()
         else:
             key, value = self.iterator.__next__()
         return (
@@ -371,7 +371,6 @@ trap_map_readonly = {
 def make_observable(proxy_cls, obj_cls, traps, trap_map):
     for trap_type, methods in traps.items():
         for method in methods:
-            # trap = trap_map[trap_type](method, proxy_cls, obj_cls)
             trap = trap_map[trap_type](method, obj_cls)
             setattr(proxy_cls, method, trap)
 
