@@ -170,8 +170,7 @@ def proxy(target, readonly=False, shallow=False):
     elif isinstance(target, set):
         proxy_type = SetProxy if not readonly else ReadonlySetProxy
     elif isinstance(target, tuple):
-        # FIXME: think of what needs to be done for tuple
-        proxy_type = Proxy
+        return tuple(proxy(x, readonly=readonly, shallow=shallow) for x in target)
     return proxy_type(target, readonly=readonly, shallow=shallow)
 
 

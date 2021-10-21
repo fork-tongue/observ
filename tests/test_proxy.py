@@ -146,3 +146,17 @@ def test_nested_dict_proxy():
     proxied = proxy(data)
     assert isinstance(proxied, DictProxy)
     assert isinstance(proxied["baz"], DictProxy)
+
+
+def test_tuple():
+    data = ({"foo": "bar"},)
+    proxied = proxy(data)
+    assert isinstance(proxied, tuple)
+    assert isinstance(proxied[0], DictProxy)
+
+
+def test_embedded_tuple():
+    data = {"foo": ({"bar"},)}
+    proxied = proxy(data)
+    assert isinstance(proxied, DictProxy)
+    assert isinstance(proxied["foo"][0], SetProxy)
