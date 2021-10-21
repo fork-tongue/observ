@@ -3,6 +3,7 @@ observe converts plain datastructures (dict, list, set) to
 proxied versions of those datastructures to make them reactive.
 """
 from functools import wraps
+import gc
 import sys
 from weakref import WeakSet
 
@@ -21,57 +22,69 @@ class ProxyDb:
 
     def __init__(self):
         self.db = {}
+        gc.callbacks.append(self.cleanup)
+
+    def cleanup(self, phase, info):
+        """
+        Callback for garbage collector to cleanup the db for targets
+        that have no other references outside of the db
+        """
+        # TODO: maybe also run on start? Check performance
+        if phase != "stop":
+            return
+
+        keys_to_delete = []
+        for key, value in self.db.items():
+            # Refs:
+            # - sys.getrefcount
+            # - ref in db item
+            if sys.getrefcount(value["target"]) <= 2:
+                # We are the last to hold a reference!
+                keys_to_delete.append(key)
+
+        for keys in keys_to_delete:
+            del self.db[keys]
+
+    def register_target(self, target):
+        """
+        Creates an entry for the given target (object) and adds a strong
+        reference. The items
+        """
+        attrs = (
+            {
+                "dep": Dep(),
+                "keydep": {key: Dep() for key in dict.keys(target)},
+            }
+            if isinstance(target, dict)
+            else {"dep": Dep()}
+        )
+        self.db[id(target)] = {
+            "target": target,
+            "attrs": attrs,  # dep, keydep
+            "proxies": {
+                # readonly
+                True: {
+                    # shallow
+                    True: WeakSet(),
+                    False: WeakSet(),
+                },
+                False: {
+                    True: WeakSet(),
+                    False: WeakSet(),
+                },
+            },
+        }
 
     def reference(self, proxy):
         """
         Adds a reference to the collection for the wrapped object's id
         """
         obj_id = id(proxy.target)
-        attrs = (
-            {"dep": Dep(), "keydep": {key: Dep() for key in dict.keys(proxy.target)}}
-            if isinstance(proxy.target, dict)
-            else {"dep": Dep()}
-        )
-        if obj_id not in self.db:
-            self.db[obj_id] = {
-                "ref": 0,  # ref counter
-                "attrs": attrs,  # dep, keydep
-                "proxies": {
-                    # readonly
-                    True: {
-                        # shallow
-                        True: WeakSet(),
-                        False: WeakSet(),
-                    },
-                    False: {
-                        True: WeakSet(),
-                        False: WeakSet(),
-                    },
-                },
-            }
-        self.db[obj_id]["proxies"][proxy.readonly][proxy.shallow].add(proxy)
-        self.db[obj_id]["ref"] += 1
 
-    def dereference(self, proxy):
-        """
-        Removes the reference of the proxy for the wrapped object's id
-        """
-        obj_id = id(proxy.target)
         if obj_id not in self.db:
-            return
-        self.db[obj_id]["ref"] -= 1
-        try:
-            self.db[obj_id]["proxies"][proxy.readonly][proxy.shallow].remove(proxy)
-        except KeyError:
-            # During assertion errors in the test suite, the proxy might
-            # already be removed from the WeakSet, so this try/except is
-            # to make sure you won't see a KeyError when an assertion error
-            # occurs.
-            pass
-        if self.db[obj_id]["ref"] == 0:
-            del self.db[obj_id]
-        elif self.db[obj_id]["ref"] < 0:
-            raise RuntimeError("ye olde 'this should never happen'  ¯\\_(ツ)_/¯")
+            self.register_target(proxy.target)
+
+        self.db[obj_id]["proxies"][proxy.readonly][proxy.shallow].add(proxy)
 
     def attrs(self, proxy):
         return self.db[id(proxy.target)]["attrs"]
@@ -102,9 +115,6 @@ class Proxy:
         self.readonly = readonly
         self.shallow = shallow
         proxy_db.reference(self)
-
-    def __del__(self):
-        proxy_db.dereference(self)
 
 
 def proxy(target, readonly=False, shallow=False):
@@ -165,6 +175,26 @@ def shallow_readonly(target):
     return proxy(target, shallow=True, readonly=True)
 
 
+class ProxiedItemsIterator:
+    def __init__(self, iterator, readonly=False):
+        self.iterator = iterator
+        self.readonly = readonly
+
+    def __iter__(self):
+        self._iter = self.iterator.__iter__()
+        return self
+
+    def __next__(self):
+        if hasattr(self, "_iter"):
+            key, value = self._iter.__next__()  # .__next__()
+        else:
+            key, value = self.iterator.__next__()
+        return (
+            proxy(key, readonly=self.readonly),
+            proxy(value, readonly=self.readonly),
+        )
+
+
 def read_trap(method, obj_cls):
     fn = getattr(obj_cls, method)
 
@@ -176,6 +206,28 @@ def read_trap(method, obj_cls):
         if self.shallow:
             return value
         return proxy(value, readonly=self.readonly)
+
+    return trap
+
+
+def iterate_trap(method, obj_cls):
+    fn = getattr(obj_cls, method)
+
+    @wraps(fn)
+    def trap(self, *args, **kwargs):
+        if Dep.stack:
+            proxy_db.attrs(self)["dep"].depend()
+        iterator = fn(self.target, *args, **kwargs)
+        if self.shallow:
+            return iterator
+        if method == "items":
+            return ProxiedItemsIterator(iterator, readonly=self.readonly)
+        else:
+
+            def proxied(value):
+                return proxy(value, readonly=self.readonly)
+
+            return map(proxied, iterator)
 
     return trap
 
@@ -267,6 +319,7 @@ def delete_key_trap(method, obj_cls):
 trap_map = {
     "READERS": read_trap,
     "KEYREADERS": read_key_trap,
+    "ITERATORS": iterate_trap,
     "WRITERS": write_trap,
     "KEYWRITERS": write_key_trap,
     "DELETERS": delete_trap,
@@ -291,6 +344,7 @@ def readonly_trap(method, obj_cls):
 trap_map_readonly = {
     "READERS": read_trap,
     "KEYREADERS": read_key_trap,
+    "ITERATORS": iterate_trap,
     "WRITERS": readonly_trap,
     "KEYWRITERS": readonly_trap,
     "DELETERS": readonly_trap,
@@ -308,15 +362,11 @@ def make_observable(proxy_cls, obj_cls, traps, trap_map):
 
 dict_traps = {
     "READERS": {
-        "values",
         "copy",
-        "items",
-        "keys",
         "__eq__",
         "__format__",
         "__ge__",
         "__gt__",
-        "__iter__",
         "__le__",
         "__len__",
         "__lt__",
@@ -324,11 +374,17 @@ dict_traps = {
         "__repr__",
         "__sizeof__",
         "__str__",
+        "keys",
     },
     "KEYREADERS": {
         "get",
         "__contains__",
         "__getitem__",
+    },
+    "ITERATORS": {
+        "items",
+        "values",
+        "__iter__",
     },
     "WRITERS": {
         "update",
@@ -348,15 +404,13 @@ dict_traps = {
 }
 
 if sys.version_info >= (3, 8, 0):
-    dict_traps["READERS"].add("__reversed__")
+    dict_traps["ITERATORS"].add("__reversed__")
 if sys.version_info >= (3, 9, 0):
     dict_traps["READERS"].add("__or__")
     dict_traps["READERS"].add("__ror__")
     dict_traps["WRITERS"].add("__ior__")
 
 
-# TODO: should this subclass dict, so that users can work with
-# isinstance(x, dict) on their state objects?
 class DictProxyBase(Proxy):
     def __init__(self, target, readonly=False, shallow=False):
         super().__init__(target, readonly=readonly, shallow=shallow)
@@ -394,13 +448,15 @@ list_traps = {
         "__mul__",
         "__ne__",
         "__rmul__",
-        "__iter__",
         "__len__",
         "__repr__",
         "__str__",
         "__format__",
-        "__reversed__",
         "__sizeof__",
+    },
+    "ITERATORS": {
+        "__iter__",
+        "__reversed__",
     },
     "WRITERS": {
         "append",
@@ -456,7 +512,6 @@ set_traps = {
         "__iand__",
         "__ior__",
         "__isub__",
-        "__iter__",
         "__ixor__",
         "__le__",
         "__len__",
@@ -472,6 +527,9 @@ set_traps = {
         "__str__",
         "__sub__",
         "__xor__",
+    },
+    "ITERATORS": {
+        "__iter__",
     },
     "WRITERS": {
         "add",

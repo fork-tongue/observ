@@ -1,3 +1,5 @@
+import gc
+
 import pytest
 
 from observ.observables import (
@@ -12,7 +14,7 @@ from observ.observables import (
 )
 
 
-def test_proxy():
+def test_proxy_lifecycle():
     data = {"foo": "bar"}
     obj_id = id(data)
 
@@ -38,8 +40,14 @@ def test_proxy():
     # Destroy the original proxy
     del wrapped_data
 
-    assert obj_id not in proxy_db.db
+    assert obj_id in proxy_db.db
     assert proxy_db.get_proxy(data) is None
+
+    # Also delete the original data and run garbage collection
+    del data
+    gc.collect()
+
+    assert obj_id not in proxy_db.db
 
 
 def test_multiple_proxy_calls():

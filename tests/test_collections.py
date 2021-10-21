@@ -15,6 +15,7 @@ COLLECTIONS = {
 WRAPATTRS = {
     "READERS",
     "KEYREADERS",
+    "ITERATORS",
     "WRITERS",
     "KEYWRITERS",
     "DELETERS",
@@ -59,7 +60,7 @@ def test_wrapping_complete():
         # ensure we're wrapping everything
         to_wrap = set(dir(coll)) - EXCLUDED
         wrapped = set(wrap_list)
-        assert to_wrap == wrapped
+        assert to_wrap == wrapped, f"Failing for: {coll}"
 
 
 def test_list_notify():
