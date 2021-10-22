@@ -215,12 +215,9 @@ def iterate_trap(method, obj_cls):
         if self.shallow:
             return iterator
         if method == "items":
-
-            def proxy_dict_items(iterator, readonly=False):
-                for key, value in iterator:
-                    yield key, proxy(value, readonly=readonly)
-
-            return proxy_dict_items(iterator, readonly=self.readonly)
+            return (
+                (key, proxy(value, readonly=self.readonly)) for key, value in iterator
+            )
         else:
             proxied = partial(proxy, readonly=self.readonly)
             return map(proxied, iterator)
