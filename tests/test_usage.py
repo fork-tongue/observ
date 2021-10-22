@@ -403,6 +403,7 @@ def test_computed():
     def _expr_with_write():
         # Writing to the state during a computed
         # expression should raise a ReadonlyError
+        # Trigger a key writer
         a["bar"] = a["foo"] * 2
         return a["foo"] * 2
 
@@ -420,8 +421,29 @@ def test_watch_computed():
     @computed
     def _times_ten():
         # This next line should trigger the ReadonlyError
+        # Trigger a writer
         a.append(0)
         return a[0] * 10
 
     with pytest.raises(ReadonlyError):
         _ = watch(_times_ten, callback=None, sync=True)
+
+    a = reactive({"foo": "bar"})
+
+    @computed
+    def _comp_fail():
+        # Trigger a key deleter
+        a.pop()
+        return a[0]
+
+    with pytest.raises(ReadonlyError):
+        _ = watch(_comp_fail, None, sync=True)
+
+    @computed
+    def _comp_fail():
+        # Trigger a deleter
+        a.clear()
+        return a[0]
+
+    with pytest.raises(ReadonlyError):
+        _ = watch(_comp_fail, None, sync=True)

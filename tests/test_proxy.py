@@ -9,6 +9,8 @@ from observ.observables import (
     proxy,
     proxy_db,
     ReadonlyDictProxy,
+    ReadonlyListProxy,
+    ReadonlySetProxy,
     ReadonlyError,
     SetProxy,
 )
@@ -142,8 +144,7 @@ def test_readonly_dict_proxy():
 
 
 def test_readonly_nested_dict_proxy():
-    data = {"foo": "bar"}
-    proxied = proxy(data)
+    proxied = proxy({"foo": "bar"})
     readonly_proxy = proxy(proxied, readonly=True)
     another_proxied = proxy(readonly_proxy, readonly=False)
 
@@ -154,6 +155,24 @@ def test_readonly_nested_dict_proxy():
         readonly_proxy["foo"] = "baz"
 
     another_proxied["foo"] = "baz"
+
+
+def test_readonly_list_proxy():
+    readonly_proxy = proxy(["foo", "bar"], readonly=True)
+
+    assert isinstance(readonly_proxy, ReadonlyListProxy)
+
+    with pytest.raises(ReadonlyError):
+        readonly_proxy[0] = "baz"
+
+
+def test_readonly_set_proxy():
+    readonly_proxy = proxy({"foo", "bar"}, readonly=True)
+
+    assert isinstance(readonly_proxy, ReadonlySetProxy)
+
+    with pytest.raises(ReadonlyError):
+        readonly_proxy.add("baz")
 
 
 def test_nested_dict_proxy():
