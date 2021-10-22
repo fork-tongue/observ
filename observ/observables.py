@@ -218,10 +218,7 @@ def iterate_trap(method, obj_cls):
 
             def proxy_dict_items(iterator, readonly=False):
                 for key, value in iterator:
-                    yield (
-                        proxy(key, readonly=readonly),
-                        proxy(value, readonly=readonly),
-                    )
+                    yield key, proxy(value, readonly=readonly)
 
             return proxy_dict_items(iterator, readonly=self.readonly)
         else:
