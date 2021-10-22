@@ -90,6 +90,13 @@ class ProxyDb:
         Removes a reference from the
         """
         obj_id = id(proxy.target)
+        if obj_id not in self.db:
+            # When there are failing tests, it might happen that proxies
+            # are garbage collected at a point where the proxy_db is already
+            # cleared. That's why we need this check here.
+            # See fixture [clear_proxy_db](/tests/conftest.py:clear_proxy_db)
+            # for more info.
+            return
         self.db[obj_id]["refs"] -= 1
 
         if self.db[obj_id]["refs"] <= 0:

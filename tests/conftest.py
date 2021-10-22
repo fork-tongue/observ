@@ -34,6 +34,8 @@ def clear_proxy_db():
     # it seems that pytest keeps some references to some objects
     # so we're not able to guarentee that the db can be
     # cleared properly afterwards.
-    # Running gc at the beginning does actually work.
     gc.collect()
-    assert len(proxy_db.db) == 0
+    # Running gc at the beginning should clear the proxy_db,
+    # but this apparently only works when tests are not failing,
+    # so the db needs to be cleared like this.
+    proxy_db.db = {}
