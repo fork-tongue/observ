@@ -2,6 +2,7 @@
 observe converts plain datastructures (dict, list, set) to
 proxied versions of those datastructures to make them reactive.
 """
+from copy import copy
 from functools import partial, wraps
 import gc
 import sys
@@ -553,3 +554,33 @@ class ReadonlySetProxy(SetProxyBase):
 
 make_reactive(SetProxy, set, set_traps, trap_map)
 make_reactive(ReadonlySetProxy, set, set_traps, trap_map_readonly)
+
+
+def to_raw(target):
+    """
+    Returns a raw object from which any trace of proxy has been replaced
+    with its wrapped target value.
+    """
+    if isinstance(target, Proxy):
+        return to_raw(target.target)
+
+    if isinstance(target, list):
+        tcopy = copy(target)
+        for idx, value in enumerate(tcopy):
+            tcopy[idx] = to_raw(value)
+        return tcopy
+
+    if isinstance(target, dict):
+        target = copy(target)
+        for key, value in target.items():
+            target[key] = to_raw(value)
+        return target
+
+    if isinstance(target, tuple):
+        return tuple(map(to_raw, target))
+
+    if isinstance(target, set):
+        return target
+        # return set(to_raw(x) for x in target)
+
+    return target

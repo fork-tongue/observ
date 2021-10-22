@@ -1,6 +1,6 @@
 import pytest
 
-from observ import computed, reactive, watch
+from observ import computed, reactive, to_raw, watch
 from observ.observables import Proxy
 from observ.watcher import WrongNumberOfArgumentsError
 
@@ -76,7 +76,7 @@ def test_usage_set():
     assert len(a) == 3
 
 
-def test_usage():
+def test_usage_computed():
     a = reactive({"foo": 5, "bar": [6, 7, 8], "quux": 10, "quuz": {"a": 1, "b": 2}})
     execute_count = 0
 
@@ -364,3 +364,28 @@ def test_isinstance():
 
     assert len(calls) == 1
     assert isinstance(watcher.value, Proxy), type(watcher.value)
+
+
+def test_reactive_in_reactive():
+    state = reactive({"foo": 5})
+    state["bar"] = reactive(["something", "else"])
+
+    assert state["bar"][0] == "something"
+
+
+def test_to_raw():
+    state = reactive({"dict": {"key": 5}})
+    state["list"] = reactive(["list", "item"])
+    state["list"].append(reactive({"set"}))
+    state["tuple"] = (reactive({"set", "bloeb"}), reactive({"dict": "value"}))
+
+    raw = to_raw(state)
+
+    assert isinstance(raw, dict)
+    assert isinstance(raw["dict"], dict)
+    assert isinstance(raw["dict"]["key"], int), type(raw["dict"]["key"])
+    assert isinstance(raw["list"], list), type(raw["list"])
+    assert isinstance(raw["list"][-1], set), type(raw["list"][-1])
+    assert isinstance(raw["tuple"], tuple), type(raw["tuple"])
+    assert isinstance(raw["tuple"][0], set), type(raw["tuple"][0])
+    assert isinstance(raw["tuple"][1], dict), type(raw["tuple"][1])
