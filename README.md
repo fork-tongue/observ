@@ -38,3 +38,7 @@ Install observ with pip/pipenv/poetry:
 `pip install observ`
 
 Check out [`examples/observe_qt.py`](https://github.com/Korijn/observ/blob/master/examples/observe_qt.py) for a simple example using observ.
+
+## Caveats
+
+The reactive counterparts (DictProxy, ListProxy and SetProxy) of dict, list and set *are* hashable, unlike the originals. That makes it possible to use them as keys in dicts and to include them in sets. This is probably not a good idea if you are ever to call `to_raw` on your data structure, because that will surely break.
