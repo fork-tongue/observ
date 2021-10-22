@@ -13,7 +13,7 @@ __all__ = ("reactive", "computed", "watch", "scheduler", "to_raw")
 
 
 def computed(fn):
-    watcher = Watcher(fn)
+    watcher = Watcher(fn, readonly=True)
 
     @wraps(fn)
     def getter():

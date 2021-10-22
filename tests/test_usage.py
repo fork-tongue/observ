@@ -391,7 +391,6 @@ def test_to_raw():
     assert isinstance(raw["tuple"][1], dict), type(raw["tuple"][1])
 
 
-@pytest.mark.xfail
 def test_computed():
     a = reactive({"foo": 5})
 
@@ -410,3 +409,19 @@ def test_computed():
     computed_expr = computed(_expr_with_write)
     with pytest.raises(ReadonlyError):
         _ = computed_expr()
+
+
+def test_watch_computed():
+    a = reactive([0])
+    from observ.observables import ListProxy
+
+    assert isinstance(a, ListProxy)
+
+    @computed
+    def _times_ten():
+        # This next line should trigger the ReadonlyError
+        a.append(0)
+        return a[0] * 10
+
+    with pytest.raises(ReadonlyError):
+        _ = watch(_times_ten, callback=None, sync=True)
