@@ -9,9 +9,9 @@ from observ.observables import (
     proxy,
     proxy_db,
     ReadonlyDictProxy,
+    ReadonlyError,
     ReadonlyListProxy,
     ReadonlySetProxy,
-    ReadonlyError,
     SetProxy,
 )
 
