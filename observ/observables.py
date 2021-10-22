@@ -6,7 +6,7 @@ from copy import copy
 from functools import partial, wraps
 import gc
 import sys
-from weakref import WeakSet
+from weakref import WeakValueDictionary
 
 from .dep import Dep
 
@@ -60,18 +60,8 @@ class ProxyDb:
             "refs": 0,
             "target": target,
             "attrs": attrs,  # dep, keydep
-            "proxies": {
-                # readonly
-                True: {
-                    # shallow
-                    True: WeakSet(),
-                    False: WeakSet(),
-                },
-                False: {
-                    True: WeakSet(),
-                    False: WeakSet(),
-                },
-            },
+            # keyed on tuple(readonly, shallow)
+            "proxies": WeakValueDictionary(),
         }
 
     def reference(self, proxy):
@@ -83,7 +73,7 @@ class ProxyDb:
         if obj_id not in self.db:
             self.register_target(proxy.target)
 
-        self.db[obj_id]["proxies"][proxy.readonly][proxy.shallow].add(proxy)
+        self.db[obj_id]["proxies"][(proxy.readonly, proxy.shallow)] = proxy
         self.db[obj_id]["refs"] += 1
 
     def dereference(self, proxy):
@@ -117,7 +107,7 @@ class ProxyDb:
         """
         if id(target) not in self.db:
             return None
-        return next(iter(self.db[id(target)]["proxies"][readonly][shallow]), None)
+        return self.db[id(target)]["proxies"].get((readonly, shallow))
 
 
 # Create a global proxy collection
@@ -130,6 +120,8 @@ class Proxy:
     Instantiating a Proxy will add a reference to the global proxy_db and
     destroying a Proxy will remove that reference.
     """
+
+    __hash__ = None
 
     def __init__(self, target, readonly=False, shallow=False):
         self.target = target

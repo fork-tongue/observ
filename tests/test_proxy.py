@@ -184,3 +184,17 @@ def test_shallow_proxy():
 
     deep_proxy = proxy(shallow_proxy)
     assert not deep_proxy.shallow
+
+
+def test_non_hashable():
+    # Should not be able to create a hash from a proxy
+    with pytest.raises(TypeError):
+        hash(proxy({}))
+
+    # Should not be able to add a proxy to a set
+    with pytest.raises(TypeError):
+        _ = proxy({"set", proxy({})})
+
+    # Should not be able to use a proxy as a key
+    with pytest.raises(TypeError):
+        _ = proxy({proxy({}): "value"})
