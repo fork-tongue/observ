@@ -1,7 +1,7 @@
 import pytest
 
 from observ import computed, reactive, to_raw, watch
-from observ.observables import Proxy
+from observ.observables import Proxy, ReadonlyError
 from observ.watcher import WrongNumberOfArgumentsError
 
 
@@ -389,3 +389,22 @@ def test_to_raw():
     assert isinstance(raw["tuple"], tuple), type(raw["tuple"])
     assert isinstance(raw["tuple"][0], set), type(raw["tuple"][0])
     assert isinstance(raw["tuple"][1], dict), type(raw["tuple"][1])
+
+
+def test_computed():
+    a = reactive({"foo": 5})
+
+    def _readonly_expr():
+        return a["foo"] * 2
+
+    computed_expr = computed(_readonly_expr)
+    assert computed_expr() == 10
+
+    def _expr_with_write():
+        # Writing to the state during a computed
+        # expression should raise a ReadonlyError
+        a["bar"] = a["foo"] * 2
+        return a["foo"] * 2
+
+    with pytest.raises(ReadonlyError):
+        _ = computed(_expr_with_write)
