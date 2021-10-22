@@ -141,6 +141,21 @@ def test_readonly_dict_proxy():
         readonly_proxy["foo"] = "baz"
 
 
+def test_readonly_nested_dict_proxy():
+    data = {"foo": "bar"}
+    proxied = proxy(data)
+    readonly_proxy = proxy(proxied, readonly=True)
+    another_proxied = proxy(readonly_proxy, readonly=False)
+
+    assert isinstance(proxied, DictProxy)
+    assert isinstance(readonly_proxy, ReadonlyDictProxy)
+
+    with pytest.raises(ReadonlyError):
+        readonly_proxy["foo"] = "baz"
+
+    another_proxied["foo"] = "baz"
+
+
 def test_nested_dict_proxy():
     data = {"foo": "bar", "baz": {"lorem": "ipsum"}}
     proxied = proxy(data)
@@ -160,3 +175,12 @@ def test_embedded_tuple():
     proxied = proxy(data)
     assert isinstance(proxied, DictProxy)
     assert isinstance(proxied["foo"][0], SetProxy)
+
+
+def test_shallow_proxy():
+    shallow_proxy = proxy({"foo": "bar", "baz": {"lorem": "ipsum"}}, shallow=True)
+    assert isinstance(shallow_proxy, DictProxy)
+    assert shallow_proxy.shallow
+
+    deep_proxy = proxy(shallow_proxy)
+    assert not deep_proxy.shallow

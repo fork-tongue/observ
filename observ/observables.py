@@ -148,21 +148,23 @@ def proxy(target, readonly=False, shallow=False):
 
     Please be aware: this only works on plain data types!
     """
-    # The object may be a proxy already
-    # (exception is when we want a readonly proxy on a writable proxy)
+    # The object may be a proxy already, so check if it matches the
+    # given configuration (readonly and shallow)
     if isinstance(target, Proxy):
-        if not (readonly and not target.readonly):
+        if readonly == target.readonly and shallow == target.shallow:
             return target
         else:
-            # Unpack the target from the proxy to create
-            # a new proxy further down this function
+            # If the configuration does not match,
+            # unwrap the target from the proxy so that the right
+            # kind of proxy can be returned in the next part of
+            # this function
             target = target.target
 
-    # There may already be a proxy for this object
-    if not isinstance(target, Proxy):
-        existing_proxy = proxy_db.get_proxy(target, readonly=readonly, shallow=shallow)
-        if existing_proxy is not None:
-            return existing_proxy
+    # Note that at this point, target is always a non-proxy object
+    # Check the proxy_db to see if there's already a proxy for the target object
+    existing_proxy = proxy_db.get_proxy(target, readonly=readonly, shallow=shallow)
+    if existing_proxy is not None:
+        return existing_proxy
 
     # We can only wrap the following datatypes
     if not isinstance(target, (dict, list, tuple, set)):
