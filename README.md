@@ -21,7 +21,7 @@ Observ provides the following two benefits for stateful applications:
 
 * `state = reactive(state)`
 
-Observe nested structures of dicts, lists, tuples and sets. Returns an observable clone of the state input object.
+Observe nested structures of dicts, lists, tuples and sets. Returns an observable proxy that wraps the state input object.
 
 * `watcher = watch(func, callback, deep=False, immediate=False)`
 
@@ -38,7 +38,3 @@ Install observ with pip/pipenv/poetry:
 `pip install observ`
 
 Check out [`examples/observe_qt.py`](https://github.com/Korijn/observ/blob/master/examples/observe_qt.py) for a simple example using observ.
-
-## Caveats
-
-The reactive counterparts (DictProxy, ListProxy and SetProxy) of dict, list and set *are* hashable, unlike the originals. That makes it possible to use them as keys in dicts and to include them in sets. This is probably not a good idea if you are ever to call `to_raw` on your data structure, because that will surely break.
