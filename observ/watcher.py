@@ -52,9 +52,7 @@ class WrongNumberOfArgumentsError(TypeError):
 
 
 class Watcher:
-    def __init__(
-        self, fn, sync=False, lazy=True, deep=False, callback=None, readonly=False
-    ) -> None:
+    def __init__(self, fn, sync=False, lazy=True, deep=False, callback=None) -> None:
         """
         sync: Ignore the scheduler
         lazy: Only reevalutate when value is requested
@@ -69,7 +67,6 @@ class Watcher:
         self.callback = callback
         self.deep = deep
         self.lazy = lazy
-        self.readonly = readonly
         self.dirty = self.lazy
         self.value = None if self.lazy else self.get()
         self._number_of_callback_args = None

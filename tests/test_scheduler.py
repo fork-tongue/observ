@@ -55,10 +55,10 @@ def test_cycle_expression(noop_request_flush):
     calls = 0
 
     def exp():
-        state["foo"] += 1
         return state["foo"]
 
     def cb(old, new):
+        state["foo"] += 1
         nonlocal calls
         calls += 1
 

@@ -239,7 +239,7 @@ def write_trap(method, obj_cls):
 
     @wraps(fn)
     def inner(self, *args, **kwargs):
-        if Dep.stack and Dep.stack[-1].readonly:
+        if Dep.stack:
             raise ReadonlyError()
         args = tuple(proxy(a) for a in args)
         kwargs = {k: proxy(v) for k, v in kwargs.items()}
@@ -257,7 +257,7 @@ def write_key_trap(method, obj_cls):
 
     @wraps(fn)
     def inner(self, *args, **kwargs):
-        if Dep.stack and Dep.stack[-1].readonly:
+        if Dep.stack:
             raise ReadonlyError()
         key = args[0]
         is_new = key not in proxy_db.attrs(self)["keydep"]
@@ -281,7 +281,7 @@ def delete_trap(method, obj_cls):
 
     @wraps(fn)
     def inner(self, *args, **kwargs):
-        if Dep.stack and Dep.stack[-1].readonly:
+        if Dep.stack:
             raise ReadonlyError()
         retval = fn(self.target, *args, **kwargs)
         proxy_db.attrs(self)["dep"].notify()
@@ -298,7 +298,7 @@ def delete_key_trap(method, obj_cls):
 
     @wraps(fn)
     def inner(self, *args, **kwargs):
-        if Dep.stack and Dep.stack[-1].readonly:
+        if Dep.stack:
             raise ReadonlyError()
         retval = fn(self.target, *args, **kwargs)
         key = args[0]
