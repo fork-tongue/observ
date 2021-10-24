@@ -182,6 +182,14 @@ shallow_reactive = partial(proxy, shallow=True)
 shallow_readonly = partial(proxy, shallow=True, readonly=True)
 
 
+class StateModifiedError(Exception):
+    """
+    Raised when a proxy is modified in a watched (or computed) expression.
+    """
+
+    pass
+
+
 def read_trap(method, obj_cls):
     fn = getattr(obj_cls, method)
 
@@ -240,7 +248,7 @@ def write_trap(method, obj_cls):
     @wraps(fn)
     def inner(self, *args, **kwargs):
         if Dep.stack:
-            raise ReadonlyError()
+            raise StateModifiedError()
         args = tuple(proxy(a) for a in args)
         kwargs = {k: proxy(v) for k, v in kwargs.items()}
         retval = fn(self.target, *args, **kwargs)
@@ -258,7 +266,7 @@ def write_key_trap(method, obj_cls):
     @wraps(fn)
     def inner(self, *args, **kwargs):
         if Dep.stack:
-            raise ReadonlyError()
+            raise StateModifiedError()
         key = args[0]
         is_new = key not in proxy_db.attrs(self)["keydep"]
         old_value = getitem_fn(self.target, key) if not is_new else None
@@ -282,7 +290,7 @@ def delete_trap(method, obj_cls):
     @wraps(fn)
     def inner(self, *args, **kwargs):
         if Dep.stack:
-            raise ReadonlyError()
+            raise StateModifiedError()
         retval = fn(self.target, *args, **kwargs)
         proxy_db.attrs(self)["dep"].notify()
         for key in self._orphaned_keydeps():
@@ -299,7 +307,7 @@ def delete_key_trap(method, obj_cls):
     @wraps(fn)
     def inner(self, *args, **kwargs):
         if Dep.stack:
-            raise ReadonlyError()
+            raise StateModifiedError()
         retval = fn(self.target, *args, **kwargs)
         key = args[0]
         proxy_db.attrs(self)["dep"].notify()
@@ -322,6 +330,10 @@ trap_map = {
 
 
 class ReadonlyError(Exception):
+    """
+    Raised when a readonly proxy is modified.
+    """
+
     pass
 
 

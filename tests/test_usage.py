@@ -1,7 +1,7 @@
 import pytest
 
 from observ import computed, reactive, to_raw, watch
-from observ.observables import Proxy, ReadonlyError
+from observ.observables import Proxy, ReadonlyError, StateModifiedError
 from observ.watcher import WrongNumberOfArgumentsError
 
 
@@ -402,13 +402,13 @@ def test_computed():
 
     def _expr_with_write():
         # Writing to the state during a computed
-        # expression should raise a ReadonlyError
+        # expression should raise a StateModifiedError
         # Trigger a key writer
         a["bar"] = a["foo"] * 2
         return a["foo"] * 2
 
     computed_expr = computed(_expr_with_write)
-    with pytest.raises(ReadonlyError):
+    with pytest.raises(StateModifiedError):
         _ = computed_expr()
 
 
@@ -420,30 +420,31 @@ def test_watch_computed():
 
     @computed
     def _times_ten():
-        # This next line should trigger the ReadonlyError
-        # Trigger a writer
+        # This next line should trigger the StateModifiedError
+        # when the watcher is evaluated
+        # Trigger a writer trap
         a.append(0)
         return a[0] * 10
 
-    with pytest.raises(ReadonlyError):
-        _ = watch(_times_ten, callback=None, sync=True)
+    with pytest.raises(StateModifiedError):
+        _ = watch(_times_ten, None, sync=True)
 
     a = reactive({"foo": "bar"})
 
     @computed
     def _comp_fail():
-        # Trigger a key deleter
+        # Trigger a key deleter trap
         a.pop()
         return a[0]
 
-    with pytest.raises(ReadonlyError):
+    with pytest.raises(StateModifiedError):
         _ = watch(_comp_fail, None, sync=True)
 
     @computed
     def _comp_fail():
-        # Trigger a deleter
+        # Trigger a deleter trap
         a.clear()
         return a[0]
 
-    with pytest.raises(ReadonlyError):
+    with pytest.raises(StateModifiedError):
         _ = watch(_comp_fail, None, sync=True)
