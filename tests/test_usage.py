@@ -305,6 +305,25 @@ def test_dict_items():
     assert len(calls) == 2
 
 
+def test_dict_update():
+    state = reactive({"foo": "bar"})
+    called = 0
+
+    def _expr():
+        nonlocal called
+        called += 1
+
+    _ = watch(lambda: state["foo"], _expr, sync=True, immediate=True)
+
+    assert called == 1
+    assert state["foo"] == "bar"
+
+    state.update({"foo": "baz"})
+
+    assert state["foo"] == "baz"
+    assert called == 2, state
+
+
 def test_list_iter():
     state = reactive([{"b": 5}])
 
