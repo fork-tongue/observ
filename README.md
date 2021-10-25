@@ -3,7 +3,7 @@
 
 # Observ 👁
 
-Observ is a Python port of [Vue.js](https://vuejs.org/)' [computed properties and watchers](https://vuejs.org/v2/guide/computed.html). It is completely event loop/framework agnostic and has no dependencies so it can be used in any project targeting Python >= 3.6.
+Observ is a Python port of [Vue.js](https://vuejs.org/)' [computed properties and watchers](https://v3.vuejs.org/api/basic-reactivity.html). It is completely event loop/framework agnostic and has no dependencies so it can be used in any project targeting Python >= 3.6.
 
 Observ provides the following two benefits for stateful applications:
 
@@ -17,11 +17,11 @@ Observ provides the following two benefits for stateful applications:
 
 ## API
 
-`from observ import observe, computed, watch`
+`from observ import reactive, computed, watch`
 
-* `state = observe(state)`
+* `state = reactive(state)`
 
-Observe nested structures of dicts, lists, tuples and sets. Returns an observable clone of the state input object.
+Observe nested structures of dicts, lists, tuples and sets. Returns an observable proxy that wraps the state input object.
 
 * `watcher = watch(func, callback, deep=False, immediate=False)`
 
@@ -38,3 +38,7 @@ Install observ with pip/pipenv/poetry:
 `pip install observ`
 
 Check out [`examples/observe_qt.py`](https://github.com/Korijn/observ/blob/master/examples/observe_qt.py) for a simple example using observ.
+
+## Caveats
+
+Observ keeps references to the object passed to the `reactive` in order to keep track of dependencies and proxies for that object. When the object that is passed into `reactive` is not managed by other code, then observ should cleanup its references automatically when the proxy is destroyed. However, if there is another reference to the original object, then observ will only release its own reference when the garbage collector is run and all other references to the object are gone.

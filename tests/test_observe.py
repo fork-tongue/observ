@@ -1,10 +1,10 @@
-from observ import computed, observe
+from observ import computed, reactive
 
 
 def test_observe_new_coll():
     # this test proves that even tho we have redundant deps
     # we don't redundantly recompute
-    state = observe({"foo": 5, "bar": 6})
+    state = reactive({"foo": 5, "bar": 6})
 
     @computed
     def prop():
@@ -27,7 +27,7 @@ def test_observe_new_coll():
 def test_observe_changed():
     # this test proves that we only fire if a value actually
     # changed
-    state = observe({"foo": 5, "bar": 6})
+    state = reactive({"foo": 5, "bar": 6})
     call_count = 0
 
     @computed

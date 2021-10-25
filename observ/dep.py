@@ -10,7 +10,7 @@ class Dep:
     stack: List["Watcher"] = []  # noqa: F821
 
     def __init__(self) -> None:
-        self._subs = WeakSet()
+        self._subs: WeakSet["Watcher"] = WeakSet()  # noqa: F821
 
     def add_sub(self, sub: "Watcher") -> None:  # noqa: F821
         self._subs.add(sub)

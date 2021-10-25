@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from observ import observe, scheduler, watch
+from observ import reactive, scheduler, watch
 
 
 class Display(QWidget):
@@ -122,7 +122,7 @@ class Controls(QWidget):
 
 if __name__ == "__main__":
     # Define some state
-    state = observe({"clicked": 0, "progress": 0})
+    state = reactive({"clicked": 0, "progress": 0})
 
     app = QApplication([])
 

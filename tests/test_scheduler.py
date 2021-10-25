@@ -1,13 +1,13 @@
 import pytest
 
-from observ import observe, scheduler, watch
+from observ import reactive, scheduler, watch
 
 
 def test_no_flush_handler():
     """
     Test if we get a ValueError when no flush request handler is registered
     """
-    state = observe({"foo": 5, "bar": 6})
+    state = reactive({"foo": 5, "bar": 6})
     calls = 0
 
     def cb(old, new):
@@ -24,7 +24,7 @@ def test_flush(noop_request_flush):
     """
     Test if flush works
     """
-    state = observe({"foo": 5, "bar": 6})
+    state = reactive({"foo": 5, "bar": 6})
     calls = 0
 
     def cb(old, new):
@@ -51,14 +51,14 @@ def test_cycle_expression(noop_request_flush):
     Test if we can detect an infinite update cycle caused by
     the watch expression
     """
-    state = observe({"foo": 5, "bar": 6})
+    state = reactive({"foo": 5, "bar": 6})
     calls = 0
 
     def exp():
-        state["foo"] += 1
         return state["foo"]
 
     def cb(old, new):
+        state["foo"] += 1
         nonlocal calls
         calls += 1
 
@@ -79,7 +79,7 @@ def test_cycle_callback(noop_request_flush):
     Test if we can detect an infinite update cycle caused
     by a callback
     """
-    state = observe({"foo": 5, "bar": 6})
+    state = reactive({"foo": 5, "bar": 6})
     calls = 0
 
     def exp():
@@ -107,7 +107,7 @@ def test_queue_growth(noop_request_flush):
     Test if a flush also handles watchers that are triggered
     during the flush
     """
-    state = observe({"foo": 5, "bar": 6})
+    state = reactive({"foo": 5, "bar": 6})
     calls_1 = 0
     calls_2 = 0
 
@@ -143,7 +143,7 @@ def test_queue_cycle_indirect(noop_request_flush):
     Test if we can detect an infinite update cycle between
     _multiple_ watchers' callbacks
     """
-    state = observe({"foo": 5, "bar": 6})
+    state = reactive({"foo": 5, "bar": 6})
     calls_1 = 0
     calls_2 = 0
 

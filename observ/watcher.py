@@ -3,7 +3,7 @@ watchers perform dependency tracking via functions acting on
 observable datastructures, and optionally trigger callback when
 a change is detected.
 """
-from collections.abc import Container
+from collections.abc import Container, Mapping
 import inspect
 from itertools import count
 from typing import Any
@@ -14,17 +14,23 @@ from .scheduler import scheduler
 
 
 def traverse(obj):
+    """
+    Recursively traverse the whole tree to make sure
+    that all values have been 'get'
+    """
     _traverse(obj, set())
 
 
-def _traverse(obj, seen):
+def _traverse(obj, seen: set):
     seen.add(id(obj))
-    if isinstance(obj, dict):
+    if isinstance(obj, Mapping):
+        # dict and DictProxies
         val_iter = iter(obj.values())
-    elif isinstance(obj, (list, tuple, set)):
+    elif isinstance(obj, Container):
+        # list, set (and their proxies) and tuple
         val_iter = iter(obj)
     else:
-        val_iter = iter(())
+        return
     for v in val_iter:
         if isinstance(v, Container) and id(v) not in seen:
             _traverse(v, seen)

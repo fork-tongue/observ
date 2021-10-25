@@ -16,6 +16,7 @@ flake8 = "*"
 flake8-black = "*"
 flake8-import-order = "*"
 flake8-print = "*"
+pre-commit = { version = "*", python = ">=3.6.1"}
 pytest = "*"
 pytest-cov = "*"
 pytest-timeout = "*"

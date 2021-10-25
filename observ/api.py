@@ -1,15 +1,24 @@
 """
 Defines the public API for observ users
 """
-from functools import wraps
+from functools import partial, wraps
 
 from .dep import Dep
-from .observables import observe
+from .observables import proxy, to_raw
 from .scheduler import scheduler
 from .watcher import Watcher
 
 
-__all__ = ("observe", "computed", "watch", "scheduler")
+__all__ = (
+    "reactive",
+    "readonly",
+    "shallow_reactive",
+    "shallow_readonly",
+    "computed",
+    "watch",
+    "scheduler",
+    "to_raw",
+)
 
 
 def computed(fn):
@@ -35,3 +44,9 @@ def watch(fn, callback, sync=False, deep=False, immediate=False):
         if watcher.callback:
             watcher.run_callback(watcher.value, None)
     return watcher
+
+
+reactive = proxy
+readonly = partial(proxy, readonly=True)
+shallow_reactive = partial(proxy, shallow=True)
+shallow_readonly = partial(proxy, shallow=True, readonly=True)
