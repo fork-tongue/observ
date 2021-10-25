@@ -217,3 +217,12 @@ def test_non_hashable():
     # Should not be able to use a proxy as a key
     with pytest.raises(TypeError):
         _ = proxy({proxy({}): "value"})
+
+
+def test_raise_on_existing_proxy():
+    data = {"foo": "bar"}
+
+    _ = Proxy(data)
+
+    with pytest.raises(RuntimeError):
+        _ = Proxy(data)

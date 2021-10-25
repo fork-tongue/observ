@@ -73,7 +73,18 @@ class ProxyDb:
         if obj_id not in self.db:
             self.register_target(proxy.target)
 
-        self.db[obj_id]["proxies"][(proxy.readonly, proxy.shallow)] = proxy
+        # Use setdefault to put the proxy in the proxies dict. If there
+        # was an existing value, it will return that instead. There shouldn't
+        # be an existing value, so we can compare the objects to see if we
+        # should raise an exception.
+        # Seems to be a tiny bit faster than checking beforehand if
+        # there is already an existing value in the proxies dict
+        result = self.db[obj_id]["proxies"].setdefault(
+            (proxy.readonly, proxy.shallow), proxy
+        )
+        if result is not proxy:
+            raise RuntimeError("Proxy with existing configuration already in db")
+
         self.db[obj_id]["refs"] += 1
 
     def dereference(self, proxy):
@@ -116,9 +127,14 @@ proxy_db = ProxyDb()
 
 class Proxy:
     """
-    Proxy for an object.
+    Proxy for an object/target.
+
     Instantiating a Proxy will add a reference to the global proxy_db and
     destroying a Proxy will remove that reference.
+
+    Please use the `proxy` method to get a proxy for a certain object instead
+    of directly creating one yourself. The `proxy` method will either create
+    or return an existing proxy and makes sure that the db stays consistent.
     """
 
     __hash__ = None
@@ -587,6 +603,5 @@ def to_raw(target):
 
     if isinstance(target, set):
         return target
-        # return set(to_raw(x) for x in target)
 
     return target
