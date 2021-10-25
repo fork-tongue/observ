@@ -53,7 +53,7 @@ class Display(QWidget):
             lambda: state["progress"], self.update_progress
         )
 
-    def update_progress(self, new, old):
+    def update_progress(self, new):
         # Trigger another watcher during scheduler flush
         if new == 50:
             self.state["clicked"] += 0.5
