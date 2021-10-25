@@ -30,7 +30,7 @@ def _traverse(obj, seen: set):
         # list, set (and their proxies) and tuple
         val_iter = iter(obj)
     else:
-        val_iter = iter(())
+        return
     for v in val_iter:
         if isinstance(v, Container) and id(v) not in seen:
             _traverse(v, seen)
