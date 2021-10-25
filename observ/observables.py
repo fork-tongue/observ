@@ -46,23 +46,6 @@ class ProxyDb:
         for keys in keys_to_delete:
             del self.db[keys]
 
-    def register_target(self, target):
-        """
-        Creates an entry for the given target (object) and adds a strong
-        reference. The items
-        """
-        attrs = {
-            "dep": Dep(),
-        }
-        if isinstance(target, dict):
-            attrs["keydep"] = {key: Dep() for key in target.keys()}
-        self.db[id(target)] = {
-            "target": target,
-            "attrs": attrs,  # dep, keydep
-            # keyed on tuple(readonly, shallow)
-            "proxies": WeakValueDictionary(),
-        }
-
     def reference(self, proxy):
         """
         Adds a reference to the collection for the wrapped object's id
@@ -70,7 +53,17 @@ class ProxyDb:
         obj_id = id(proxy.target)
 
         if obj_id not in self.db:
-            self.register_target(proxy.target)
+            attrs = {
+                "dep": Dep(),
+            }
+            if isinstance(proxy.target, dict):
+                attrs["keydep"] = {key: Dep() for key in proxy.target.keys()}
+            self.db[obj_id] = {
+                "target": proxy.target,
+                "attrs": attrs,  # dep, keydep
+                # keyed on tuple(readonly, shallow)
+                "proxies": WeakValueDictionary(),
+            }
 
         # Use setdefault to put the proxy in the proxies dict. If there
         # was an existing value, it will return that instead. There shouldn't
