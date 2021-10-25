@@ -352,7 +352,7 @@ trap_map_readonly = {
 }
 
 
-def make_reactive(proxy_cls, obj_cls, traps, trap_map):
+def bind_traps(proxy_cls, obj_cls, traps, trap_map):
     for trap_type, methods in traps.items():
         for method in methods:
             trap = trap_map[trap_type](method, obj_cls)
@@ -427,8 +427,8 @@ class ReadonlyDictProxy(DictProxyBase):
         super().__init__(target, shallow=shallow, **{**kwargs, "readonly": True})
 
 
-make_reactive(DictProxy, dict, dict_traps, trap_map)
-make_reactive(ReadonlyDictProxy, dict, dict_traps, trap_map_readonly)
+bind_traps(DictProxy, dict, dict_traps, trap_map)
+bind_traps(ReadonlyDictProxy, dict, dict_traps, trap_map_readonly)
 
 
 list_traps = {
@@ -488,8 +488,8 @@ class ReadonlyListProxy(ListProxyBase):
         super().__init__(target, shallow=shallow, **{**kwargs, "readonly": True})
 
 
-make_reactive(ListProxy, list, list_traps, trap_map)
-make_reactive(ReadonlyListProxy, list, list_traps, trap_map_readonly)
+bind_traps(ListProxy, list, list_traps, trap_map)
+bind_traps(ReadonlyListProxy, list, list_traps, trap_map_readonly)
 
 
 set_traps = {
@@ -558,8 +558,8 @@ class ReadonlySetProxy(SetProxyBase):
         super().__init__(target, shallow=shallow, **{**kwargs, "readonly": True})
 
 
-make_reactive(SetProxy, set, set_traps, trap_map)
-make_reactive(ReadonlySetProxy, set, set_traps, trap_map_readonly)
+bind_traps(SetProxy, set, set_traps, trap_map)
+bind_traps(ReadonlySetProxy, set, set_traps, trap_map_readonly)
 
 
 def to_raw(target):
