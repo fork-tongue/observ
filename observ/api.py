@@ -46,7 +46,7 @@ def watch(fn, callback, sync=False, deep=False, immediate=False):
     return watcher
 
 
-reactive = partial(proxy)
+reactive = proxy
 readonly = partial(proxy, readonly=True)
 shallow_reactive = partial(proxy, shallow=True)
 shallow_readonly = partial(proxy, shallow=True, readonly=True)
