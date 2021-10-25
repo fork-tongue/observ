@@ -305,7 +305,7 @@ def test_dict_items():
     assert len(calls) == 2
 
 
-def test_dict_update():
+def test_dict_update_same_key():
     state = reactive({"foo": "bar"})
     called = 0
 
@@ -313,7 +313,7 @@ def test_dict_update():
         nonlocal called
         called += 1
 
-    _ = watch(lambda: state["foo"], _expr, sync=True, immediate=True)
+    _ = watch(lambda: state["foo"], _expr, sync=True, immediate=True, deep=True)
 
     assert called == 1
     assert state["foo"] == "bar"
@@ -321,7 +321,27 @@ def test_dict_update():
     state.update({"foo": "baz"})
 
     assert state["foo"] == "baz"
-    assert called == 2, state
+    assert called == 2
+
+
+def test_dict_update_new_keys():
+    state = reactive({"foo": "bar"})
+    called = 0
+
+    def _expr():
+        nonlocal called
+        called += 1
+
+    _ = watch(lambda: state["foo"], _expr, sync=True, immediate=True, deep=True)
+
+    assert called == 1
+    assert state["foo"] == "bar"
+
+    state.update({"foo": "baz", "bar": "foo"})
+
+    assert state["foo"] == "baz"
+    assert state["bar"] == "foo"
+    assert called == 2
 
 
 def test_list_iter():
