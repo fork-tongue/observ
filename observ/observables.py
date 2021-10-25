@@ -57,7 +57,6 @@ class ProxyDb:
         if isinstance(target, dict):
             attrs["keydep"] = {key: Dep() for key in target.keys()}
         self.db[id(target)] = {
-            "refs": 0,
             "target": target,
             "attrs": attrs,  # dep, keydep
             # keyed on tuple(readonly, shallow)
@@ -85,11 +84,9 @@ class ProxyDb:
         if result is not proxy:
             raise RuntimeError("Proxy with existing configuration already in db")
 
-        self.db[obj_id]["refs"] += 1
-
     def dereference(self, proxy):
         """
-        Removes a reference from the
+        Removes a reference from the database for the given proxy
         """
         obj_id = id(proxy.target)
         if obj_id not in self.db:
@@ -99,9 +96,11 @@ class ProxyDb:
             # See fixture [clear_proxy_db](/tests/conftest.py:clear_proxy_db)
             # for more info.
             return
-        self.db[obj_id]["refs"] -= 1
 
-        if self.db[obj_id]["refs"] <= 0:
+        # The given proxy is the last proxy in the WeakValueDictionary,
+        # so now is a good moment to see if can remove clean the deps
+        # for the target object
+        if len(self.db[obj_id]["proxies"]) == 1:
             ref_count = sys.getrefcount(self.db[obj_id]["target"])
             # Ref count is still 3 here because of the reference through proxy.target
             if ref_count <= 3:
