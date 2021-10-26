@@ -343,6 +343,18 @@ def test_dict_update_new_keys():
     assert state["bar"] == "foo"
     assert called == 2
 
+    state.update(foo="bar", baz="fool")
+
+    assert state["foo"] == "bar"
+    assert state["baz"] == "fool"
+    assert called == 3
+
+    state.update([("foo", "bas"), ("bat", "flat")])
+
+    assert state["foo"] == "bas"
+    assert state["bat"] == "flat"
+    assert called == 4
+
 
 def test_list_iter():
     state = reactive([{"b": 5}])

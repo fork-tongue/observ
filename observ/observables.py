@@ -253,9 +253,8 @@ def write_trap(method, obj_cls):
             raise StateModifiedError()
         args = tuple(proxy(a) for a in args)
         kwargs = {k: proxy(v) for k, v in kwargs.items()}
+        retval = fn(self.target, *args, **kwargs)
 
-        old_keys = set()
-        updated_keys = set()
         if obj_cls == dict:
             """
             From the docs about `update` (__ior__ just accepts other dicts):
@@ -264,7 +263,6 @@ def write_trap(method, obj_cls):
             If keyword arguments are specified, the dictionary is then updated
             with those key/value pairs: d.update(red=1, blue=2).
             """
-            old_keys = set(self.target.keys())
             if args:
                 if hasattr(args[0], "keys"):
                     # First argument is (wrapped) dict
@@ -272,17 +270,16 @@ def write_trap(method, obj_cls):
                 else:
                     # First argument is iterable of key/value pairs
                     updated_keys = set(key for key, _ in args[0])
-            elif len(kwargs) > 0:
+            else:
                 # Key/value pairs as keyword arguments
                 updated_keys = set(kwargs.keys())
-        retval = fn(self.target, *args, **kwargs)
-        new_keys = updated_keys - old_keys
-        updated_keys &= old_keys
 
-        for key in new_keys:
-            proxy_db.attrs(self)["keydep"][key] = Dep()
-        for key in updated_keys:
-            proxy_db.attrs(self)["keydep"][key].notify()
+            keydeps = proxy_db.attrs(self)["keydep"]
+            for key in updated_keys:
+                if key in keydeps:
+                    keydeps[key].notify()
+                else:
+                    keydeps[key] = Dep()
 
         # TODO: prevent firing if value hasn't actually changed?
         proxy_db.attrs(self)["dep"].notify()
