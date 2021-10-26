@@ -305,6 +305,57 @@ def test_dict_items():
     assert len(calls) == 2
 
 
+def test_dict_update_same_key():
+    state = reactive({"foo": "bar"})
+    called = 0
+
+    def _expr():
+        nonlocal called
+        called += 1
+
+    _ = watch(lambda: state["foo"], _expr, sync=True, immediate=True, deep=True)
+
+    assert called == 1
+    assert state["foo"] == "bar"
+
+    state.update({"foo": "baz"})
+
+    assert state["foo"] == "baz"
+    assert called == 2
+
+
+def test_dict_update_new_keys():
+    state = reactive({"foo": "bar"})
+    called = 0
+
+    def _expr():
+        nonlocal called
+        called += 1
+
+    _ = watch(lambda: state["foo"], _expr, sync=True, immediate=True, deep=True)
+
+    assert called == 1
+    assert state["foo"] == "bar"
+
+    state.update({"foo": "baz", "bar": "foo"})
+
+    assert state["foo"] == "baz"
+    assert state["bar"] == "foo"
+    assert called == 2
+
+    state.update(foo="bar", baz="fool")
+
+    assert state["foo"] == "bar"
+    assert state["baz"] == "fool"
+    assert called == 3
+
+    state.update([("foo", "bas"), ("bat", "flat")])
+
+    assert state["foo"] == "bas"
+    assert state["bat"] == "flat"
+    assert called == 4
+
+
 def test_list_iter():
     state = reactive([{"b": 5}])
 

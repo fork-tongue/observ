@@ -200,12 +200,13 @@ def test_dict_notify():
     }
     for name in COLLECTIONS[DictProxy]["WRITERS"]:
         coll = DictProxy({2: 3})
+        old_keys = set(coll.keys())
         proxy_db.attrs(coll)["dep"].notify = Mock()
         for key in proxy_db.attrs(coll)["keydep"].keys():
             proxy_db.attrs(coll)["keydep"][key].notify = Mock()
         getattr(coll, name)(*args[name])
         proxy_db.attrs(coll)["dep"].notify.assert_called_once()
-        for key in proxy_db.attrs(coll)["keydep"].keys():
+        for key in old_keys:
             proxy_db.attrs(coll)["keydep"][key].notify.assert_not_called()
 
 
