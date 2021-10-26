@@ -254,7 +254,7 @@ def write_trap(method, obj_cls):
         args = tuple(proxy(a) for a in args)
         kwargs = {k: proxy(v) for k, v in kwargs.items()}
         retval = fn(self.target, *args, **kwargs)
-
+        attrs = proxy_db.attrs(self)
         if obj_cls == dict:
             """
             From the docs about `update` (__ior__ just accepts other dicts):
@@ -274,7 +274,7 @@ def write_trap(method, obj_cls):
                 # Key/value pairs as keyword arguments
                 updated_keys = set(kwargs.keys())
 
-            keydeps = proxy_db.attrs(self)["keydep"]
+            keydeps = attrs["keydep"]
             for key in updated_keys:
                 if key in keydeps:
                     keydeps[key].notify()
@@ -282,7 +282,7 @@ def write_trap(method, obj_cls):
                     keydeps[key] = Dep()
 
         # TODO: prevent firing if value hasn't actually changed?
-        proxy_db.attrs(self)["dep"].notify()
+        attrs["dep"].notify()
         return retval
 
     return inner
@@ -297,17 +297,18 @@ def write_key_trap(method, obj_cls):
         if Dep.stack:
             raise StateModifiedError()
         key = args[0]
-        is_new = key not in proxy_db.attrs(self)["keydep"]
+        attrs = proxy_db.attrs(self)
+        is_new = key not in attrs["keydep"]
         old_value = getitem_fn(self.target, key) if not is_new else None
         args = [key] + [proxy(a) for a in args[1:]]
         kwargs = {k: proxy(v) for k, v in kwargs.items()}
         retval = fn(self.target, *args, **kwargs)
         new_value = getitem_fn(self.target, key)
         if is_new:
-            proxy_db.attrs(self)["keydep"][key] = Dep()
+            attrs["keydep"][key] = Dep()
         if old_value != new_value:
-            proxy_db.attrs(self)["keydep"][key].notify()
-            proxy_db.attrs(self)["dep"].notify()
+            attrs["keydep"][key].notify()
+            attrs["dep"].notify()
         return retval
 
     return inner
@@ -321,10 +322,11 @@ def delete_trap(method, obj_cls):
         if Dep.stack:
             raise StateModifiedError()
         retval = fn(self.target, *args, **kwargs)
-        proxy_db.attrs(self)["dep"].notify()
+        attrs = proxy_db.attrs(self)
+        attrs["dep"].notify()
         for key in self._orphaned_keydeps():
-            proxy_db.attrs(self)["keydep"][key].notify()
-            del proxy_db.attrs(self)["keydep"][key]
+            attrs["keydep"][key].notify()
+            del attrs["keydep"][key]
         return retval
 
     return inner
@@ -339,9 +341,10 @@ def delete_key_trap(method, obj_cls):
             raise StateModifiedError()
         retval = fn(self.target, *args, **kwargs)
         key = args[0]
-        proxy_db.attrs(self)["dep"].notify()
-        proxy_db.attrs(self)["keydep"][key].notify()
-        del proxy_db.attrs(self)["keydep"][key]
+        attrs = proxy_db.attrs(self)
+        attrs["dep"].notify()
+        attrs["keydep"][key].notify()
+        del attrs["keydep"][key]
         return retval
 
     return inner
