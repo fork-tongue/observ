@@ -266,8 +266,8 @@ def write_trap(method, obj_cls):
                     else:
                         keydeps[key] = Dep()
                     change_detected = True
-                if change_detected:
-                    attrs["dep"].notify()
+            if change_detected:
+                attrs["dep"].notify()
         else:  # list and set
             if self.target != old:
                 attrs["dep"].notify()
