@@ -82,7 +82,7 @@ def test_list_notify():
         "__imul__": (5,),
     }
     for name in COLLECTIONS[ListProxy]["WRITERS"]:
-        coll = ListProxy([2])
+        coll = ListProxy([3, 2])
         mock = Mock()
         proxy_db.attrs(coll)["dep"].notify = mock
         getattr(coll, name)(*args[name])
@@ -129,7 +129,7 @@ def test_set_notify():
     args = {
         "add": (3,),
         "clear": (),
-        "difference_update": ({3},),
+        "difference_update": ({2, 3},),
         "intersection_update": ({3},),
         "discard": (2,),
         "pop": (),
