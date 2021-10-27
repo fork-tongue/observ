@@ -253,21 +253,14 @@ def write_trap(method, obj_cls):
             raise StateModifiedError()
         args = tuple(proxy(a) for a in args)
         kwargs = {k: proxy(v) for k, v in kwargs.items()}
-
-        if obj_cls == dict:
-            # Create dict of the ids of all key and values in the dict
-            ids = {id(key): id(val) for key, val in self.target.items()}
-        else:  # list and set
-            # Create list of the ids of all items in the list
-            ids = list(id(item) for item in self.target)
-
+        before = self.target.copy()
         retval = fn(self.target, *args, **kwargs)
         attrs = proxy_db.attrs(self)
         if obj_cls == dict:
             change_detected = False
             keydeps = attrs["keydep"]
             for key, val in self.target.items():
-                if ids.get(id(key)) != id(val):
+                if before.get(key) is not val:
                     if key in keydeps:
                         keydeps[key].notify()
                     else:
@@ -276,7 +269,7 @@ def write_trap(method, obj_cls):
                 if change_detected:
                     attrs["dep"].notify()
         else:  # list and set
-            if ids != [id(item) for item in self.target]:
+            if before != self.target:
                 attrs["dep"].notify()
 
         return retval
