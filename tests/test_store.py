@@ -1,16 +1,21 @@
-from observ import computed, mutation, Store
+from unittest.mock import Mock
+
+import pytest
+
+from observ import computed, mutation, Store, watch
+
+
+class CustomStore(Store):
+    @mutation
+    def bump_count(self, state):
+        state["count"] += 1
+
+    @computed
+    def double(self):
+        return self.state["count"] * 2
 
 
 def test_store_undo_redo():
-    class CustomStore(Store):
-        @mutation
-        def bump_count(self, state):
-            state["count"] += 1
-
-        @computed
-        def double(self):
-            return self.state["count"] * 2
-
     store = CustomStore(state={"count": 0})
     assert store.state["count"] == 0
     assert not store.can_undo
@@ -47,15 +52,6 @@ def test_store_undo_redo():
 
 
 def test_store_computed_methods():
-    class CustomStore(Store):
-        @mutation
-        def bump_count(self, state):
-            state["count"] += 1
-
-        @computed
-        def double(self):
-            return self.state["count"] * 2
-
     store = CustomStore(state={"count": 0})
 
     @computed
@@ -82,3 +78,18 @@ def test_store_computed_methods():
     assert double() == 2
     assert triple() == 3
     assert quadruple() == 4
+
+
+@pytest.mark.xfail
+def test_store_undo_redo_unchanged_watcher():
+    store = CustomStore(state={"count": 0, "foo": {}})
+    mock = Mock()
+    _ = watch(lambda: store.state["foo"], mock, sync=True)
+
+    store.bump_count()
+    assert store.state["count"] == 1
+    mock.assert_not_called()
+
+    store.undo()
+    assert store.state["count"] == 0
+    mock.assert_not_called()
