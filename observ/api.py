@@ -1,9 +1,6 @@
 """
 Defines the public API for observ users
 """
-# from functools import partial, wraps
-
-# from .dep import Dep
 from .observables import (
     reactive,
     readonly,

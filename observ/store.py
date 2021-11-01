@@ -1,5 +1,6 @@
 import copy
 from functools import partial, wraps
+from inspect import signature
 from typing import Callable, TypeVar
 
 from .dep import Dep
@@ -28,8 +29,9 @@ def mutation(fn: T) -> T:
     return inner
 
 
-def computed(fn):
-    if hasattr(fn, "__func__"):
+def computed(fn: T) -> T:
+    parameters = signature(fn).parameters
+    if len(parameters) == 1 and "self" in parameters:
         registry[fn] = "computed"
 
         @wraps(fn)
