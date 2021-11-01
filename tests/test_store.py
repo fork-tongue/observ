@@ -80,7 +80,7 @@ def test_store_computed_methods():
     assert quadruple() == 4
 
 
-@pytest.mark.xfail
+@pytest.mark.xfail(reason="deepcopy is used to restore state")
 def test_store_undo_redo_unchanged_watcher():
     store = CustomStore(state={"count": 0, "foo": {}})
     mock = Mock()
