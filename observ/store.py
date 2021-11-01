@@ -77,17 +77,16 @@ class Store:
             if not hasattr(method, "__wrapped__"):
                 continue
 
-            if wrap_type := registry.get(method.__wrapped__):
-                if wrap_type == "mutation":
-                    method = partial(self.commit, method)
-                    setattr(self, method_name, method)
-                elif wrap_type == "computed":
-                    computed_props[method_name] = computed(
-                        partial(method.__func__, self)
-                    )
+            wrap_type = registry.get(method.__wrapped__)
+            if wrap_type == "mutation":
+                method = partial(self.commit, method)
+                setattr(self, method_name, method)
+            elif wrap_type == "computed":
+                computed_props[method_name] = computed(partial(method.__func__, self))
 
     def __getattribute__(self, name):
-        if fn := registered_computed_props[id(self)].get(name):
+        fn = registered_computed_props[id(self)].get(name)
+        if fn:
             return fn()
         return super().__getattribute__(name)
 
