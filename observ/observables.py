@@ -184,6 +184,12 @@ def proxy(target, readonly=False, shallow=False):
     return proxy_type(target, readonly=readonly, shallow=shallow)
 
 
+reactive = proxy
+readonly = partial(proxy, readonly=True)
+shallow_reactive = partial(proxy, shallow=True)
+shallow_readonly = partial(proxy, shallow=True, readonly=True)
+
+
 class StateModifiedError(Exception):
     """
     Raised when a proxy is modified in a watched (or computed) expression.
