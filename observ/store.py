@@ -133,17 +133,3 @@ class Store:
 
         self._present.update(first)
         self._past.append(copy.deepcopy(to_raw(self._present)))
-
-
-class StoreBackedWidgetMixin:
-    def __init__(self, *args, **kwargs):
-        super(StoreBackedWidgetMixin, self).__init__(*args, **kwargs)
-        # Grap the store from the window property of the parent widget
-        self.store = self.parentWidget().window().store
-
-
-class StoreKeeperMixin:
-    def __init__(self, *args, **kwargs):
-        store = kwargs.pop("store")
-        super(StoreKeeperMixin, self).__init__(*args, **kwargs)
-        self.store = store
