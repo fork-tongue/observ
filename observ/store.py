@@ -100,12 +100,14 @@ class Store:
         self._past.append(copy.deepcopy(to_raw(self._present)))
         self._future.clear()
 
+    @property
     def can_undo(self) -> bool:
         """
         Returns whether the store can undo some mutation
         """
         return len(self._past) > 1
 
+    @property
     def can_redo(self) -> bool:
         """
         Returns whether the store can redo some mutation
@@ -116,7 +118,7 @@ class Store:
         """
         Undoes the last mutation
         """
-        assert self.can_undo()
+        assert self.can_undo
         current = self._past.pop()
         previous = self._past[-1]
 
@@ -127,7 +129,7 @@ class Store:
         """
         Redoes the next mutation
         """
-        assert self.can_redo()
+        assert self.can_redo
         first = self._future.pop()
 
         self._present.update(first)
