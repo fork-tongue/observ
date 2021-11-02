@@ -1,6 +1,6 @@
 import copy
 from functools import partial
-from typing import Callable, TypeVar
+from typing import Callable, Collection, TypeVar
 
 from .observables import (
     reactive,
@@ -32,7 +32,7 @@ class Store:
     Store that tracks mutations to state in order to enable undo/redo functionality
     """
 
-    def __init__(self, state):
+    def __init__(self, state: Collection):
         self._present = reactive(state)
         # Because we can't work with diff patches (yet) we'll have to copy
         # over the whole state. When triggering undo/redo, we'll therefore
@@ -63,7 +63,7 @@ class Store:
                 return fn()
         return super().__getattribute__(name)
 
-    def commit(self, fn, *args, **kwargs):
+    def commit(self, fn: Callable, *args, **kwargs):
         """
         When performing a mutation, clear the future stack
         and update the past with a copy of the new present
