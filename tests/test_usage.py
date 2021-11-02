@@ -1,3 +1,5 @@
+from unittest.mock import Mock
+
 import pytest
 
 from observ import computed, reactive, to_raw, watch
@@ -499,3 +501,27 @@ def test_watch_computed():
 
     with pytest.raises(StateModifiedError):
         _ = watch(_comp_fail, None, sync=True)
+
+
+def test_computed_deep():
+    a = reactive({"items": []})
+
+    @computed
+    def items():
+        return a["items"]
+
+    @computed(deep=True)
+    def items_deep():
+        return a["items"]
+
+    shallow_watcher = watch(items, Mock(), sync=True)
+    deep_watcher = watch(items_deep, Mock(), sync=True)
+    shallow_watcher.callback.assert_not_called()
+    deep_watcher.callback.assert_not_called()
+
+    a["items"].append(3)
+    shallow_watcher.callback.assert_not_called()
+    deep_watcher.callback.assert_called_once()
+
+    a["items"] = []
+    shallow_watcher.callback.assert_called_once()
