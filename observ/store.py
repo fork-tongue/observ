@@ -47,24 +47,25 @@ class Store:
 
         for method_name in dir(self):
             method = getattr(self, method_name)
-            if not hasattr(method, "__func__") or method.__func__ not in registry:
+            fn = getattr(method, "__func__", None)
+            if fn is None or fn not in registry:
                 continue
 
-            wrap_type = registry[method.__func__]
+            wrap_type = registry[fn]
             if wrap_type == "mutation":
                 method = partial(self.commit, method)
                 setattr(self, method_name, method)
             elif wrap_type == "computed":
                 self._computed_props[method_name] = computed_expression(
-                    partial(method.__func__, self)
+                    partial(fn, self)
                 )
 
     def __getattribute__(self, name):
-        if name != "_computed_props":
-            fn = self._computed_props.get(name)
-            if fn:
-                return fn()
-        return super().__getattribute__(name)
+        super_getattribute = super().__getattribute__
+        fn = super_getattribute("_computed_props").get(name)
+        if fn:
+            return fn()
+        return super_getattribute(name)
 
     def commit(self, fn: Callable, *args, **kwargs):
         """
@@ -93,7 +94,8 @@ class Store:
         """
         Undoes the last mutation
         """
-        assert self.can_undo
+        if not self.can_undo:
+            return
         current = self._past.pop()
         previous = self._past[-1]
 
@@ -104,7 +106,8 @@ class Store:
         """
         Redoes the next mutation
         """
-        assert self.can_redo
+        if not self.can_redo:
+            return
         first = self._future.pop()
 
         self._present.update(first)
