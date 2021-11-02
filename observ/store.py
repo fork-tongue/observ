@@ -33,6 +33,9 @@ class Store:
     """
 
     def __init__(self, state: Collection):
+        """
+        Creates a store with the given state as the initial state.
+        """
         self._present = reactive(state)
         # Because we can't work with diff patches (yet) we'll have to copy
         # over the whole state. When triggering undo/redo, we'll therefore
