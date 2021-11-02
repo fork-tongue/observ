@@ -14,7 +14,7 @@ class CounterStore(Store):
 
         Note: normally self.state is a readonly proxy on the present
         state, but because this method is decorated with `mutation`
-        `self.state` is replaced with the mutatable `self._present`
+        `self.state` is replaced with the mutable `self._present`
         for the scope of this method to record any changes.
         """
         self.state["count"] += 1
@@ -43,7 +43,6 @@ if __name__ == "__main__":
     )
 
     # Bump the count by one
-    # Note that no state argument is provided here!
     store.bump_count()
     # Current state of the store can be accessed through
     # the `state` property on store
@@ -53,7 +52,6 @@ if __name__ == "__main__":
     assert store.count == 1
 
     # Set the count to 5
-    # Again, no state argument, just the amount
     store.adjust_count(5)
     assert store.count == 5
 
