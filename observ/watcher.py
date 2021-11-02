@@ -4,13 +4,49 @@ observable datastructures, and optionally trigger callback when
 a change is detected.
 """
 from collections.abc import Container, Mapping
+from functools import wraps
 import inspect
 from itertools import count
-from typing import Any
+from typing import Any, Callable, Optional, TypeVar
 from weakref import WeakSet
 
 from .dep import Dep
 from .scheduler import scheduler
+
+
+T = TypeVar("T", bound=Callable)
+
+
+def watch(
+    fn: Callable, callback: Optional[Callable], sync=False, deep=False, immediate=False
+):
+    watcher = Watcher(fn, sync=sync, lazy=False, deep=deep, callback=callback)
+    if immediate:
+        watcher.dirty = True
+        watcher.evaluate()
+        if watcher.callback:
+            watcher.run_callback(watcher.value, None)
+    return watcher
+
+
+def computed(fn: T) -> T:
+    """
+    Create a watcher for an expression.
+    Note: make sure fn doesn't need any arguments to run
+    and that no reactive state is changed within the expression
+    """
+    watcher = Watcher(fn)
+
+    @wraps(fn)
+    def getter():
+        if watcher.dirty:
+            watcher.evaluate()
+        if Dep.stack:
+            watcher.depend()
+        return watcher.value
+
+    getter.__watcher__ = watcher
+    return getter
 
 
 def traverse(obj):
@@ -52,7 +88,9 @@ class WrongNumberOfArgumentsError(TypeError):
 
 
 class Watcher:
-    def __init__(self, fn, sync=False, lazy=True, deep=False, callback=None) -> None:
+    def __init__(
+        self, fn: Callable, sync=False, lazy=True, deep=False, callback: Callable = None
+    ) -> None:
         """
         sync: Ignore the scheduler
         lazy: Only reevalutate when value is requested
