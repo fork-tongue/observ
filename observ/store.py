@@ -1,5 +1,5 @@
 import copy
-from functools import partial
+from functools import partial, wraps
 from typing import Callable, Collection, TypeVar
 
 from .observables import (
@@ -14,16 +14,31 @@ from .watcher import computed as computed_expression
 T = TypeVar("T", bound=Callable)
 
 
-registry = {}
-
-
 def mutation(fn: T) -> T:
-    registry[fn] = "mutation"
-    return fn
+    @wraps(fn)
+    def inner(self, *args, **kwargs):
+        readonly_state = self.state
+        self.state = self._present
+        try:
+            fn(self, *args, **kwargs)
+            self._past.append(copy.deepcopy(to_raw(self._present)))
+            self._future.clear()
+        finally:
+            self.state = readonly_state
+
+    return inner
+
+
+# Keep a registry of methods that are wrapped with 'computed'
+registry = set()
 
 
 def computed(fn: T) -> T:
-    registry[fn] = "computed"
+    # Add the method to the registry for bookkeeping
+    # Store.__init__ uses the registry to see which methods have
+    # been decorated with 'computed' and makes proper computed
+    # expressions for those methods.
+    registry.add(fn)
     return fn
 
 
@@ -48,14 +63,7 @@ class Store:
         for method_name in dir(self):
             method = getattr(self, method_name)
             fn = getattr(method, "__func__", None)
-            if fn is None or fn not in registry:
-                continue
-
-            wrap_type = registry[fn]
-            if wrap_type == "mutation":
-                method = partial(self.commit, method)
-                setattr(self, method_name, method)
-            elif wrap_type == "computed":
+            if fn and fn in registry:
                 self._computed_props[method_name] = computed_expression(
                     partial(fn, self)
                 )
@@ -64,17 +72,10 @@ class Store:
         super_getattribute = super().__getattribute__
         fn = super_getattribute("_computed_props").get(name)
         if fn:
+            # Immediately run the computed expression in order to
+            # make it behave like a property on the Store
             return fn()
         return super_getattribute(name)
-
-    def commit(self, fn: Callable, *args, **kwargs):
-        """
-        When performing a mutation, clear the future stack
-        and update the past with a copy of the new present
-        """
-        fn(self._present, *args, **kwargs)
-        self._past.append(copy.deepcopy(to_raw(self._present)))
-        self._future.clear()
 
     @property
     def can_undo(self) -> bool:

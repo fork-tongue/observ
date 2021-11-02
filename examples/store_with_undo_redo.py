@@ -8,20 +8,20 @@ from observ.store import computed, mutation, Store
 
 class CounterStore(Store):
     @mutation
-    def bump_count(self, state):
+    def bump_count(self):
         """
         Bump counter by one.
 
-        Note: don't pass in the state argument: that is taken
-        care of by the store. By decorating it with `mutation`
-        the store wraps this method and passes in a writable
-        version of the state.
+        Note: normally self.state is a readonly proxy on the present
+        state, but because this method is decorated with `mutation`
+        `self.state` is replaced with the mutatable `self._present`
+        for the scope of this method to record any changes.
         """
-        state["count"] += 1
+        self.state["count"] += 1
 
     @mutation
-    def adjust_count(self, state, amount):
-        state["count"] = amount
+    def adjust_count(self, amount):
+        self.state["count"] = amount
 
     @computed
     def count(self):
