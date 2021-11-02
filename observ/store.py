@@ -30,16 +30,21 @@ def mutation(fn: T) -> T:
 
 
 # Keep a registry of methods that are wrapped with 'computed'
-registry = set()
+registry = dict()
 
 
-def computed(fn: T) -> T:
-    # Add the method to the registry for bookkeeping
-    # Store.__init__ uses the registry to see which methods have
-    # been decorated with 'computed' and makes proper computed
-    # expressions for those methods.
-    registry.add(fn)
-    return fn
+def computed(_fn=None, *, deep=False):
+    def decorator_computed(fn: T) -> T:
+        # Add the method to the registry for bookkeeping
+        # Store.__init__ uses the registry to see which methods have
+        # been decorated with 'computed' and makes proper computed
+        # expressions for those methods.
+        registry[fn] = deep
+        return fn
+
+    if _fn is None:
+        return decorator_computed
+    return decorator_computed(_fn)
 
 
 class Store:
@@ -65,7 +70,7 @@ class Store:
             fn = getattr(method, "__func__", None)
             if fn and fn in registry:
                 self._computed_props[method_name] = computed_expression(
-                    partial(fn, self)
+                    partial(fn, self), deep=registry[fn]
                 )
 
     def __getattribute__(self, name):

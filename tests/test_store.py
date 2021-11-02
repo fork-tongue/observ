@@ -67,13 +67,35 @@ def test_store_computed_methods():
 @pytest.mark.xfail(reason="deepcopy is used to restore state")
 def test_store_undo_redo_unchanged_watcher():
     store = CustomStore(state={"count": 0, "foo": {}})
-    mock = Mock()
-    _ = watch(lambda: store.state["foo"], mock, sync=True)
+    watcher = watch(lambda: store.state["foo"], Mock(), sync=True)
 
     store.bump_count()
     assert store.state["count"] == 1
-    mock.assert_not_called()
+    watcher.callback.assert_not_called()
 
     store.undo()
     assert store.state["count"] == 0
-    mock.assert_not_called()
+    watcher.callback.assert_not_called()
+
+
+def test_store_computed_deep():
+    class DeepStore(Store):
+        @computed(deep=True)
+        def deep_items(self):
+            return self.state["items"]
+
+        @computed
+        def shallow_items(self):
+            return self.state["items"]
+
+        @mutation
+        def add_item(self, item):
+            self.state["items"].append(item)
+
+    store = DeepStore({"items": []})
+    deep_watcher = watch(lambda: store.deep_items, Mock(), sync=True, deep=True)
+    shallow_watcher = watch(lambda: store.shallow_items, Mock(), sync=True)
+
+    store.add_item(3)
+    shallow_watcher.callback.assert_not_called()
+    deep_watcher.callback.assert_called_once()

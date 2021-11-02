@@ -51,8 +51,7 @@ def computed(_fn=None, *, deep=False):
 
     if _fn is None:
         return decorator_computed
-    else:
-        return decorator_computed(_fn)
+    return decorator_computed(_fn)
 
 
 def traverse(obj):
