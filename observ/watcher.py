@@ -29,24 +29,29 @@ def watch(
     return watcher
 
 
-def computed(fn: T) -> T:
-    """
-    Create a watcher for an expression.
-    Note: make sure fn doesn't need any arguments to run
-    and that no reactive state is changed within the expression
-    """
-    watcher = Watcher(fn)
+def computed(_fn=None, *, deep=False):
+    def decorator_computed(fn: T) -> T:
+        """
+        Create a watcher for an expression.
+        Note: make sure fn doesn't need any arguments to run
+        and that no reactive state is changed within the expression
+        """
+        watcher = Watcher(fn, deep=deep)
 
-    @wraps(fn)
-    def getter():
-        if watcher.dirty:
-            watcher.evaluate()
-        if Dep.stack:
-            watcher.depend()
-        return watcher.value
+        @wraps(fn)
+        def getter():
+            if watcher.dirty:
+                watcher.evaluate()
+            if Dep.stack:
+                watcher.depend()
+            return watcher.value
 
-    getter.__watcher__ = watcher
-    return getter
+        getter.__watcher__ = watcher
+        return getter
+
+    if _fn is None:
+        return decorator_computed
+    return decorator_computed(_fn)
 
 
 def traverse(obj):
