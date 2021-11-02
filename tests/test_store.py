@@ -8,8 +8,8 @@ from observ.store import computed, mutation, Store
 
 class CustomStore(Store):
     @mutation
-    def bump_count(self, state):
-        state["count"] += 1
+    def bump_count(self):
+        self.state["count"] += 1
 
     @computed
     def double(self):
