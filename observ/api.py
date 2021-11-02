@@ -9,8 +9,7 @@ from .observables import (
     to_raw,
 )
 from .scheduler import scheduler
-from .store import computed, mutation, Store
-from .watcher import Watcher
+from .watcher import computed, Watcher
 
 
 __all__ = (
@@ -21,8 +20,6 @@ __all__ = (
     "computed",
     "watch",
     "scheduler",
-    "Store",
-    "mutation",
     "to_raw",
 )
 

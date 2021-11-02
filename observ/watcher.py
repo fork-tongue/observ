@@ -4,6 +4,7 @@ observable datastructures, and optionally trigger callback when
 a change is detected.
 """
 from collections.abc import Container, Mapping
+from functools import wraps
 import inspect
 from itertools import count
 from typing import Any
@@ -176,3 +177,18 @@ class Watcher:
     @property
     def fn_fqn(self) -> str:
         return f"{self.fn.__module__}.{self.fn.__qualname__}"
+
+
+def computed(fn):
+    watcher = Watcher(fn)
+
+    @wraps(fn)
+    def getter():
+        if watcher.dirty:
+            watcher.evaluate()
+        if Dep.stack:
+            watcher.depend()
+        return watcher.value
+
+    getter.__watcher__ = watcher
+    return getter

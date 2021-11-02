@@ -1,16 +1,14 @@
 import copy
-from functools import partial, wraps
-from inspect import signature
+from functools import partial
 from typing import Callable, TypeVar
 
-from .dep import Dep
 from .observables import (
     reactive,
     readonly,
     shallow_reactive,
     to_raw,
 )
-from .watcher import Watcher
+from .watcher import computed as computed_expression
 
 
 T = TypeVar("T", bound=Callable)
@@ -25,23 +23,8 @@ def mutation(fn: T) -> T:
 
 
 def computed(fn: T) -> T:
-    parameters = signature(fn).parameters
-    if len(parameters) == 1 and "self" in parameters:
-        registry[fn] = "computed"
-        return fn
-    else:
-        watcher = Watcher(fn)
-
-        @wraps(fn)
-        def getter():
-            if watcher.dirty:
-                watcher.evaluate()
-            if Dep.stack:
-                watcher.depend()
-            return watcher.value
-
-        getter.__watcher__ = watcher
-        return getter
+    registry[fn] = "computed"
+    return fn
 
 
 class Store:
@@ -69,7 +52,7 @@ class Store:
                 method = partial(self.commit, method)
                 setattr(self, method_name, method)
             elif wrap_type == "computed":
-                self._computed_props[method_name] = computed(
+                self._computed_props[method_name] = computed_expression(
                     partial(method.__func__, self)
                 )
 
