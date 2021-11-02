@@ -21,24 +21,14 @@ registry = {}
 
 def mutation(fn: T) -> T:
     registry[fn] = "mutation"
-
-    @wraps(fn)
-    def inner(self, *args, **kwargs):
-        return fn(self, *args, **kwargs)
-
-    return inner
+    return fn
 
 
 def computed(fn: T) -> T:
     parameters = signature(fn).parameters
     if len(parameters) == 1 and "self" in parameters:
         registry[fn] = "computed"
-
-        @wraps(fn)
-        def inner(self):
-            return fn(self)
-
-        return inner
+        return fn
     else:
         watcher = Watcher(fn)
 
@@ -54,9 +44,6 @@ def computed(fn: T) -> T:
         return getter
 
 
-registered_computed_props = {}
-
-
 class Store:
     """
     Store that tracks mutations to state in order to enable undo/redo functionality
@@ -70,24 +57,27 @@ class Store:
         self._past = shallow_reactive([copy.deepcopy(to_raw(state))])
         self._future = shallow_reactive([])
         self.state = readonly(state)
+        self._computed_props = {}
 
-        computed_props = registered_computed_props.setdefault(id(self), {})
         for method_name in dir(self):
             method = getattr(self, method_name)
-            if not hasattr(method, "__wrapped__"):
+            if not hasattr(method, "__func__") or method.__func__ not in registry:
                 continue
 
-            wrap_type = registry.get(method.__wrapped__)
+            wrap_type = registry[method.__func__]
             if wrap_type == "mutation":
                 method = partial(self.commit, method)
                 setattr(self, method_name, method)
             elif wrap_type == "computed":
-                computed_props[method_name] = computed(partial(method.__func__, self))
+                self._computed_props[method_name] = computed(
+                    partial(method.__func__, self)
+                )
 
     def __getattribute__(self, name):
-        fn = registered_computed_props[id(self)].get(name)
-        if fn:
-            return fn()
+        if name != "_computed_props":
+            fn = self._computed_props.get(name)
+            if fn:
+                return fn()
         return super().__getattribute__(name)
 
     def commit(self, fn, *args, **kwargs):
