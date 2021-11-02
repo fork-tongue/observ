@@ -3,7 +3,7 @@ watchers perform dependency tracking via functions acting on
 observable datastructures, and optionally trigger callback when
 a change is detected.
 """
-from collections.abc import Container, Mapping
+from collections.abc import Container
 from functools import wraps
 import inspect
 from itertools import count
@@ -11,6 +11,7 @@ from typing import Any, Callable, Optional, TypeVar
 from weakref import WeakSet
 
 from .dep import Dep
+from .observables import DictProxyBase, ListProxyBase, SetProxyBase
 from .scheduler import scheduler
 
 
@@ -64,11 +65,9 @@ def traverse(obj):
 
 def _traverse(obj, seen: set):
     seen.add(id(obj))
-    if isinstance(obj, Mapping):
-        # dict and DictProxies
+    if isinstance(obj, (dict, DictProxyBase)):
         val_iter = iter(obj.values())
-    elif isinstance(obj, Container):
-        # list, set (and their proxies) and tuple
+    elif isinstance(obj, (list, ListProxyBase, set, SetProxyBase, tuple)):
         val_iter = iter(obj)
     else:
         return

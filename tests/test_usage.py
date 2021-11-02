@@ -525,3 +525,27 @@ def test_computed_deep():
 
     a["items"] = []
     shallow_watcher.callback.assert_called_once()
+
+
+def test_watch_real_deep():
+    from observ.observables import ListProxy
+
+    a = reactive({"scene": {"objects": {"camera": {"position": [0, 0, 0]}}}})
+
+    watcher = watch(
+        lambda: a["scene"],
+        Mock(),
+        sync=True,
+        deep=True,
+    )
+
+    watcher.callback.assert_not_called()
+    a["scene"]["objects"]["camera"]["position"] = [0, 1, 0]
+    watcher.callback.assert_called_once()
+
+    assert isinstance(a["scene"]["objects"]["camera"]["position"], ListProxy)
+    assert not a["scene"]["objects"]["camera"]["position"].shallow
+
+    watcher.callback = Mock()
+    a["scene"]["objects"]["camera"]["position"][1] = 2
+    watcher.callback.assert_called_once()
