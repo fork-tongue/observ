@@ -1,6 +1,7 @@
-import copy
 from functools import partial, wraps
 from typing import Callable, Collection, TypeVar
+
+import patchdiff
 
 from .observables import (
     reactive,
@@ -20,8 +21,10 @@ def mutation(fn: T) -> T:
         readonly_state = self.state
         self.state = self._present
         try:
+            current = to_raw(self.state)
             fn(self, *args, **kwargs)
-            self._past.append(copy.deepcopy(to_raw(self._present)))
+            ops, reverse_ops = patchdiff.diff(current, self.state)
+            self._past.append((ops, reverse_ops))
             self._future.clear()
         finally:
             self.state = readonly_state
@@ -50,10 +53,7 @@ class Store:
         Creates a store with the given state as the initial state.
         """
         self._present = reactive(state)
-        # Because we can't work with diff patches (yet) we'll have to copy
-        # over the whole state. When triggering undo/redo, we'll therefore
-        # trigger all the watchers / computed expressions...
-        self._past = shallow_reactive([copy.deepcopy(to_raw(state))])
+        self._past = shallow_reactive([])
         self._future = shallow_reactive([])
         self.state = readonly(state)
         self._computed_props = {}
@@ -80,7 +80,7 @@ class Store:
         """
         Returns whether the store can undo some mutation
         """
-        return len(self._past) > 1
+        return len(self._past) > 0
 
     @property
     def can_redo(self) -> bool:
@@ -95,11 +95,10 @@ class Store:
         """
         if not self.can_undo:
             return
-        current = self._past.pop()
-        previous = self._past[-1]
 
-        self._present.update(previous)
-        self._future.append(copy.deepcopy(to_raw(current)))
+        ops, reverse_ops = self._past.pop()
+        patchdiff.iapply(self._present, reverse_ops)
+        self._future.append((ops, reverse_ops))
 
     def redo(self):
         """
@@ -107,7 +106,7 @@ class Store:
         """
         if not self.can_redo:
             return
-        first = self._future.pop()
 
-        self._present.update(first)
-        self._past.append(copy.deepcopy(to_raw(self._present)))
+        ops, reverse_ops = self._future.pop()
+        patchdiff.iapply(self._present, ops)
+        self._past.append((ops, reverse_ops))

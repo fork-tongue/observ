@@ -1,7 +1,5 @@
 from unittest.mock import Mock
 
-import pytest
-
 from observ import watch
 from observ.store import computed, mutation, Store
 
@@ -64,7 +62,6 @@ def test_store_computed_methods():
     assert store.double == 2
 
 
-@pytest.mark.xfail(reason="deepcopy is used to restore state")
 def test_store_undo_redo_unchanged_watcher():
     store = CustomStore(state={"count": 0, "foo": {}})
     watcher = watch(lambda: store.state["foo"], Mock(), sync=True)
