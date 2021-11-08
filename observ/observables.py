@@ -2,7 +2,6 @@
 observe converts plain datastructures (dict, list, set) to
 proxied versions of those datastructures to make them reactive.
 """
-from copy import copy
 from functools import partial, wraps
 import gc
 import sys
@@ -604,21 +603,15 @@ def to_raw(target):
         return to_raw(target.target)
 
     if isinstance(target, list):
-        tcopy = copy(target)
-        for idx, value in enumerate(tcopy):
-            tcopy[idx] = to_raw(value)
-        return tcopy
+        return [to_raw(t) for t in target]
 
     if isinstance(target, dict):
-        target = copy(target)
-        for key, value in target.items():
-            target[key] = to_raw(value)
-        return target
+        return {key: to_raw(value) for key, value in target.items()}
 
     if isinstance(target, tuple):
         return tuple(map(to_raw, target))
 
     if isinstance(target, set):
-        return target
+        return set(map(to_raw, target))
 
     return target

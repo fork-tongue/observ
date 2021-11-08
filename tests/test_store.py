@@ -1,7 +1,5 @@
 from unittest.mock import Mock
 
-import pytest
-
 from observ import watch
 from observ.store import computed, mutation, Store
 
@@ -64,7 +62,6 @@ def test_store_computed_methods():
     assert store.double == 2
 
 
-@pytest.mark.xfail(reason="deepcopy is used to restore state")
 def test_store_undo_redo_unchanged_watcher():
     store = CustomStore(state={"count": 0, "foo": {}})
     watcher = watch(lambda: store.state["foo"], Mock(), sync=True)
@@ -99,3 +96,44 @@ def test_store_computed_deep():
     store.add_item(3)
     shallow_watcher.callback.assert_not_called()
     deep_watcher.callback.assert_called_once()
+
+
+def test_store_undo_redo_all_types():
+    class SetStore(Store):
+        @mutation
+        def add(self, item):
+            self.state["set"].add(item)
+
+        @mutation
+        def append(self, item):
+            self.state["list"].append(item)
+
+        @mutation
+        def set(self, key, value):
+            self.state["dict"][key] = value
+
+    store = SetStore(
+        {
+            "set": {"a"},
+            "list": ["a"],
+            "dict": {"a": "b"},
+        }
+    )
+    assert store.state["set"] == {"a"}
+    assert store.state["list"] == ["a"]
+    assert store.state["dict"] == {"a": "b"}
+
+    store.add("b")
+    assert store.state["set"] == {"a", "b"}
+    store.undo()
+    assert store.state["set"] == {"a"}
+
+    store.append("b")
+    assert store.state["list"] == ["a", "b"]
+    store.undo()
+    assert store.state["list"] == ["a"]
+
+    store.set("b", "c")
+    assert store.state["dict"] == {"a": "b", "b": "c"}
+    store.undo()
+    assert store.state["dict"] == {"a": "b"}
