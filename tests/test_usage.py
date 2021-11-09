@@ -506,11 +506,11 @@ def test_watch_computed():
 def test_computed_deep():
     a = reactive({"items": []})
 
-    @computed
+    @computed(deep=False)
     def items():
         return a["items"]
 
-    @computed(deep=True)
+    @computed
     def items_deep():
         return a["items"]
 

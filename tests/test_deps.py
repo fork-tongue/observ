@@ -9,7 +9,7 @@ def test_deps_copy():
     state = reactive({"foo": 5, "bar": 6})
     call_count = 0
 
-    @computed
+    @computed(deep=False)
     def prop():
         nonlocal call_count
         call_count += 1
