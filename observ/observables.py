@@ -609,9 +609,9 @@ def to_raw(target):
         return {key: to_raw(value) for key, value in target.items()}
 
     if isinstance(target, tuple):
-        return tuple(map(to_raw, target))
+        return tuple(to_raw(t) for t in target)
 
     if isinstance(target, set):
-        return set(map(to_raw, target))
+        return {to_raw(t) for t in target}
 
     return target
