@@ -77,11 +77,11 @@ def test_store_undo_redo_unchanged_watcher():
 
 def test_store_computed_deep():
     class DeepStore(Store):
-        @computed(deep=True)
+        @computed
         def deep_items(self):
             return self.state["items"]
 
-        @computed
+        @computed(deep=False)
         def shallow_items(self):
             return self.state["items"]
 

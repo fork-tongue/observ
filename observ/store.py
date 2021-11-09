@@ -32,7 +32,7 @@ def mutation(fn: T) -> T:
     return inner
 
 
-def computed(_fn=None, *, deep=False):
+def computed(_fn=None, *, deep=True):
     def decorator_computed(fn: T) -> T:
         fn.deep = deep
         fn.decorator = "computed"

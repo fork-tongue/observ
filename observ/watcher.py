@@ -30,7 +30,7 @@ def watch(
     return watcher
 
 
-def computed(_fn=None, *, deep=False):
+def computed(_fn=None, *, deep=True):
     def decorator_computed(fn: T) -> T:
         """
         Create a watcher for an expression.
@@ -188,9 +188,9 @@ class Watcher:
         Dep.stack.append(self)
         try:
             value = self.fn()
-        finally:
             if self.deep:
                 traverse(value)
+        finally:
             Dep.stack.pop()
             self.cleanup_deps()
         return value
