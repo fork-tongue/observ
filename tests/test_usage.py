@@ -3,7 +3,7 @@ from unittest.mock import Mock
 import pytest
 
 from observ import computed, reactive, to_raw, watch
-from observ.observables import Proxy, StateModifiedError
+from observ.observables import ListProxy, Proxy, StateModifiedError
 from observ.watcher import WrongNumberOfArgumentsError
 
 
@@ -528,8 +528,6 @@ def test_computed_deep():
 
 
 def test_watch_real_deep():
-    from observ.observables import ListProxy
-
     a = reactive({"scene": {"objects": {"camera": {"position": [0, 0, 0]}}}})
 
     watcher = watch(
@@ -549,3 +547,39 @@ def test_watch_real_deep():
     watcher.callback = Mock()
     a["scene"]["objects"]["camera"]["position"][1] = 2
     watcher.callback.assert_called_once()
+
+
+@pytest.mark.xfail
+def test_deeply_nested_to_raw():
+    """
+    In this test a dictionary is created that contains a proxy in one of its values.
+    We're writing it to a key on a DictProxy. The dict is to_raw'd, but its values
+    are not. This means the DictProxy actually becomes part of the datastructure.
+    """
+    a = reactive({"scene": {"objects": {"camera": {"position": [0, 0, 0]}}}})
+
+    mesh_w_nested_proxy = {
+        "position": a["scene"]["objects"]["camera"]["position"],
+    }
+    assert isinstance(mesh_w_nested_proxy, dict)
+    assert isinstance(mesh_w_nested_proxy["position"], Proxy)
+
+    a["scene"]["objects"]["mesh"] = mesh_w_nested_proxy
+    assert isinstance(a["scene"]["objects"]["mesh"], Proxy)
+    assert isinstance(a["scene"]["objects"]["mesh"]["position"], Proxy)
+
+    # this assertion confirms that the problematic case has been created
+    # in other words, that the test was setup properly
+    assert isinstance(a.target["scene"]["objects"]["mesh"]["position"], Proxy)
+
+    # check if we can still get a reference to the raw object using to_raw
+    raw_pos = to_raw(a["scene"]["objects"]["mesh"]["position"])
+    assert isinstance(raw_pos, list)
+
+    # check what happens when we to_raw the root state
+    # check if we can still get a reference to the raw object using to_raw
+    raw_a = to_raw(a)
+    assert not isinstance(raw_a["scene"]["objects"]["mesh"], Proxy)
+
+    # this should fail
+    assert not isinstance(raw_a["scene"]["objects"]["mesh"]["position"], Proxy)
