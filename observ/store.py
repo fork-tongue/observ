@@ -1,3 +1,4 @@
+from copy import deepcopy
 from functools import partial, wraps
 from typing import Callable, Collection, TypeVar
 
@@ -21,7 +22,7 @@ def mutation(fn: T) -> T:
         readonly_state = self.state
         self.state = self._present
         try:
-            current = to_raw(self.state)
+            current = deepcopy(to_raw(self.state))
             fn(self, *args, **kwargs)
             ops, reverse_ops = patchdiff.diff(current, self.state)
             self._past.append((ops, reverse_ops))
