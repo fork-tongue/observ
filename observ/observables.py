@@ -256,8 +256,6 @@ def write_trap(method, obj_cls):
     def inner(self, *args, **kwargs):
         if Dep.stack:
             raise StateModifiedError()
-        args = tuple(to_raw(a) for a in args)
-        kwargs = {k: to_raw(v) for k, v in kwargs.items()}
         old = self.target.copy()
         retval = fn(self.target, *args, **kwargs)
         attrs = proxy_db.attrs(self)
@@ -294,8 +292,6 @@ def write_key_trap(method, obj_cls):
         attrs = proxy_db.attrs(self)
         is_new = key not in attrs["keydep"]
         old_value = getitem_fn(self.target, key) if not is_new else None
-        args = [key] + [to_raw(a) for a in args[1:]]
-        kwargs = {k: to_raw(v) for k, v in kwargs.items()}
         retval = fn(self.target, *args, **kwargs)
         new_value = getitem_fn(self.target, key)
         if is_new:
@@ -595,8 +591,23 @@ bind_traps(ReadonlySetProxy, set, set_traps, trap_map_readonly)
 
 
 def to_raw(target):
+    """
+    Returns a raw object from which any trace of proxy has been replaced
+    with its wrapped target value.
+    """
     if isinstance(target, Proxy):
-        return target.target
+        return to_raw(target.target)
+
+    if isinstance(target, list):
+        return [to_raw(t) for t in target]
+
+    if isinstance(target, dict):
+        return {key: to_raw(value) for key, value in target.items()}
+
     if isinstance(target, tuple):
         return tuple(to_raw(t) for t in target)
+
+    if isinstance(target, set):
+        return {to_raw(t) for t in target}
+
     return target
