@@ -256,8 +256,6 @@ def write_trap(method, obj_cls):
     def inner(self, *args, **kwargs):
         if Dep.stack:
             raise StateModifiedError()
-        args = tuple(proxy(a) for a in args)
-        kwargs = {k: proxy(v) for k, v in kwargs.items()}
         old = self.target.copy()
         retval = fn(self.target, *args, **kwargs)
         attrs = proxy_db.attrs(self)
@@ -294,8 +292,6 @@ def write_key_trap(method, obj_cls):
         attrs = proxy_db.attrs(self)
         is_new = key not in attrs["keydep"]
         old_value = getitem_fn(self.target, key) if not is_new else None
-        args = [key] + [proxy(a) for a in args[1:]]
-        kwargs = {k: proxy(v) for k, v in kwargs.items()}
         retval = fn(self.target, *args, **kwargs)
         new_value = getitem_fn(self.target, key)
         if is_new:
