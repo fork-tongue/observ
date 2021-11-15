@@ -226,3 +226,39 @@ def test_raise_on_existing_proxy():
 
     with pytest.raises(RuntimeError):
         _ = Proxy(data)
+
+
+def test_list_equality():
+    raw = [1, 2, 3]
+    p = proxy(raw)
+    assert isinstance(p, Proxy)
+    assert isinstance(raw, list)
+    assert p is not raw
+    assert p == raw
+
+
+def test_dict_equality():
+    raw = {"foo": "bar"}
+    p = proxy(raw)
+    assert isinstance(p, Proxy)
+    assert isinstance(raw, dict)
+    assert p is not raw
+    assert p == raw
+
+
+def test_set_equality():
+    raw = {"foo"}
+    p = proxy(raw)
+    assert isinstance(p, Proxy)
+    assert isinstance(raw, set)
+    assert p is not raw
+    assert p == raw
+
+
+def test_tuple_equality():
+    raw = ("foo",)
+    p = proxy(raw)
+    assert not isinstance(p, Proxy)
+    assert isinstance(raw, tuple)
+    assert p is not raw
+    assert p == raw
