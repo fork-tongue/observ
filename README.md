@@ -31,9 +31,9 @@ React to changes in the state accessed in `func` with `callback(old_value, new_v
 
 Define computed state based on observable state with `func` and recompute lazily. Returns a wrapped copy of the function which only recomputes the output if any of the state it depends on becomes dirty. Can be used as a function decorator.
 
-**Note:** The API has evolved and become more powewrful since the original creation of this README.md. Track issue #10 to follow updates to observ's documentation.
+**Note:** The API has evolved and become more powerful since the original creation of this README. Track issue #10 to follow updates to observ's documentation.
 
-## Quick start and example
+## Quick start and examples
 
 Install observ with pip/pipenv/poetry:
 
@@ -41,8 +41,8 @@ Install observ with pip/pipenv/poetry:
 
 Check out [`examples/observe_qt.py`](https://github.com/Korijn/observ/blob/master/examples/observe_qt.py) for a simple example using observ.
 
-Check out [`examples/store_with_undo_redo.py`](https://github.com/Korijn/observ/blob/master/examples/store_with_undo_redo.py) for a simple example using the undo/redo store.
+Check out [`examples/store_with_undo_redo.py`](https://github.com/Korijn/observ/blob/master/examples/store_with_undo_redo.py) for a simple example using the included undo/redo-capable Store abstraction.
 
 ## Caveat
 
-Observ keeps references to the object passed to the `reactive` in order to keep track of dependencies and proxies for that object. When the object that is passed into `reactive` is not managed by other code, then observ should cleanup its references automatically when the proxy is destroyed. However, if there is another reference to the original object, then observ will only release its own reference when the garbage collector is run and all other references to the object are gone. For this reason, the **best practise** is to keep **no references** to the raw data, and instead work with the reactive proxies.
+Observ keeps references to the object passed to the `reactive` in order to keep track of dependencies and proxies for that object. When the object that is passed into `reactive` is not managed by other code, then observ should cleanup its references automatically when the proxy is destroyed. However, if there is another reference to the original object, then observ will only release its own reference when the garbage collector is run and all other references to the object are gone. For this reason, the **best practise** is to keep **no references** to the raw data, and instead work with the reactive proxies **only**.
