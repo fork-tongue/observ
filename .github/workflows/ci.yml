@@ -43,6 +43,29 @@ jobs:
       - name: Test
         run: poetry run pytest --cov=observ --cov-report=term-missing
 
+  bench:
+    name: Benchmark ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+      - name: Install poetry
+        run: pip install "poetry>=1.1.8,<1.2"
+      - name: Install dependencies
+        run: |
+          poetry install
+      - name: Install valgrind
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -qq valgrind
+      - name: Benchmark
+        run: |
+          export PYTHONHASHSEED=1234
+          poetry run python bench/cachegrind.py python bench/suite.py
+
   build:
     name: Build and test wheel
     runs-on: ubuntu-latest
@@ -90,12 +113,13 @@ jobs:
         draft: false
         prerelease: false
     - name: Upload release assets
-      # Move back to official action after fix https://github.com/actions/upload-release-asset/issues/4
-      uses: AButler/upload-release-assets@v2.0
+      uses: softprops/action-gh-release@v1
       with:
-        release-tag: ${{ steps.get_version.outputs.VERSION }}
-        files: 'dist/*.tar.gz;dist/*.whl'
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        tag_name: ${{ steps.get_version.outputs.VERSION }}
+        files: |
+          dist/*.tar.gz
+          dist/*.whl
+        token: ${{ secrets.GITHUB_TOKEN }}
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@master
       with:
