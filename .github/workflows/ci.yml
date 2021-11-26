@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - benchmark
     tags:
       - 'v*'
   pull_request:
