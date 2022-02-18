@@ -11,15 +11,29 @@ on:
       - master
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+      - name: Install poetry
+        run: pip install "poetry>=1.1.12,<1.2"
+      - name: Install dependencies
+        run: poetry install
+      - name: Lint
+        run: poetry run flake8
+  
   test:
-    name: Lint and test on ${{ matrix.name }}
+    name: Test on ${{ matrix.name }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: Linux py36
-            pyversion: '3.6'
           - name: Linux py37
             pyversion: '3.7'
           - name: Linux py38
@@ -35,11 +49,9 @@ jobs:
         with:
           python-version: ${{ matrix.pyversion }}
       - name: Install poetry
-        run: pip install "poetry>=1.1.8,<1.2"
+        run: pip install "poetry>=1.1.12,<1.2"
       - name: Install dependencies
         run: poetry install
-      - name: Lint
-        run: poetry run flake8
       - name: Test
         run: poetry run pytest --cov=observ --cov-report=term-missing
 
@@ -53,7 +65,7 @@ jobs:
       with:
         python-version: '3.9'
     - name: Install poetry
-      run: pip install "poetry>=1.1.8,<1.2"
+      run: pip install "poetry>=1.1.12,<1.2"
     - name: Install dependencies
       run: poetry install
     - name: Build wheel
