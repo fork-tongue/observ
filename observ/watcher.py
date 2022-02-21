@@ -10,7 +10,7 @@ from itertools import count
 from typing import Any, Callable, Optional, TypeVar
 from weakref import WeakSet
 
-from .dep import Dep
+from .dep import Dep, Path
 from .observables import DictProxyBase, ListProxyBase, SetProxyBase
 from .scheduler import scheduler
 
@@ -26,7 +26,10 @@ def watch(
         watcher.dirty = True
         watcher.evaluate()
         if watcher.callback:
-            watcher.run_callback(watcher.value, None)
+            watcher.run_callback(watcher.value, None, None)
+        watcher._ops = []
+        while len(Path.stack):
+            Path.pop()
     return watcher
 
 
@@ -43,6 +46,9 @@ def computed(_fn=None, *, deep=True):
         def getter():
             if watcher.dirty:
                 watcher.evaluate()
+                watcher._ops = []
+                while len(Path.stack):
+                    Path.pop()
             if Dep.stack:
                 watcher.depend()
             return watcher.value
@@ -112,8 +118,11 @@ class Watcher:
         self.dirty = self.lazy
         self.value = None if self.lazy else self.get()
         self._number_of_callback_args = None
+        self._ops = []
 
-    def update(self) -> None:
+    def update(self, ops) -> None:
+        if ops:
+            self._ops.extend(ops)
         if self.lazy:
             self.dirty = True
         elif self.sync:
@@ -122,6 +131,8 @@ class Watcher:
             scheduler.queue(self)
 
     def evaluate(self) -> None:
+        while len(Path.stack):
+            Path.pop()
         self.value = self.get()
         self.dirty = False
 
@@ -132,9 +143,15 @@ class Watcher:
             old_value = self.value
             self.value = value
             if self.callback:
-                self.run_callback(self.value, old_value)
+                for op in self._ops:
+                    op["path"].tokens = [p for _, p in Path.stack] + op["path"].tokens
+                self.run_callback(self.value, old_value, self._ops)
 
-    def run_callback(self, new, old):
+        self._ops = []
+        while len(Path.stack):
+            Path.pop()
+
+    def run_callback(self, new, old, ops):
         """
         Runs the callback. When the number of arguments is still unknown
         for the callback, it will fall into the try/except contstruct
@@ -149,6 +166,9 @@ class Watcher:
         if self._number_of_callback_args == 2:
             self.callback(new, old)
             return
+        if self._number_of_callback_args == 3:
+            self.callback(new, old, ops)
+            return
         if self._number_of_callback_args == 0:
             self.callback()
             return
@@ -161,8 +181,12 @@ class Watcher:
                 self._run_callback(new, old)
                 self._number_of_callback_args = 2
             except WrongNumberOfArgumentsError:
-                self._run_callback()
-                self._number_of_callback_args = 0
+                try:
+                    self._run_callback(new, old, ops)
+                    self._number_of_callback_args = 3
+                except WrongNumberOfArgumentsError:
+                    self._run_callback()
+                    self._number_of_callback_args = 0
 
     def _run_callback(self, *args):
         """

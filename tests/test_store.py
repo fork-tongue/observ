@@ -137,3 +137,24 @@ def test_store_undo_redo_all_types():
     assert store.state["dict"] == {"a": "b", "b": "c"}
     store.undo()
     assert store.state["dict"] == {"a": "b"}
+
+
+def test_store_undo_extend():
+    class ListStore(Store):
+        @mutation
+        def add(self, items):
+            self.state["list"].extend(items)
+
+    store = ListStore({"list": []})
+
+    # This works in v0.8.1
+    store.add(["a", "b"])
+    assert store.state["list"] == ["a", "b"]
+    store.undo()
+    assert store.state["list"] == []
+
+    # This raises an IndexError in v0.8.1 on `store.undo()`
+    store.add(["a", "b", "c"])
+    assert store.state["list"] == ["a", "b", "c"]
+    store.undo()
+    assert store.state["list"] == []

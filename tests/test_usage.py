@@ -1,6 +1,7 @@
 from typing import Iterable
 from unittest.mock import Mock
 
+from patchdiff.pointer import Pointer
 import pytest
 
 from observ import computed, reactive, to_raw, watch
@@ -45,6 +46,46 @@ def test_usage_dict_new_key():
     assert called == 1
     assert len(a) == 2
     assert a["quuz"] == "quur"
+
+
+def test_usage_dict_keys():
+    a = reactive({"foo": ["bar"]})
+    called = 0
+    values = ()
+
+    def _callback(new, old, ops):
+        nonlocal called
+        nonlocal values
+        called += 1
+        values = (new, old, ops)
+
+    # TODO: think about setting up for watching changes vs reading values?
+    watcher = watch(lambda: a, _callback, sync=True, deep=True)
+
+    a["foo"].append("baz")
+    assert called == 1
+    # Fails currently because 'quuz' from previous test is still in path
+    assert values[2] == [{"op": "add", "path": Pointer(["foo", "-"]), "value": "baz"}]
+    # assert values[1] == values[2]
+
+
+def test_usage_dict_keys_alt_watch():
+    a = reactive({"foo": ["bar"]})
+    called = 0
+    values = ()
+
+    def _callback(new, old, ops):
+        nonlocal called
+        nonlocal values
+        called += 1
+        values = (new, old, ops)
+
+    watcher = watch(lambda: a["foo"], _callback, sync=True, deep=True)
+
+    a["foo"].append("baz")
+    assert called == 1
+    assert values[2] == [{"op": "add", "path": Pointer(["-"]), "value": "baz"}]
+    # assert values[1] == values[2]
 
 
 def test_usage_list():
@@ -213,7 +254,7 @@ def test_callback_signatures():
     watcher = watch(lambda: a["foo"], full_callback, sync=True, immediate=True)
     assert called == 3
 
-    def too_complex_callback(new, old, other):
+    def too_complex_callback(new, old, ops, other):
         nonlocal called
         called += 1
 

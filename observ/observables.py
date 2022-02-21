@@ -7,7 +7,10 @@ import gc
 import sys
 from weakref import WeakValueDictionary
 
-from .dep import Dep
+from patchdiff import diff
+from patchdiff.pointer import Pointer
+
+from .dep import Dep, Path
 
 
 class ProxyDb:
@@ -54,6 +57,7 @@ class ProxyDb:
         if obj_id not in self.db:
             attrs = {
                 "dep": Dep(),
+                "path": [],
             }
             if isinstance(proxy.target, dict):
                 attrs["keydep"] = {key: Dep() for key in proxy.target.keys()}
@@ -204,6 +208,8 @@ def read_trap(method, obj_cls):
     def trap(self, *args, **kwargs):
         if Dep.stack:
             proxy_db.attrs(self)["dep"].depend()
+        if method == "__getitem__":
+            Path.put(self, args[0])
         value = fn(self.target, *args, **kwargs)
         if self.shallow:
             return value
@@ -241,6 +247,8 @@ def read_key_trap(method, obj_cls):
         if Dep.stack:
             key = args[0]
             proxy_db.attrs(self)["keydep"][key].depend()
+        Path.put(self, args[0])
+        # breakpoint()
         value = fn(self.target, *args, **kwargs)
         if self.shallow:
             return value
@@ -250,6 +258,35 @@ def read_key_trap(method, obj_cls):
 
 
 def write_trap(method, obj_cls):
+    """
+    dict.update
+        update() accepts either another dictionary object or an iterable of key/value
+        pairs (as tuples or other iterables of length two). If keyword arguments are
+        specified, the dictionary is then updated with those key/value pairs:
+            d.update(red=1, blue=2).
+    dict.__ior__
+    list.append
+    list.clear
+    list.extend
+    list.insert
+    list.pop
+    list.remove
+    list.reverse
+    list.sort
+    list.__setitem__
+    list.__delitem__
+    list.__iadd__
+    list.__imul__
+    set.add
+    set.clear
+    set.difference_update
+    set.intersection_update
+    set.discard
+    set.pop
+    set.remove
+    set.symmetric_difference_update
+    set.update
+    """
     fn = getattr(obj_cls, method)
 
     @wraps(fn)
@@ -257,23 +294,30 @@ def write_trap(method, obj_cls):
         if Dep.stack:
             raise StateModifiedError()
         old = self.target.copy()
+        # Figure out which ops represents this fn
         retval = fn(self.target, *args, **kwargs)
         attrs = proxy_db.attrs(self)
         if obj_cls == dict:
             change_detected = False
             keydeps = attrs["keydep"]
+            ops = None
             for key, val in self.target.items():
                 if old.get(key) is not val:
                     if key in keydeps:
-                        keydeps[key].notify()
+                        if not ops:
+                            ops, _ = diff(old, self.target)
+                        keydeps[key].notify(ops)
                     else:
                         keydeps[key] = Dep()
                     change_detected = True
             if change_detected:
-                attrs["dep"].notify()
+                if not ops:
+                    ops, _ = diff(old, self.target)
+                attrs["dep"].notify(ops)
         else:  # list and set
             if self.target != old:
-                attrs["dep"].notify()
+                ops, _ = diff(old, self.target)
+                attrs["dep"].notify(ops)
 
         return retval
 
@@ -281,6 +325,10 @@ def write_trap(method, obj_cls):
 
 
 def write_key_trap(method, obj_cls):
+    """
+    setdefault(key[, default])
+    __setitem__(key, value)
+    """
     fn = getattr(obj_cls, method)
     getitem_fn = getattr(obj_cls, "__getitem__")
 
@@ -296,15 +344,26 @@ def write_key_trap(method, obj_cls):
         new_value = getitem_fn(self.target, key)
         if is_new:
             attrs["keydep"][key] = Dep()
-        if old_value != new_value:
-            attrs["keydep"][key].notify()
-            attrs["dep"].notify()
+        if old_value is not new_value:
+            ops = (
+                {
+                    "op": "add" if is_new else "replace",
+                    "path": Pointer([key]),
+                    "value": new_value,
+                },
+            )
+            attrs["keydep"][key].notify(ops)
+            attrs["dep"].notify(ops)
         return retval
 
     return inner
 
 
 def delete_trap(method, obj_cls):
+    """
+    dict.clear
+    dict.popitem
+    """
     fn = getattr(obj_cls, method)
 
     @wraps(fn)
@@ -315,7 +374,13 @@ def delete_trap(method, obj_cls):
         attrs = proxy_db.attrs(self)
         attrs["dep"].notify()
         for key in self._orphaned_keydeps():
-            attrs["keydep"][key].notify()
+            ops = (
+                {
+                    "op": "remove",
+                    "path": Pointer([key]),
+                },
+            )
+            attrs["keydep"][key].notify(ops)
             del attrs["keydep"][key]
         return retval
 
@@ -323,6 +388,10 @@ def delete_trap(method, obj_cls):
 
 
 def delete_key_trap(method, obj_cls):
+    """
+    dict.pop
+    dict.__delitem__
+    """
     fn = getattr(obj_cls, method)
 
     @wraps(fn)
@@ -332,8 +401,14 @@ def delete_key_trap(method, obj_cls):
         retval = fn(self.target, *args, **kwargs)
         key = args[0]
         attrs = proxy_db.attrs(self)
-        attrs["dep"].notify()
-        attrs["keydep"][key].notify()
+        ops = (
+            {
+                "op": "remove",
+                "path": Pointer([key]),
+            },
+        )
+        attrs["dep"].notify(ops)
+        attrs["keydep"][key].notify(ops)
         del attrs["keydep"][key]
         return retval
 
