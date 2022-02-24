@@ -2,9 +2,9 @@
 name = "observ"
 version = "0.9.0"
 description = "Reactive state management for Python"
-authors = ["Korijn van Golen <korijn@gmail.com>"]
+authors = ["Korijn van Golen <korijn@gmail.com>", "Berend Klein Haneveld <berendkleinhaneveld@gmail.com>"]
 license = "MIT"
-homepage = "https://github.com/Korijn/observ"
+homepage = "https://github.com/fork-tongue/observ"
 readme = "README.md"
 
 [tool.poetry.dependencies]
