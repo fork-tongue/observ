@@ -161,14 +161,14 @@ class Watcher:
             pass
 
         try:
-            self._run_callback(new, old)
-            self._number_of_callback_args = 2
+            self._run_callback()
+            self._number_of_callback_args = 0
             return
         except WrongNumberOfArgumentsError:
             pass
 
-        self._run_callback()
-        self._number_of_callback_args = 0
+        self._run_callback(new, old)
+        self._number_of_callback_args = 2
 
     def _run_callback(self, *args):
         """
