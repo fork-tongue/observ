@@ -23,6 +23,7 @@ pytest-cov = "*"
 pytest-timeout = "*"
 PySide6 = { version = "*", python = "<3.11"}
 twine = "*"
+urllib3 = { version = "*", python = "<4"}
 
 [build-system]
 requires = ["poetry>=1.0.0"]
