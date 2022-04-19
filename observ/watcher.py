@@ -60,11 +60,6 @@ def traverse(obj):
     Recursively traverse the whole tree to make sure
     that all values have been 'get'
     """
-    _traverse(obj, set())
-
-
-def _traverse(obj, seen: set):
-    seen.add(id(obj))
     if isinstance(obj, (dict, DictProxyBase)):
         val_iter = iter(obj.values())
     elif isinstance(obj, (list, ListProxyBase, set, SetProxyBase, tuple)):
@@ -75,7 +70,7 @@ def _traverse(obj, seen: set):
         if isinstance(
             v, (dict, DictProxyBase, list, ListProxyBase, set, SetProxyBase, tuple)
         ):
-            _traverse(v, seen)
+            traverse(v)
 
 
 # Every Watcher gets a unique ID which is used to
