@@ -72,7 +72,9 @@ def _traverse(obj, seen: set):
     else:
         return
     for v in val_iter:
-        if isinstance(v, Container) and id(v) not in seen:
+        if isinstance(
+            v, (dict, DictProxyBase, list, ListProxyBase, set, SetProxyBase, tuple)
+        ):
             _traverse(v, seen)
 
 

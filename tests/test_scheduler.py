@@ -171,7 +171,6 @@ def test_queue_cycle_indirect(noop_request_flush):
         scheduler.flush()
 
 
-@pytest.mark.xfail
 def test_lots_of_watchers(noop_request_flush):
     """
     Test with a lot of watchers
