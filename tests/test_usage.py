@@ -592,3 +592,36 @@ def test_deeply_nested_to_raw():
     # check what happens when we to_raw the root state
     raw_a = to_raw(a)
     assert not obj_contains_proxy(raw_a)
+
+
+def test_usage_class_instances():
+    """This test documents that class instances are not reactive,
+    but they can still be part of reactive state if you want."""
+
+    class Foo:
+        def __init__(self):
+            self.foo = 5
+
+    a = reactive([1, 2, Foo()])
+    called = 0
+
+    def _callback():
+        nonlocal called
+        called += 1
+
+    # watch the whole of the state, deep
+    watcher = watch(lambda: a, _callback, sync=True, deep=True)
+    assert not watcher.dirty
+    assert called == 0
+
+    # change the length
+    a.append(3)
+    assert called == 1
+
+    # write a key
+    a[1] = 3
+    assert called == 2
+
+    # write to a class attribute
+    a[2].foo = 10
+    assert called == 2  # class instances are NOT reactive
