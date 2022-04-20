@@ -85,7 +85,7 @@ def traverse(obj, seen=None):
                 v, (dict, DictProxyBase, list, ListProxyBase, set, SetProxyBase, tuple)
             )
         ) and getattr(v, "target", v) not in seen:
-            traverse(v)
+            traverse(v, seen=seen)
 
 
 # Every Watcher gets a unique ID which is used to
