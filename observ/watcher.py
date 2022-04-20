@@ -78,8 +78,7 @@ def traverse(obj, seen=None):
         seen = []
     # since proxies may be garbage collected during traversal, it's not safe to use
     # them for tracking, so we try to unwrap proxies where possible
-    obj_unwrapped = getattr(obj, "target", obj)
-    seen.append(obj_unwrapped)
+    seen.append(getattr(obj, "target", obj))
     for v in val_iter:
         if (
             isinstance(
