@@ -55,25 +55,35 @@ def computed(_fn=None, *, deep=True):
     return decorator_computed(_fn)
 
 
-def traverse(obj):
+def traverse(obj, seen=None):
     """
     Recursively traverse the whole tree to make sure
     that all values have been 'get'
     """
-    _traverse(obj, set())
-
-
-def _traverse(obj, seen: set):
-    seen.add(id(obj))
+    # we are only interested in traversing a fixed set of types
+    # otherwise we can just exit
     if isinstance(obj, (dict, DictProxyBase)):
         val_iter = iter(obj.values())
     elif isinstance(obj, (list, ListProxyBase, set, SetProxyBase, tuple)):
         val_iter = iter(obj)
     else:
         return
+    # track which objects we have already seen to support(!) full traversal
+    # of datastructures with cycles
+    # NOTE: a set would provide faster containment checks
+    # but these objects are not hashable (except for tuple) because they are mutable
+    # converting everything to a hashable thing (because nothing is mutated during
+    # traversal) is an option but way more expensive than just using a list
+    if seen is None:
+        seen = []
+    seen.append(obj)
     for v in val_iter:
-        if isinstance(v, Container) and id(v) not in seen:
-            _traverse(v, seen)
+        if (
+            isinstance(
+                v, (dict, DictProxyBase, list, ListProxyBase, set, SetProxyBase, tuple)
+            )
+        ) and v not in seen:
+            traverse(v, seen=seen)
 
 
 # Every Watcher gets a unique ID which is used to

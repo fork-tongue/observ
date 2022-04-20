@@ -71,7 +71,7 @@ class Scheduler:
             self.has.discard(watcher.id)
             watcher.run()
 
-            if self.detect_cycles:  # and watcher.id in self.has:
+            if self.detect_cycles:
                 self.circular[watcher.id] += 1
                 if self.circular[watcher.id] > 100:
                     raise RecursionError(

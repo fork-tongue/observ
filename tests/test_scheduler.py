@@ -10,7 +10,7 @@ def test_no_flush_handler():
     state = reactive({"foo": 5, "bar": 6})
     calls = 0
 
-    def cb(old, new):
+    def cb(new, old):
         nonlocal calls
         calls += 1
 
@@ -27,7 +27,7 @@ def test_flush(noop_request_flush):
     state = reactive({"foo": 5, "bar": 6})
     calls = 0
 
-    def cb(old, new):
+    def cb(new, old):
         nonlocal calls
         calls += 1
 
@@ -57,7 +57,7 @@ def test_cycle_expression(noop_request_flush):
     def exp():
         return state["foo"]
 
-    def cb(old, new):
+    def cb(new, old):
         state["foo"] += 1
         nonlocal calls
         calls += 1
@@ -85,7 +85,7 @@ def test_cycle_callback(noop_request_flush):
     def exp():
         return state["foo"]
 
-    def cb(old, new):
+    def cb(new, old):
         nonlocal calls
         calls += 1
         state["foo"] += 1
@@ -111,12 +111,12 @@ def test_queue_growth(noop_request_flush):
     calls_1 = 0
     calls_2 = 0
 
-    def cb_1(old, new):
+    def cb_1(new, old):
         nonlocal calls_1
         calls_1 += 1
         state["bar"] += 1
 
-    def cb_2(old, new):
+    def cb_2(new, old):
         nonlocal calls_2
         calls_2 += 1
 
@@ -147,12 +147,12 @@ def test_queue_cycle_indirect(noop_request_flush):
     calls_1 = 0
     calls_2 = 0
 
-    def cb_1(old, new):
+    def cb_1(new, old):
         nonlocal calls_1
         calls_1 += 1
         state["bar"] += 1
 
-    def cb_2(old, new):
+    def cb_2(new, old):
         nonlocal calls_2
         state["foo"] += 1
         calls_2 += 1
@@ -169,3 +169,29 @@ def test_queue_cycle_indirect(noop_request_flush):
 
     with pytest.raises(RecursionError):
         scheduler.flush()
+
+
+def test_lots_of_watchers(noop_request_flush):
+    """
+    Test with a lot of watchers
+    """
+    state = reactive({"items": [[["Item", "Value"], False], [["Foo", "Bar"], False]]})
+
+    calls = 0
+
+    def cb():
+        nonlocal calls
+        calls += 1
+
+    nr_of_watchers = 100
+    watchers = []
+    for _ in range(nr_of_watchers):
+        watchers.append(watch(lambda: state, cb, deep=True))
+
+    state["items"][1][1] = True
+
+    assert calls == 0
+
+    scheduler.flush()
+
+    assert calls == nr_of_watchers
