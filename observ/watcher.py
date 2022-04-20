@@ -76,14 +76,16 @@ def traverse(obj, seen=None):
     # traversal) is an option but way more expensive than just using a list
     if seen is None:
         seen = []
-    seen.append(obj)
+    # since proxies may be garbage collected during traversal, it's not safe to use
+    # them for tracking, so we try to unwrap proxies where possible
+    obj_unwrapped = getattr(obj, "target", obj)
+    seen.append(obj_unwrapped)
     for v in val_iter:
         if (
             isinstance(
                 v, (dict, DictProxyBase, list, ListProxyBase, set, SetProxyBase, tuple)
             )
-            and v not in seen
-        ):
+        ) and getattr(v, "target", v) not in seen:
             traverse(v)
 
 
