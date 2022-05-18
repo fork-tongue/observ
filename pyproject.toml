@@ -21,6 +21,7 @@ pre-commit = "*"
 pytest = "*"
 pytest-cov = "*"
 pytest-timeout = "*"
+pytest-benchmark = "*"
 PySide6 = { version = "*", python = "<3.11"}
 twine = "*"
 urllib3 = { version = "*", python = "<4"}
