@@ -625,3 +625,24 @@ def test_usage_class_instances():
     # write to a class attribute
     a[2].foo = 10
     assert called == 2  # class instances are NOT reactive
+
+
+@pytest.mark.xfail
+def test_watch_get_non_existing():
+    a = reactive({"foo": "bar", "baz": "boo"})
+
+    def result():
+        return a.get("foop", None)
+
+    watcher = watch(
+        result,
+        Mock(),
+        sync=True,
+        deep=True,
+    )
+
+    assert watcher.value is None
+
+    a["foop"] = "blaat"
+
+    assert watcher.value == "blaat"
