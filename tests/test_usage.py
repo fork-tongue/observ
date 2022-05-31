@@ -629,20 +629,41 @@ def test_usage_class_instances():
 
 @pytest.mark.xfail
 def test_watch_get_non_existing():
-    a = reactive({"foo": "bar", "baz": "boo"})
+    a = reactive({})
 
     def result():
-        return a.get("foop", None)
+        return a.get("foo", None)
 
     watcher = watch(
         result,
-        Mock(),
         sync=True,
         deep=True,
     )
 
     assert watcher.value is None
 
-    a["foop"] = "blaat"
+    a["foo"] = "bar"
 
-    assert watcher.value == "blaat"
+    assert watcher.value == "bar"
+
+
+@pytest.mark.xfail
+def test_watch_get_non_existing_alt():
+    a = reactive({})
+
+    def result():
+        if "foo" in a:
+            return a["foo"]
+        return None
+
+    watcher = watch(
+        result,
+        sync=True,
+        deep=True,
+    )
+
+    assert watcher.value is None
+
+    a["foo"] = "bar"
+
+    assert watcher.value == "bar"
