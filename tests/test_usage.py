@@ -634,11 +634,7 @@ def test_watch_get_non_existing():
     def result():
         return a.get("foo", None)
 
-    watcher = watch(
-        result,
-        sync=True,
-        deep=True,
-    )
+    watcher = watch(result, sync=True)
 
     assert watcher.value is None
 
@@ -648,22 +644,48 @@ def test_watch_get_non_existing():
 
 
 @pytest.mark.xfail
-def test_watch_get_non_existing_alt():
-    a = reactive({})
+def test_watch_get_non_existing_dict():
+    a = reactive(dict())
 
     def result():
-        if "foo" in a:
-            return a["foo"]
-        return None
+        return "foo" in a
 
-    watcher = watch(
-        result,
-        sync=True,
-        deep=True,
-    )
+    watcher = watch(result, sync=True)
 
     assert watcher.value is None
 
     a["foo"] = "bar"
 
     assert watcher.value == "bar"
+
+
+@pytest.mark.xfail
+def test_watch_get_non_existing_set():
+    a = reactive(set())
+
+    def result():
+        return "foo" in a
+
+    watcher = watch(result, sync=True)
+
+    assert watcher.value is False
+
+    a.add("foo")
+
+    assert watcher.value is True
+
+
+@pytest.mark.xfail
+def test_watch_get_non_existing_list():
+    a = reactive(list())
+
+    def result():
+        return "foo" in a
+
+    watcher = watch(result, sync=True)
+
+    assert watcher.value is False
+
+    a.append("foo")
+
+    assert watcher.value is True
