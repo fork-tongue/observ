@@ -634,7 +634,7 @@ def test_watch_get_non_existing():
     def result():
         return a.get("foo", None)
 
-    watcher = watch(result, sync=True)
+    watcher = watch(result, None, sync=True)
 
     assert watcher.value is None
 
@@ -650,7 +650,7 @@ def test_watch_get_non_existing_dict():
     def result():
         return "foo" in a
 
-    watcher = watch(result, sync=True)
+    watcher = watch(result, None, sync=True)
 
     assert watcher.value is None
 
@@ -666,7 +666,7 @@ def test_watch_get_non_existing_set():
     def result():
         return "foo" in a
 
-    watcher = watch(result, sync=True)
+    watcher = watch(result, None, sync=True)
 
     assert watcher.value is False
 
@@ -682,7 +682,7 @@ def test_watch_get_non_existing_list():
     def result():
         return "foo" in a
 
-    watcher = watch(result, sync=True)
+    watcher = watch(result, None, sync=True)
 
     assert watcher.value is False
 
