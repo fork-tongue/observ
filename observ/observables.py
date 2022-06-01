@@ -240,7 +240,10 @@ def read_key_trap(method, obj_cls):
     def inner(self, *args, **kwargs):
         if Dep.stack:
             key = args[0]
-            proxy_db.attrs(self)["keydep"][key].depend()
+            keydeps = proxy_db.attrs(self)["keydep"]
+            if key not in keydeps:
+                keydeps[key] = Dep()
+            keydeps[key].depend()
         value = fn(self.target, *args, **kwargs)
         if self.shallow:
             return value
@@ -282,7 +285,7 @@ def write_trap(method, obj_cls):
 
 def write_key_trap(method, obj_cls):
     fn = getattr(obj_cls, method)
-    getitem_fn = getattr(obj_cls, "__getitem__")
+    getitem_fn = getattr(obj_cls, "get")
 
     @wraps(fn)
     def inner(self, *args, **kwargs):

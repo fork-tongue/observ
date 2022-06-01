@@ -627,23 +627,21 @@ def test_usage_class_instances():
     assert called == 2  # class instances are NOT reactive
 
 
-@pytest.mark.xfail
 def test_watch_get_non_existing():
     a = reactive({})
 
     def result():
-        return a.get("foo", None)
+        return a.get("foo", False)
 
     watcher = watch(result, None, sync=True)
 
-    assert watcher.value is None
+    assert watcher.value is False
 
-    a["foo"] = "bar"
+    a["foo"] = True
 
-    assert watcher.value == "bar"
+    assert watcher.value is True
 
 
-@pytest.mark.xfail
 def test_watch_get_non_existing_dict():
     a = reactive(dict())
 
@@ -652,11 +650,11 @@ def test_watch_get_non_existing_dict():
 
     watcher = watch(result, None, sync=True)
 
-    assert watcher.value is None
+    assert watcher.value is False
 
     a["foo"] = "bar"
 
-    assert watcher.value == "bar"
+    assert watcher.value is True
 
 
 def test_watch_get_non_existing_set():
