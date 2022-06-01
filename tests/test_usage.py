@@ -659,7 +659,6 @@ def test_watch_get_non_existing_dict():
     assert watcher.value == "bar"
 
 
-@pytest.mark.xfail
 def test_watch_get_non_existing_set():
     a = reactive(set())
 
@@ -675,7 +674,6 @@ def test_watch_get_non_existing_set():
     assert watcher.value is True
 
 
-@pytest.mark.xfail
 def test_watch_get_non_existing_list():
     a = reactive(list())
 
