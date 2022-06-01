@@ -625,3 +625,63 @@ def test_usage_class_instances():
     # write to a class attribute
     a[2].foo = 10
     assert called == 2  # class instances are NOT reactive
+
+
+def test_watch_get_non_existing():
+    a = reactive({})
+
+    def result():
+        return a.get("foo", False)
+
+    watcher = watch(result, None, sync=True)
+
+    assert watcher.value is False
+
+    a["foo"] = True
+
+    assert watcher.value is True
+
+
+def test_watch_get_non_existing_dict():
+    a = reactive(dict())
+
+    def result():
+        return "foo" in a
+
+    watcher = watch(result, None, sync=True)
+
+    assert watcher.value is False
+
+    a["foo"] = "bar"
+
+    assert watcher.value is True
+
+
+def test_watch_get_non_existing_set():
+    a = reactive(set())
+
+    def result():
+        return "foo" in a
+
+    watcher = watch(result, None, sync=True)
+
+    assert watcher.value is False
+
+    a.add("foo")
+
+    assert watcher.value is True
+
+
+def test_watch_get_non_existing_list():
+    a = reactive(list())
+
+    def result():
+        return "foo" in a
+
+    watcher = watch(result, None, sync=True)
+
+    assert watcher.value is False
+
+    a.append("foo")
+
+    assert watcher.value is True
