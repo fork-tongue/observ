@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
     _ = watch(
         lambda: store.state["count"],
-        lambda val: print(f"Count is now: {val}"),  # noqa: T001
+        lambda val: print(f"Count is now: {val}"),  # noqa: T201
         sync=True,
         immediate=True,
     )
