@@ -1,6 +1,4 @@
-from importlib.metadata import version
-
-__version__ = version("observ")
+__version__ = "0.9.3"
 
 
 from .observables import (
