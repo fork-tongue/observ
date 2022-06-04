@@ -459,31 +459,6 @@ python-versions = ">=3.6.8"
 diagrams = ["railroad-diagrams", "jinja2"]
 
 [[package]]
-name = "pyside6"
-version = "6.3.0"
-description = "Python bindings for the Qt cross-platform application and UI framework"
-category = "dev"
-optional = false
-python-versions = "<3.11,>=3.6"
-
-[package.dependencies]
-PySide6-Addons = "6.3.0"
-PySide6-Essentials = "6.3.0"
-shiboken6 = "6.3.0"
-
-[[package]]
-name = "pyside6-addons"
-version = "6.3.0"
-description = "Python bindings for the Qt cross-platform application and UI framework (Addons)"
-category = "dev"
-optional = false
-python-versions = "<3.11,>=3.6"
-
-[package.dependencies]
-PySide6-Essentials = "6.3.0"
-shiboken6 = "6.3.0"
-
-[[package]]
 name = "pyside6-essentials"
 version = "6.3.0"
 description = "Python bindings for the Qt cross-platform application and UI framework (Essentials)"
@@ -766,7 +741,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.7"
-content-hash = "6e46163101e2a20d4ca161c11f64923c7f10d8105638338020c7fb7999baaeb3"
+content-hash = "1f38b9a1be74cb9029f3828b76d531abd762cad6afa6daf8656586aba6f70948"
 
 [metadata.files]
 atomicwrites = [
@@ -1060,16 +1035,6 @@ pygments = [
 pyparsing = [
     {file = "pyparsing-3.0.9-py3-none-any.whl", hash = "sha256:5026bae9a10eeaefb61dab2f09052b9f4307d44aee4eda64b309723d8d206bbc"},
     {file = "pyparsing-3.0.9.tar.gz", hash = "sha256:2b020ecf7d21b687f219b71ecad3631f644a47f01403fa1d1036b0c6416d70fb"},
-]
-pyside6 = [
-    {file = "PySide6-6.3.0-cp36-abi3-macosx_10_9_universal2.whl", hash = "sha256:2517377c49b5d5c66afc51dab02814d76af1fc7545bf6b76b3d1de86ce9a4507"},
-    {file = "PySide6-6.3.0-cp36-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:53d61ff66bb81a099e71e43e7470060a9141a8e6782d6eb6cc52b9a9cf38730c"},
-    {file = "PySide6-6.3.0-cp36-abi3-win_amd64.whl", hash = "sha256:c2368a0f346935167bf741712772b63dee130b29a9270e018cf9474eef1948a0"},
-]
-pyside6-addons = [
-    {file = "PySide6_Addons-6.3.0-cp36-abi3-macosx_10_9_universal2.whl", hash = "sha256:4937fc42aec85d5dde62b2d47e29d76a63722d2a0d72e11772baa3e9925bf234"},
-    {file = "PySide6_Addons-6.3.0-cp36-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:59e96866abbe468087575b63a697c4b1cc97e65f20874d26d8f0d10f5c8c8728"},
-    {file = "PySide6_Addons-6.3.0-cp36-abi3-win_amd64.whl", hash = "sha256:143228bde402426df9d2b97ac4d8de8e97b7c8d51c76362bcd439dc9e2ab3e86"},
 ]
 pyside6-essentials = [
     {file = "PySide6_Essentials-6.3.0-cp36-abi3-macosx_10_9_universal2.whl", hash = "sha256:1c2a2a2b26fc923b3527907462ae5828b7e50a2c0fcf9923b086781af3911060"},
