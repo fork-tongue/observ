@@ -685,3 +685,29 @@ def test_watch_get_non_existing_list():
     a.append("foo")
 
     assert watcher.value is True
+
+
+def test_watch_setdefault_new_key():
+    a = reactive(dict())
+    cb = Mock()
+
+    watcher = watch(lambda: a, cb, sync=True, deep=True)  # noqa: F841
+
+    some_list = a.setdefault("foo", [])
+    assert cb.call_count == 1
+
+    some_list.append("bar")
+    assert cb.call_count == 2
+
+
+def test_watch_setdefault_existing_key():
+    a = reactive({"foo": []})
+    cb = Mock()
+
+    watcher = watch(lambda: a, cb, sync=True, deep=True)  # noqa: F841
+
+    some_list = a.setdefault("foo", [])
+    assert cb.call_count == 0
+
+    some_list.append("bar")
+    assert cb.call_count == 1
