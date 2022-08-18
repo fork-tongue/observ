@@ -296,6 +296,10 @@ def write_key_trap(method, obj_cls):
         is_new = key not in attrs["keydep"]
         old_value = getitem_fn(self.target, key) if not is_new else None
         retval = fn(self.target, *args, **kwargs)
+        if method == "setdefault" and not self.shallow:
+            # This method is only available when readonly is false
+            retval = reactive(retval)
+
         new_value = getitem_fn(self.target, key)
         if is_new:
             attrs["keydep"][key] = Dep()
