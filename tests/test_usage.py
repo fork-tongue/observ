@@ -711,3 +711,31 @@ def test_watch_setdefault_existing_key():
 
     some_list.append("bar")
     assert cb.call_count == 1
+
+
+def test_use_weird_types_as_value():
+    # TypeError: bad argument type for built-in operation
+    # Might happen with types that can't be compare to None
+    # Problem first encountered with PySide6.QtCore.Qt.ItemFlags object
+    class Foo(int):
+        """Custom class that can't be compare to None"""
+
+        def __eq__(self, other):
+            return not (other < self or other > self)
+
+        def __ne__(self, other):
+            return not self.__eq__(other)
+
+    foo = Foo(3)
+    comparison = None
+
+    assert foo == 3
+    assert foo != 4
+    assert foo != 2
+
+    # Check that comparing with a None value raises TypeError
+    with pytest.raises(TypeError):
+        foo != comparison
+
+    a = reactive(dict())
+    a["foo"] = Foo(3)

@@ -4,6 +4,7 @@ proxied versions of those datastructures to make them reactive.
 """
 from functools import partial, wraps
 import gc
+from operator import xor
 import sys
 from weakref import WeakValueDictionary
 
@@ -303,7 +304,7 @@ def write_key_trap(method, obj_cls):
         new_value = getitem_fn(self.target, key)
         if is_new:
             attrs["keydep"][key] = Dep()
-        if old_value != new_value:
+        if xor(old_value is None, new_value is None) or old_value != new_value:
             attrs["keydep"][key].notify()
             attrs["dep"].notify()
         return retval
