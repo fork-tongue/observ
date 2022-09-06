@@ -24,8 +24,16 @@ def mutation(fn: T) -> T:
             current = to_raw(self.state)
             fn(self, *args, **kwargs)
             ops, reverse_ops = patchdiff.diff(current, self.state)
-            self._past.append((ops, reverse_ops))
-            self._future.clear()
+            # If ops and reverse_ops are empty, that means
+            # that there are no actual changes to record
+            if self._strict or ops or reverse_ops:
+                if not ops and not reverse_ops:
+                    raise RuntimeError(
+                        "Calling mutation didn't result in any change to state"
+                    )
+
+                self._past.append((ops, reverse_ops))
+                self._future.clear()
         finally:
             self.state = readonly_state
 
@@ -48,10 +56,13 @@ class Store:
     Store that tracks mutations to state in order to enable undo/redo functionality
     """
 
-    def __init__(self, state: Collection):
+    def __init__(self, state: Collection, strict=True):
         """
         Creates a store with the given state as the initial state.
+        When `strict` is False, calling mutations that do not result
+        in an actual change will be ignored.
         """
+        self._strict = strict
         self._present = reactive(state)
         self._past = shallow_reactive([])
         self._future = shallow_reactive([])

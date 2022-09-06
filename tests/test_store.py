@@ -1,5 +1,7 @@
 from unittest.mock import Mock
 
+import pytest
+
 from observ import watch
 from observ.store import computed, mutation, Store
 
@@ -137,3 +139,43 @@ def test_store_undo_redo_all_types():
     assert store.state["dict"] == {"a": "b", "b": "c"}
     store.undo()
     assert store.state["dict"] == {"a": "b"}
+
+
+def test_store_empty_mutation_non_strict_store():
+    class SimpleStore(Store):
+        @mutation
+        def update_count(self, count):
+            self.state["count"] = count
+
+    # Create a store with strict set to False
+    store = SimpleStore({"count": 1}, strict=False)
+    assert store.state["count"] == 1
+    assert not store.can_undo
+
+    # Update with the same number. This should
+    # result in no change being recorded
+    store.update_count(1)
+    assert not store.can_undo
+
+    # Check that if we do supply another number
+    # that a change will actually be recorded
+    store.update_count(2)
+    assert store.can_undo
+
+
+def test_store_empty_mutation_strict_store():
+    class SimpleStore(Store):
+        @mutation
+        def update_count(self, count):
+            self.state["count"] = count
+
+    # Create a store with strict set to True
+    # (is the default value for `strict` argument)
+    store = SimpleStore({"count": 1})
+    assert store.state["count"] == 1
+    assert not store.can_undo
+
+    # Update with the same number. This should
+    # trigger a RuntimeError
+    with pytest.raises(RuntimeError):
+        store.update_count(1)
