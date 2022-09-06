@@ -145,7 +145,8 @@ def test_store_empty_mutation():
         def update_count(self, count):
             self.state["count"] = count
 
-    store = SimpleStore({"count": 1})
+    # Create a store with strict set to False
+    store = SimpleStore({"count": 1}, strict=False)
     assert store.state["count"] == 1
     assert not store.can_undo
 
