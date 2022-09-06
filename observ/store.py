@@ -27,6 +27,11 @@ def mutation(fn: T) -> T:
             # If ops and reverse_ops are empty, that means
             # that there are no actual changes to record
             if self._strict or ops or reverse_ops:
+                if not ops and not reverse_ops:
+                    raise RuntimeError(
+                        "Calling mutation didn't result in any change to state"
+                    )
+
                 self._past.append((ops, reverse_ops))
                 self._future.clear()
         finally:
