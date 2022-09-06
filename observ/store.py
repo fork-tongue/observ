@@ -24,8 +24,11 @@ def mutation(fn: T) -> T:
             current = to_raw(self.state)
             fn(self, *args, **kwargs)
             ops, reverse_ops = patchdiff.diff(current, self.state)
-            self._past.append((ops, reverse_ops))
-            self._future.clear()
+            # If ops and reverse_ops are empty, that means
+            # that there are no actual changes to record
+            if ops or reverse_ops:
+                self._past.append((ops, reverse_ops))
+                self._future.clear()
         finally:
             self.state = readonly_state
 

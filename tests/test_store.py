@@ -137,3 +137,24 @@ def test_store_undo_redo_all_types():
     assert store.state["dict"] == {"a": "b", "b": "c"}
     store.undo()
     assert store.state["dict"] == {"a": "b"}
+
+
+def test_store_empty_mutation():
+    class SimpleStore(Store):
+        @mutation
+        def update_count(self, count):
+            self.state["count"] = count
+
+    store = SimpleStore({"count": 1})
+    assert store.state["count"] == 1
+    assert not store.can_undo
+
+    # Update with the same number. This should
+    # result in no change being recorded
+    store.update_count(1)
+    assert not store.can_undo
+
+    # Check that if we do supply another number
+    # that a change will actually be recorded
+    store.update_count(2)
+    assert store.can_undo
