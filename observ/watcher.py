@@ -3,11 +3,13 @@ watchers perform dependency tracking via functions acting on
 observable datastructures, and optionally trigger callback when
 a change is detected.
 """
+from __future__ import annotations
+
 from collections.abc import Container
 from functools import wraps
 import inspect
 from itertools import count
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, Callable, Optional, TypeVar, Union
 from weakref import WeakSet
 
 from .dep import Dep
@@ -19,7 +21,7 @@ T = TypeVar("T", bound=Callable)
 
 
 def watch(
-    fn: Callable | Proxy,
+    fn: Union[Callable, Proxy],
     callback: Optional[Callable],
     sync=False,
     deep=False,
