@@ -739,3 +739,22 @@ def test_use_weird_types_as_value():
 
     a = reactive(dict())
     a["foo"] = Foo(3)
+
+
+def test_watch_reactive_object():
+    a = reactive({"foo": "foo"})
+    cb = Mock()
+
+    watcher = watch(  # noqa: F841
+        a,
+        cb,
+        immediate=False,
+        sync=True,
+        deep=True,
+    )
+
+    assert cb.call_count == 0
+
+    a["foo"] = "bar"
+
+    assert cb.call_count == 1

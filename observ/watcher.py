@@ -11,7 +11,7 @@ from typing import Any, Callable, Optional, TypeVar
 from weakref import WeakSet
 
 from .dep import Dep
-from .observables import DictProxyBase, ListProxyBase, SetProxyBase
+from .observables import DictProxyBase, ListProxyBase, Proxy, SetProxyBase
 from .scheduler import scheduler
 
 
@@ -19,7 +19,11 @@ T = TypeVar("T", bound=Callable)
 
 
 def watch(
-    fn: Callable, callback: Optional[Callable], sync=False, deep=False, immediate=False
+    fn: Callable | Proxy,
+    callback: Optional[Callable],
+    sync=False,
+    deep=False,
+    immediate=False,
 ):
     watcher = Watcher(fn, sync=sync, lazy=False, deep=deep, callback=callback)
     if immediate:
@@ -103,7 +107,12 @@ class WrongNumberOfArgumentsError(TypeError):
 
 class Watcher:
     def __init__(
-        self, fn: Callable, sync=False, lazy=True, deep=False, callback: Callable = None
+        self,
+        fn: Callable | Proxy,
+        sync=False,
+        lazy=True,
+        deep=False,
+        callback: Callable = None,
     ) -> None:
         """
         sync: Ignore the scheduler
@@ -112,7 +121,10 @@ class Watcher:
         callback: Method to call when value has changed
         """
         self.id = next(_ids)
-        self.fn = fn
+        if isinstance(fn, Proxy):
+            self.fn = lambda: fn
+        else:
+            self.fn = fn
         self._deps, self._new_deps = WeakSet(), WeakSet()
 
         self.sync = sync
