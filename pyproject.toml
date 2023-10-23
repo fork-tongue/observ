@@ -8,10 +8,10 @@ homepage = "https://github.com/fork-tongue/observ"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.7"
-patchdiff = "~0.3.3"
+python = ">=3.8"
+patchdiff = "~0.3.4"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 black = "*"
 flake8 = "*"
 flake8-black = "*"
@@ -21,10 +21,10 @@ pre-commit = "*"
 pytest = "*"
 pytest-cov = "*"
 pytest-timeout = "*"
-PySide6-Essentials = { version = "*", python = "<3.11"}
+PySide6-Essentials = { version = "*", python = "<=3.12"}
 twine = "*"
 urllib3 = { version = "*", python = "<4"}
 
 [build-system]
-requires = ["poetry>=1.0.0"]
-build-backend = "poetry.masonry.api"
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

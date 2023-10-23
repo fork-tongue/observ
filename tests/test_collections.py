@@ -46,6 +46,7 @@ EXCLUDED = {
     "__class_getitem__",
     # __del__ is custom method on Proxy
     "__del__",
+    "__getstate__",
 }
 
 
