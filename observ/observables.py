@@ -511,7 +511,7 @@ list_traps = {
 }
 
 if sys.version_info >= (3, 11, 0):
-    list_traps["READERS"].append("__getstate__")
+    list_traps["READERS"].add("__getstate__")
 
 
 class ListProxyBase(Proxy):
@@ -584,7 +584,7 @@ set_traps = {
 }
 
 if sys.version_info >= (3, 11, 0):
-    set_traps["READERS"].append("__getstate__")
+    set_traps["READERS"].add("__getstate__")
 
 
 class SetProxyBase(Proxy):
