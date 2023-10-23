@@ -420,6 +420,7 @@ dict_traps = {
         "items",
         "values",
         "__iter__",
+        "__reversed__",
     },
     "WRITERS": {
         "update",
@@ -438,8 +439,6 @@ dict_traps = {
     },
 }
 
-if sys.version_info >= (3, 8, 0):
-    dict_traps["ITERATORS"].add("__reversed__")
 if sys.version_info >= (3, 9, 0):
     dict_traps["READERS"].add("__or__")
     dict_traps["READERS"].add("__ror__")
