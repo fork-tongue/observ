@@ -11,7 +11,7 @@ readme = "README.md"
 python = ">=3.8"
 patchdiff = "~0.3.3"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 black = "*"
 flake8 = "*"
 flake8-black = "*"
@@ -26,5 +26,5 @@ twine = "*"
 urllib3 = { version = "*", python = "<4"}
 
 [build-system]
-requires = ["poetry>=1.0.0"]
-build-backend = "poetry.masonry.api"
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: 3.9
       - name: Install poetry
-        run: pip install "poetry>=1.1.12,<1.2"
+        run: pip install "poetry>=1.4.2,<1.5"
       - name: Install dependencies
         run: poetry install
       - name: Lint
@@ -51,7 +51,7 @@ jobs:
         with:
           python-version: ${{ matrix.pyversion }}
       - name: Install poetry
-        run: pip install "poetry>=1.1.12,<1.2"
+        run: pip install "poetry>=1.4.2,<1.5"
       - name: Install dependencies
         run: poetry install
       - name: Test
@@ -67,7 +67,7 @@ jobs:
       with:
         python-version: '3.9'
     - name: Install poetry
-      run: pip install "poetry>=1.1.12,<1.2"
+      run: pip install "poetry>=1.4.2,<1.5"
     - name: Install dependencies
       run: poetry install
     - name: Build wheel
