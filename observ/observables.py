@@ -443,6 +443,8 @@ if sys.version_info >= (3, 9, 0):
     dict_traps["READERS"].add("__or__")
     dict_traps["READERS"].add("__ror__")
     dict_traps["WRITERS"].add("__ior__")
+if sys.version_info >= (3, 11, 0):
+    dict_traps["READERS"].add("__getstate__")
 
 
 class DictProxyBase(Proxy):
@@ -507,6 +509,9 @@ list_traps = {
         "__imul__",
     },
 }
+
+if sys.version_info >= (3, 11, 0):
+    list_traps["READERS"].append("__getstate__")
 
 
 class ListProxyBase(Proxy):
@@ -577,6 +582,9 @@ set_traps = {
         "update",
     },
 }
+
+if sys.version_info >= (3, 11, 0):
+    set_traps["READERS"].append("__getstate__")
 
 
 class SetProxyBase(Proxy):
