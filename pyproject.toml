@@ -21,9 +21,10 @@ pre-commit = "*"
 pytest = "*"
 pytest-cov = "*"
 pytest-timeout = "*"
-PySide6-Essentials = { version = "*", python = "<=3.12"}
+PySide6 = { version = ">=6.6", python = "<3.13"}
 twine = "*"
 urllib3 = { version = "*", python = "<4"}
+pytest-qt = "*"
 
 [build-system]
 requires = ["poetry-core"]

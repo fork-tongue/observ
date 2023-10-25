@@ -5,6 +5,10 @@ and should be integrated in the event loop of your choosing.
 from bisect import bisect
 from collections import defaultdict
 import importlib
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class Scheduler:
@@ -44,13 +48,27 @@ class Scheduler:
         else:
             raise ImportError("Could not import QtCore")
 
-        self.timer = QtCore.QTimer()
-        self.timer.setSingleShot(True)
-        self.timer.timeout.connect(scheduler.flush)
-        # Set interval to 0 to trigger the timer as soon
-        # as possible (when Qt is done processing events)
-        self.timer.setInterval(0)
-        self.register_request_flush(self.timer.start)
+        try:
+            QtAsyncio = importlib.import_module(f"{qt}.QtAsyncio")
+            import asyncio
+
+            asyncio.set_event_loop_policy(QtAsyncio.QAsyncioEventLoopPolicy())
+
+            def request_flush():
+                loop = asyncio.get_event_loop_policy().get_event_loop()
+                loop.call_soon(scheduler.flush)
+
+            scheduler.register_request_flush(request_flush)
+        except ImportError:
+            logger.debug("Could not find QtAsyncio submodule, fall back to QTimer")
+
+            self.timer = QtCore.QTimer()
+            self.timer.setSingleShot(True)
+            self.timer.timeout.connect(scheduler.flush)
+            # Set interval to 0 to trigger the timer as soon
+            # as possible (when Qt is done processing events)
+            self.timer.setInterval(0)
+            self.register_request_flush(self.timer.start)
 
     def flush(self):
         """
