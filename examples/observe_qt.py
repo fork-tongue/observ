@@ -21,7 +21,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-
 from observ import reactive, scheduler, watch
 
 
