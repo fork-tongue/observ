@@ -60,6 +60,8 @@ jobs:
         run: poetry install
       - name: Test
         run: poetry run pytest --cov=observ --cov-report=term-missing
+        env:
+          QT_QPA_PLATFORM: offscreen
 
   build:
     name: Build and test wheel
