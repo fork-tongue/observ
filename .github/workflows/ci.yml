@@ -50,12 +50,18 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.pyversion }}
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -y -qq
+          sudo apt-get install -y libgles2-mesa-dev
       - name: Install poetry
         run: pip install "poetry>=1.4.2,<1.5"
       - name: Install dependencies
         run: poetry install
       - name: Test
         run: poetry run pytest --cov=observ --cov-report=term-missing
+        env:
+          QT_QPA_PLATFORM: offscreen
 
   build:
     name: Build and test wheel
