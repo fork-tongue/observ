@@ -18,13 +18,13 @@ flake8-black = "*"
 flake8-import-order = "*"
 flake8-print = "*"
 pre-commit = "*"
+PySide6 = { version = ">=6.6", python = "<3.13"}
 pytest = "*"
 pytest-cov = "*"
+pytest-qt = "*"
 pytest-timeout = "*"
-PySide6 = { version = ">=6.6", python = "<3.13"}
 twine = "*"
 urllib3 = { version = "*", python = "<4"}
-pytest-qt = "*"
 
 [build-system]
 requires = ["poetry-core"]
