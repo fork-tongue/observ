@@ -5,10 +5,13 @@ from PySide6 import QtAsyncio
 from observ import reactive, scheduler, watch
 
 
-def test_scheduler_pyside(qapp):
-    scheduler.register_qt()
+def test_scheduler_pyside_asyncio(qapp):
+    """
+    Test integration between PySide6 and asyncio
+    """
+    asyncio.set_event_loop_policy(QtAsyncio.QAsyncioEventLoopPolicy())
+    scheduler.register_asyncio()
 
-    assert not hasattr(scheduler, "timer")
     assert isinstance(
         asyncio.get_event_loop_policy(), QtAsyncio.events.QAsyncioEventLoopPolicy
     )

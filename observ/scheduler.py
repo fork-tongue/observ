@@ -5,10 +5,7 @@ and should be integrated in the event loop of your choosing.
 from bisect import bisect
 from collections import defaultdict
 import importlib
-import logging
-
-
-logger = logging.getLogger(__name__)
+import warnings
 
 
 class Scheduler:
@@ -35,9 +32,25 @@ class Scheduler:
         """
         self.request_flush = callback
 
+    def register_asyncio(self):
+        """
+        Utility function for integration with asyncio
+        """
+        import asyncio
+
+        def request_flush():
+            loop = asyncio.get_event_loop_policy().get_event_loop()
+            loop.call_soon(scheduler.flush)
+
+        scheduler.register_request_flush(request_flush)
+
     def register_qt(self):
         """
-        Utility function for integration with Qt event loop
+        Legacy utility function for integration with Qt event loop. Note that using
+        the `register_asyncio` method is preferred over this, together with
+        setting the asyncio event loop policy to `QtAsyncio.QAsyncioEventLoopPolicy`.
+        This is supported from Pyside 6.6.0. Note that the QtAsyncio submodule
+        is not included in the `pyside6_essentials` package.
         """
         for qt in ("PySide6", "PyQt6", "PySide2", "PyQt5", "PySide", "PyQt4"):
             try:
@@ -49,26 +62,25 @@ class Scheduler:
             raise ImportError("Could not import QtCore")
 
         try:
-            QtAsyncio = importlib.import_module(f"{qt}.QtAsyncio")
-            import asyncio
+            importlib.import_module(f"{qt}.QtAsyncio")
 
-            asyncio.set_event_loop_policy(QtAsyncio.QAsyncioEventLoopPolicy())
-
-            def request_flush():
-                loop = asyncio.get_event_loop_policy().get_event_loop()
-                loop.call_soon(scheduler.flush)
-
-            scheduler.register_request_flush(request_flush)
+            warnings.warn(
+                "QtAsyncio module available: please consider using `register_asyncio` "
+                "and call the following code:\n"
+                f"    from {qt} import QtAsyncio\n"
+                "    asyncio.set_event_loop_policy(QtAsyncio.QAsyncioEventLoopPolicy())"
+                ""
+            )
         except ImportError:
-            logger.debug("Could not find QtAsyncio submodule, fall back to QTimer")
+            pass
 
-            self.timer = QtCore.QTimer()
-            self.timer.setSingleShot(True)
-            self.timer.timeout.connect(scheduler.flush)
-            # Set interval to 0 to trigger the timer as soon
-            # as possible (when Qt is done processing events)
-            self.timer.setInterval(0)
-            self.register_request_flush(self.timer.start)
+        self.timer = QtCore.QTimer()
+        self.timer.setSingleShot(True)
+        self.timer.timeout.connect(scheduler.flush)
+        # Set interval to 0 to trigger the timer as soon
+        # as possible (when Qt is done processing events)
+        self.timer.setInterval(0)
+        self.register_request_flush(self.timer.start)
 
     def flush(self):
         """
