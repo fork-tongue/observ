@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: 3.9
       - name: Install poetry
-        run: pip install "poetry>=1.1.12,<1.2"
+        run: pip install "poetry>=1.4.2,<1.5"
       - name: Install dependencies
         run: poetry install
       - name: Lint
@@ -34,26 +34,34 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Linux py37
-            pyversion: '3.7'
           - name: Linux py38
             pyversion: '3.8'
           - name: Linux py39
             pyversion: '3.9'
           - name: Linux py310
             pyversion: '3.10'
+          - name: Linux py311
+            pyversion: '3.11'
+          - name: Linux py312
+            pyversion: '3.12'
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.pyversion }}
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.pyversion }}
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -y -qq
+          sudo apt-get install -y libgles2-mesa-dev
       - name: Install poetry
-        run: pip install "poetry>=1.1.12,<1.2"
+        run: pip install "poetry>=1.4.2,<1.5"
       - name: Install dependencies
         run: poetry install
       - name: Test
         run: poetry run pytest --cov=observ --cov-report=term-missing
+        env:
+          QT_QPA_PLATFORM: offscreen
 
   build:
     name: Build and test wheel
@@ -65,7 +73,7 @@ jobs:
       with:
         python-version: '3.9'
     - name: Install poetry
-      run: pip install "poetry>=1.1.12,<1.2"
+      run: pip install "poetry>=1.4.2,<1.5"
     - name: Install dependencies
       run: poetry install
     - name: Build wheel
