@@ -23,9 +23,9 @@ T = TypeVar("T", bound=Callable[[], Any])
 def watch(
     fn: Callable[[], Any] | Proxy | list[Proxy],
     callback: Optional[Callable],
-    sync=False,
-    deep=False,
-    immediate=False,
+    sync: bool = False,
+    deep: bool | None = None,
+    immediate: bool = False,
 ):
     watcher = Watcher(fn, sync=sync, lazy=False, deep=deep, callback=callback)
     if immediate:
@@ -111,9 +111,9 @@ class Watcher:
     def __init__(
         self,
         fn: Callable[[], Any] | Proxy | list[Proxy],
-        sync=False,
-        lazy=True,
-        deep=False,
+        sync: bool = False,
+        lazy: bool = True,
+        deep: bool | None = None,
         callback: Callable = None,
     ) -> None:
         """
@@ -127,14 +127,15 @@ class Watcher:
             self.fn = fn
         else:
             self.fn = lambda: fn
-            # When watching proxies or a list of proxies
-            # make sure that deep watching is enabled
-            deep = True
+            # Default to deep watching when watching a proxy
+            # or a list of proxies
+            if deep is None:
+                deep = True
         self._deps, self._new_deps = WeakSet(), WeakSet()
 
         self.sync = sync
         self.callback = callback
-        self.deep = deep
+        self.deep = bool(deep)
         self.lazy = lazy
         self.dirty = self.lazy
         self.value = None if self.lazy else self.get()
@@ -161,7 +162,7 @@ class Watcher:
             if self.callback:
                 self.run_callback(self.value, old_value)
 
-    def run_callback(self, new, old):
+    def run_callback(self, new, old) -> None:
         """
         Runs the callback. When the number of arguments is still unknown
         for the callback, it will fall into the try/except contstruct
@@ -197,7 +198,7 @@ class Watcher:
         self._run_callback(new, old)
         self._number_of_callback_args = 2
 
-    def _run_callback(self, *args):
+    def _run_callback(self, *args) -> None:
         """
         Run the callback with the given arguments. When the callback
         raises a TypeError, check to see if the error results from
