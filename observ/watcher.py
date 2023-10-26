@@ -9,7 +9,7 @@ from collections.abc import Container
 from functools import wraps
 import inspect
 from itertools import count
-from typing import Any, Callable, Optional, TypeVar, Union
+from typing import Any, Callable, Optional, TypeVar
 from weakref import WeakSet
 
 from .dep import Dep
@@ -17,11 +17,11 @@ from .observables import DictProxyBase, ListProxyBase, Proxy, SetProxyBase
 from .scheduler import scheduler
 
 
-T = TypeVar("T", bound=Callable)
+T = TypeVar("T", bound=Callable[[], Any])
 
 
 def watch(
-    fn: Union[Callable, Proxy],
+    fn: Callable[[], Any] | Proxy | list[Proxy],
     callback: Optional[Callable],
     sync=False,
     deep=False,
@@ -110,7 +110,7 @@ class WrongNumberOfArgumentsError(TypeError):
 class Watcher:
     def __init__(
         self,
-        fn: Callable | Proxy,
+        fn: Callable[[], Any] | Proxy | list[Proxy],
         sync=False,
         lazy=True,
         deep=False,
@@ -123,10 +123,13 @@ class Watcher:
         callback: Method to call when value has changed
         """
         self.id = next(_ids)
-        if isinstance(fn, Proxy):
-            self.fn = lambda: fn
-        else:
+        if callable(fn):
             self.fn = fn
+        else:
+            self.fn = lambda: fn
+            # When watching proxies or a list of proxies
+            # make sure that deep watching is enabled
+            deep = True
         self._deps, self._new_deps = WeakSet(), WeakSet()
 
         self.sync = sync

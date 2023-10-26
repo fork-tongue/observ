@@ -750,7 +750,6 @@ def test_watch_reactive_object():
         cb,
         immediate=False,
         sync=True,
-        deep=True,
     )
 
     assert cb.call_count == 0
@@ -758,3 +757,26 @@ def test_watch_reactive_object():
     a["foo"] = "bar"
 
     assert cb.call_count == 1
+
+
+def test_watch_list_of_reactive_objects():
+    a = reactive({"foo": "foo"})
+    b = reactive(["bar"])
+    cb = Mock()
+
+    watcher = watch(  # noqa: F841
+        [a, b],
+        cb,
+        immediate=False,
+        sync=True,
+    )
+
+    assert cb.call_count == 0
+
+    a["foo"] = "bar"
+
+    assert cb.call_count == 1
+
+    b.append("foo")
+
+    assert cb.call_count == 2
