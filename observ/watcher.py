@@ -10,7 +10,7 @@ from functools import wraps
 import inspect
 from itertools import count
 from typing import Any, Callable, Optional, TypeVar
-from weakref import WeakSet
+from weakref import ref, WeakSet
 
 from .dep import Dep
 from .observables import DictProxyBase, ListProxyBase, Proxy, SetProxyBase
@@ -124,7 +124,10 @@ class Watcher:
         """
         self.id = next(_ids)
         if callable(fn):
-            self.fn = fn
+            if is_bound_method(fn):
+                self.fn = weak(fn.__self__, fn.__func__)
+            else:
+                self.fn = fn
         else:
             self.fn = lambda: fn
             # Default to deep watching when watching a proxy
@@ -134,7 +137,10 @@ class Watcher:
         self._deps, self._new_deps = WeakSet(), WeakSet()
 
         self.sync = sync
-        self.callback = callback
+        if is_bound_method(callback):
+            self.callback = weak(callback.__self__, callback.__func__)
+        else:
+            self.callback = callback
         self.deep = bool(deep)
         self.lazy = lazy
         self.dirty = self.lazy
@@ -252,3 +258,52 @@ class Watcher:
     @property
     def fn_fqn(self) -> str:
         return f"{self.fn.__module__}.{self.fn.__qualname__}"
+
+
+def weak(obj: Any, method: Callable):
+    """
+    Returns a wrapper for the given method that will only call the method if the
+    given object is not garbage collected yet. It does so by using a weakref.ref
+    and checking its value before calling the actual method when the wrapper is
+    called.
+    """
+    weak_obj = ref(obj)
+
+    sig = inspect.signature(method)
+    nr_arguments = len(sig.parameters)
+
+    if nr_arguments == 1:
+
+        @wraps(method)
+        def wrapped():
+            if this := weak_obj():
+                return method(this)
+
+        return wrapped
+    elif nr_arguments == 2:
+
+        @wraps(method)
+        def wrapped(new):
+            if this := weak_obj():
+                return method(this, new)
+
+        return wrapped
+    elif nr_arguments == 3:
+
+        @wraps(method)
+        def wrapped(new, old):
+            if this := weak_obj():
+                return method(this, new, old)
+
+        return wrapped
+    else:
+        raise WrongNumberOfArgumentsError(
+            "Please use 1, 2 or 3 arguments for callbacks"
+        )
+
+
+def is_bound_method(fn: Callable):
+    """
+    Returns whether the given function is a bound method.
+    """
+    return hasattr(fn, "__self__") and hasattr(fn, "__func__")
