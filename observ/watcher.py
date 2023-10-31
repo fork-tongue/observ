@@ -260,16 +260,12 @@ class Watcher:
         return f"{self.fn.__module__}.{self.fn.__qualname__}"
 
 
-def weak(obj, method):
+def weak(obj: Any, method: Callable):
     """
-    Prevent the strong capture of the given object by using a weakref.ref instead.
-    Assumes the first argument to the method to be the argument for which a weak ref
-    is made.
-
-    The wrapped method will only be called, if the weak ref object is actually still
-    alive.
-
-    This will ensure that the method does not capture a strong reference to the object.
+    Returns a wrapper for the given method that will only call the method if the
+    given object is not garbage collected yet. It does so by using a weakref.ref
+    and checking its value before calling the actual method when the wrapper is
+    called.
     """
     weak_obj = ref(obj)
 
@@ -304,7 +300,7 @@ def weak(obj, method):
         raise NotImplementedError
 
 
-def is_bound_method(fn):
+def is_bound_method(fn: Callable):
     """
     Returns whether the given function is a bound method.
     """
