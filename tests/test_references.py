@@ -57,14 +57,6 @@ def test_no_strong_reference_to_callback():
 
 
 def test_no_strong_reference_to_fn():
-    count = 0
-
-    def cb():
-        nonlocal count
-        count += 1
-
-    state = reactive({"count": 0})
-
     class Counter:
         def __init__(self, state):
             self.state = state
@@ -72,6 +64,13 @@ def test_no_strong_reference_to_fn():
         def count(self):
             return self.state["count"]
 
+    count = 0
+
+    def cb():
+        nonlocal count
+        count += 1
+
+    state = reactive({"count": 0})
     counter = Counter(state)
 
     counter.watcher = watch(

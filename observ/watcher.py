@@ -107,65 +107,6 @@ class WrongNumberOfArgumentsError(TypeError):
     pass
 
 
-def weak(obj):
-    """
-    Prevent the strong capture of the given object
-    by using a weakref.ref instead.
-    This decorator assumes the first argument to the method
-    to be argument for which a weak ref is made.
-
-    The wrapper method will actually have it's first argument
-    popped, with the assumption that it will coincide with the
-    weak ref object.
-
-    The wrapped method will then be called, only if the
-    weak ref object is actually still alive.
-
-    Example usage:
-
-        @weak(self)
-        def callback(self):
-            print(self)
-
-    This will ensure the callback function does not capture
-    a strong reference to self.
-    """
-    weak_obj = ref(obj)
-
-    def wrapper(method):
-        sig = inspect.signature(method)
-        nr_arguments = len(sig.parameters)
-
-        if nr_arguments == 1:
-
-            @wraps(method)
-            def wrapped():
-                if this := weak_obj():
-                    return method(this)
-
-            return wrapped
-        elif nr_arguments == 2:
-
-            @wraps(method)
-            def wrapped(new):
-                if this := weak_obj():
-                    return method(this, new)
-
-            return wrapped
-        elif nr_arguments == 3:
-
-            @wraps(method)
-            def wrapped(new, old):
-                if this := weak_obj():
-                    return method(this, new, old)
-
-            return wrapped
-        else:
-            raise NotImplementedError
-
-    return wrapper
-
-
 class Watcher:
     def __init__(
         self,
@@ -183,8 +124,8 @@ class Watcher:
         """
         self.id = next(_ids)
         if callable(fn):
-            if hasattr(fn, "__self__") and hasattr(fn, "__func__"):
-                self.fn = weak(fn.__self__)(fn.__func__)
+            if is_bound_method(fn):
+                self.fn = weak(fn.__self__, fn.__func__)
             else:
                 self.fn = fn
         else:
@@ -196,8 +137,8 @@ class Watcher:
         self._deps, self._new_deps = WeakSet(), WeakSet()
 
         self.sync = sync
-        if hasattr(callback, "__func__") and hasattr(callback, "__self__"):
-            self.callback = weak(callback.__self__)(callback.__func__)
+        if is_bound_method(callback):
+            self.callback = weak(callback.__self__, callback.__func__)
         else:
             self.callback = callback
         self.deep = bool(deep)
@@ -317,3 +258,54 @@ class Watcher:
     @property
     def fn_fqn(self) -> str:
         return f"{self.fn.__module__}.{self.fn.__qualname__}"
+
+
+def weak(obj, method):
+    """
+    Prevent the strong capture of the given object by using a weakref.ref instead.
+    Assumes the first argument to the method to be the argument for which a weak ref
+    is made.
+
+    The wrapped method will only be called, if the weak ref object is actually still
+    alive.
+
+    This will ensure that the method does not capture a strong reference to the object.
+    """
+    weak_obj = ref(obj)
+
+    sig = inspect.signature(method)
+    nr_arguments = len(sig.parameters)
+
+    if nr_arguments == 1:
+
+        @wraps(method)
+        def wrapped():
+            if this := weak_obj():
+                return method(this)
+
+        return wrapped
+    elif nr_arguments == 2:
+
+        @wraps(method)
+        def wrapped(new):
+            if this := weak_obj():
+                return method(this, new)
+
+        return wrapped
+    elif nr_arguments == 3:
+
+        @wraps(method)
+        def wrapped(new, old):
+            if this := weak_obj():
+                return method(this, new, old)
+
+        return wrapped
+    else:
+        raise NotImplementedError
+
+
+def is_bound_method(fn):
+    """
+    Returns whether the given function is a bound method.
+    """
+    return hasattr(fn, "__self__") and hasattr(fn, "__func__")
