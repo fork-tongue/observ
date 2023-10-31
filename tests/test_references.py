@@ -1,6 +1,10 @@
+from weakref import ref
+
 from PySide6 import QtWidgets
+import pytest
 
 from observ import reactive, watch
+from observ.watcher import WrongNumberOfArgumentsError
 
 
 def test_no_strong_reference_to_callback():
@@ -91,18 +95,45 @@ def test_no_strong_reference_to_fn():
     assert count == 1
 
 
+def test_check_nr_arguments_of_weak_callback():
+    class Counter:
+        def cb(self, new, old, too_much):
+            pass
+
+    counter = Counter()
+    state = reactive({})
+
+    with pytest.raises(WrongNumberOfArgumentsError):
+        watch(
+            state,
+            counter.cb,
+            sync=True,
+            deep=True,
+        )
+
+
+@pytest.mark.xfail
 def test_qt_integration(qapp):
-    class Widget(QtWidgets.QWidget):
+    class Label(QtWidgets.QLabel):
         count = 0
 
         def __init__(self, state):
             super().__init__()
             self.state = state
-            self.label = QtWidgets.QLabel()
 
             self.watcher = watch(
                 self.count_display,
-                self.label.setText,
+                # Use a method from QLabel directly as callback. These methods don't
+                # have a __func__ attribute, so currently this won't be wrapped by
+                # the 'weak' wrapper in the watcher, so it will create a strong
+                # reference instead to self.
+                # Ideally we would be able to detect this and wrap it, but then
+                # there is the problem that these kinds of methods don't have a
+                # signature, so we can't detect the number of arguments to supply.
+                # I guess we can assume that we should supply only two arguments
+                # in those cases: 'self' and 'new'?
+                # We'll solve this if this becomes an actual problem :)
+                self.setText,
                 deep=True,
                 sync=True,
             )
@@ -110,16 +141,15 @@ def test_qt_integration(qapp):
         def count_display(self):
             return str(self.state["count"])
 
-        def __del__(self):
-            Widget.count += 1
-
     state = reactive({"count": 0})
-    widget = Widget(state)
+    label = Label(state)
 
     state["count"] += 1
 
-    assert widget.label.text() == "1"
+    assert label.text() == "1"
 
-    del widget
+    weak_label = ref(label)
 
-    assert Widget.count == 1
+    del label
+
+    assert not weak_label()

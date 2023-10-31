@@ -297,7 +297,9 @@ def weak(obj: Any, method: Callable):
 
         return wrapped
     else:
-        raise NotImplementedError
+        raise WrongNumberOfArgumentsError(
+            "Please use 1, 2 or 3 arguments for callbacks"
+        )
 
 
 def is_bound_method(fn: Callable):
