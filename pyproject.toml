@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "observ"
-version = "0.10.0"
+version = "0.11.0"
 description = "Reactive state management for Python"
 authors = ["Korijn van Golen <korijn@gmail.com>", "Berend Klein Haneveld <berendkleinhaneveld@gmail.com>"]
 license = "MIT"
