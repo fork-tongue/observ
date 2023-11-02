@@ -6,15 +6,18 @@ a change is detected.
 from __future__ import annotations
 
 from collections.abc import Container
-from functools import wraps
+from functools import partial, wraps
 import inspect
 from itertools import count
 from typing import Any, Callable, Optional, TypeVar
 from weakref import ref, WeakSet
 
 from .dep import Dep
-from .observables import DictProxyBase, ListProxyBase, Proxy, SetProxyBase
+from .dict_proxy import DictProxyBase
+from .list_proxy import ListProxyBase
+from .proxy import Proxy
 from .scheduler import scheduler
+from .set_proxy import SetProxyBase
 
 
 T = TypeVar("T", bound=Callable[[], Any])
@@ -22,7 +25,7 @@ T = TypeVar("T", bound=Callable[[], Any])
 
 def watch(
     fn: Callable[[], Any] | Proxy | list[Proxy],
-    callback: Optional[Callable],
+    callback: Optional[Callable] = None,
     sync: bool = False,
     deep: bool | None = None,
     immediate: bool = False,
@@ -34,6 +37,9 @@ def watch(
         if watcher.callback:
             watcher.run_callback(watcher.value, None)
     return watcher
+
+
+watch_effect = partial(watch, immediate=True, deep=True, callback=None)
 
 
 def computed(_fn=None, *, deep=True):

@@ -1,9 +1,10 @@
 from unittest.mock import Mock
 
 from observ.dep import Dep
-from observ.observables import dict_traps, list_traps, set_traps
-from observ.observables import DictProxy, ListProxy, SetProxy
-from observ.observables import proxy_db
+from observ.dict_proxy import dict_traps, DictProxy
+from observ.list_proxy import list_traps, ListProxy
+from observ.proxy_db import proxy_db
+from observ.set_proxy import set_traps, SetProxy
 
 
 COLLECTIONS = {
@@ -47,6 +48,13 @@ EXCLUDED = {
     # __del__ is custom method on Proxy
     "__del__",
     "__getstate__",
+    # Following attributes are part of Proxy.__slots__
+    "__slots__",
+    "target",
+    "readonly",
+    "shallow",
+    "proxy_db",
+    "__weakref__",
 }
 
 
