@@ -11,6 +11,7 @@ from weakref import WeakValueDictionary
 from .dep import Dep
 
 
+# TODO: put it separate file
 class ProxyDb:
     """
     Collection of proxies, tracked by the id of the object that they wrap.
@@ -117,6 +118,10 @@ class ProxyDb:
 proxy_db = ProxyDb()
 
 
+# -----
+
+
+# TODO: separate file
 class Proxy:
     """
     Proxy for an object/target.
@@ -395,6 +400,16 @@ def bind_traps(proxy_cls, obj_cls, traps, trap_map):
             setattr(proxy_cls, method, trap)
 
 
+def map_traps(obj_cls, traps, trap_map):
+    return {
+        method: trap_map[trap_type](method, obj_cls)
+        for trap_type, methods in traps.items()
+        for method in methods
+    }
+
+
+# TODO: separate files for dict, list, set classes
+
 dict_traps = {
     "READERS": {
         "copy",
@@ -446,6 +461,9 @@ if sys.version_info >= (3, 9, 0):
     dict_traps["WRITERS"].add("__ior__")
 
 
+# class type(name, bases, dict, **kwds)
+
+
 class DictProxyBase(Proxy):
     def __init__(self, target, readonly=False, shallow=False):
         super().__init__(target, readonly=readonly, shallow=shallow)
@@ -454,17 +472,21 @@ class DictProxyBase(Proxy):
         return set(proxy_db.attrs(self)["keydep"].keys()) - set(self.target.keys())
 
 
-class DictProxy(DictProxyBase):
-    pass
+def readonly_dict_proxy__init__(self, target, shallow=False, **kwargs):
+    super(ReadonlyDictProxy, self).__init__(
+        target, shallow=shallow, **{**kwargs, "readonly": True}
+    )
 
 
-class ReadonlyDictProxy(DictProxyBase):
-    def __init__(self, target, shallow=False, **kwargs):
-        super().__init__(target, shallow=shallow, **{**kwargs, "readonly": True})
-
-
-bind_traps(DictProxy, dict, dict_traps, trap_map)
-bind_traps(ReadonlyDictProxy, dict, dict_traps, trap_map_readonly)
+DictProxy = type("DictProxy", (DictProxyBase,), map_traps(dict, dict_traps, trap_map))
+ReadonlyDictProxy = type(
+    "ReadonlyDictProxy",
+    (DictProxyBase,),
+    {
+        "__init__": readonly_dict_proxy__init__,
+        **map_traps(dict, dict_traps, trap_map_readonly),
+    },
+)
 
 
 list_traps = {
@@ -515,17 +537,21 @@ class ListProxyBase(Proxy):
         super().__init__(target, readonly=readonly, shallow=shallow)
 
 
-class ListProxy(ListProxyBase):
-    pass
+def readonly_list__init__(self, target, shallow=False, **kwargs):
+    super(ReadonlyListProxy, self).__init__(
+        target, shallow=shallow, **{**kwargs, "readonly": True}
+    )
 
 
-class ReadonlyListProxy(ListProxyBase):
-    def __init__(self, target, shallow=False, **kwargs):
-        super().__init__(target, shallow=shallow, **{**kwargs, "readonly": True})
-
-
-bind_traps(ListProxy, list, list_traps, trap_map)
-bind_traps(ReadonlyListProxy, list, list_traps, trap_map_readonly)
+ListProxy = type("ListProxy", (ListProxyBase,), map_traps(list, list_traps, trap_map))
+ReadonlyListProxy = type(
+    "ReadonlyListProxy",
+    (ListProxyBase,),
+    {
+        "__init__": readonly_list__init__,
+        **map_traps(list, list_traps, trap_map_readonly),
+    },
+)
 
 
 set_traps = {
@@ -585,19 +611,24 @@ class SetProxyBase(Proxy):
         super().__init__(target, readonly=readonly, shallow=shallow)
 
 
-class SetProxy(SetProxyBase):
-    pass
+def readonly_set__init__(self, target, shallow=False, **kwargs):
+    super(ReadonlySetProxy, self).__init__(
+        target, shallow=shallow, **{**kwargs, "readonly": True}
+    )
 
 
-class ReadonlySetProxy(SetProxyBase):
-    def __init__(self, target, shallow=False, **kwargs):
-        super().__init__(target, shallow=shallow, **{**kwargs, "readonly": True})
+SetProxy = type("SetProxy", (SetProxyBase,), map_traps(set, set_traps, trap_map))
+ReadonlySetProxy = type(
+    "ReadonlysetProxy",
+    (SetProxyBase,),
+    {
+        "__init__": readonly_set__init__,
+        **map_traps(set, set_traps, trap_map_readonly),
+    },
+)
 
 
-bind_traps(SetProxy, set, set_traps, trap_map)
-bind_traps(ReadonlySetProxy, set, set_traps, trap_map_readonly)
-
-
+# TODO: pair with proxy function
 def to_raw(target):
     """
     Returns a raw object from which any trace of proxy has been replaced
