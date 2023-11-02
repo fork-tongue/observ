@@ -1,6 +1,5 @@
-from .observables import TYPE_LOOKUP
-from .proxy import Proxy
-from .traps import map_traps, trap_map, trap_map_readonly
+from .proxy import Proxy, TYPE_LOOKUP
+from .traps import construct_methods_traps_dict, trap_map, trap_map_readonly
 
 
 list_traps = {
@@ -51,19 +50,23 @@ class ListProxyBase(Proxy):
         super().__init__(target, readonly=readonly, shallow=shallow)
 
 
-def readonly_list__init__(self, target, shallow=False, **kwargs):
+def readonly_list_proxy_init(self, target, shallow=False, **kwargs):
     super(ReadonlyListProxy, self).__init__(
         target, shallow=shallow, **{**kwargs, "readonly": True}
     )
 
 
-ListProxy = type("ListProxy", (ListProxyBase,), map_traps(list, list_traps, trap_map))
+ListProxy = type(
+    "ListProxy",
+    (ListProxyBase,),
+    construct_methods_traps_dict(list, list_traps, trap_map),
+)
 ReadonlyListProxy = type(
     "ReadonlyListProxy",
     (ListProxyBase,),
     {
-        "__init__": readonly_list__init__,
-        **map_traps(list, list_traps, trap_map_readonly),
+        "__init__": readonly_list_proxy_init,
+        **construct_methods_traps_dict(list, list_traps, trap_map_readonly),
     },
 )
 

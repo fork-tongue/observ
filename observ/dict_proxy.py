@@ -1,9 +1,8 @@
 import sys
 
-from .observables import TYPE_LOOKUP
-from .proxy import Proxy
+from .proxy import Proxy, TYPE_LOOKUP
 from .proxy_db import proxy_db
-from .traps import map_traps, trap_map, trap_map_readonly
+from .traps import construct_methods_traps_dict, trap_map, trap_map_readonly
 
 
 dict_traps = {
@@ -65,19 +64,23 @@ class DictProxyBase(Proxy):
         return set(proxy_db.attrs(self)["keydep"].keys()) - set(self.target.keys())
 
 
-def readonly_dict_proxy__init__(self, target, shallow=False, **kwargs):
+def readonly_dict_proxy_init(self, target, shallow=False, **kwargs):
     super(ReadonlyDictProxy, self).__init__(
         target, shallow=shallow, **{**kwargs, "readonly": True}
     )
 
 
-DictProxy = type("DictProxy", (DictProxyBase,), map_traps(dict, dict_traps, trap_map))
+DictProxy = type(
+    "DictProxy",
+    (DictProxyBase,),
+    construct_methods_traps_dict(dict, dict_traps, trap_map),
+)
 ReadonlyDictProxy = type(
     "ReadonlyDictProxy",
     (DictProxyBase,),
     {
-        "__init__": readonly_dict_proxy__init__,
-        **map_traps(dict, dict_traps, trap_map_readonly),
+        "__init__": readonly_dict_proxy_init,
+        **construct_methods_traps_dict(dict, dict_traps, trap_map_readonly),
     },
 )
 

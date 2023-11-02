@@ -3,7 +3,7 @@ from typing import Callable, Collection, TypeVar
 
 import patchdiff
 
-from .observables import (
+from .proxy import (
     reactive,
     readonly,
     shallow_reactive,

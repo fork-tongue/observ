@@ -3,7 +3,7 @@ import gc
 import pytest
 
 from observ import scheduler
-from observ.observables import proxy_db
+from observ.proxy import proxy_db
 
 
 def noop():

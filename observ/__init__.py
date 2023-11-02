@@ -1,7 +1,7 @@
 __version__ = "0.10.0"
 
 
-from .observables import (
+from .proxy import (
     reactive,
     readonly,
     shallow_reactive,

@@ -2,7 +2,7 @@ from functools import partial, wraps
 from operator import xor
 
 from .dep import Dep
-from .observables import proxy
+from .proxy import proxy
 from .proxy_db import proxy_db
 
 
@@ -204,14 +204,7 @@ trap_map_readonly = {
 }
 
 
-def bind_traps(proxy_cls, obj_cls, traps, trap_map):
-    for trap_type, methods in traps.items():
-        for method in methods:
-            trap = trap_map[trap_type](method, obj_cls)
-            setattr(proxy_cls, method, trap)
-
-
-def map_traps(obj_cls, traps, trap_map):
+def construct_methods_traps_dict(obj_cls, traps, trap_map):
     return {
         method: trap_map[trap_type](method, obj_cls)
         for trap_type, methods in traps.items()
