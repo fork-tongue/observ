@@ -5,7 +5,8 @@ import pytest
 
 from observ import computed, reactive, to_raw, watch
 from observ.list_proxy import ListProxy
-from observ.observables import Proxy, StateModifiedError
+from observ.proxy import Proxy
+from observ.traps import StateModifiedError
 from observ.watcher import WrongNumberOfArgumentsError
 
 

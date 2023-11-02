@@ -15,7 +15,7 @@ from weakref import ref, WeakSet
 from .dep import Dep
 from .dict_proxy import DictProxyBase
 from .list_proxy import ListProxyBase
-from .observables import Proxy
+from .proxy import Proxy
 from .scheduler import scheduler
 from .set_proxy import SetProxyBase
 

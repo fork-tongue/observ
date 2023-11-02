@@ -2,39 +2,13 @@
 observe converts plain datastructures (dict, list, set) to
 proxied versions of those datastructures to make them reactive.
 """
-from functools import partial, wraps
-from operator import xor
+from functools import partial
 
-from .dep import Dep
+from .proxy import Proxy
 from .proxy_db import proxy_db
 
 
 TYPE_LOOKUP = {}
-
-
-# TODO: separate file
-class Proxy:
-    """
-    Proxy for an object/target.
-
-    Instantiating a Proxy will add a reference to the global proxy_db and
-    destroying a Proxy will remove that reference.
-
-    Please use the `proxy` method to get a proxy for a certain object instead
-    of directly creating one yourself. The `proxy` method will either create
-    or return an existing proxy and makes sure that the db stays consistent.
-    """
-
-    __hash__ = None
-
-    def __init__(self, target, readonly=False, shallow=False):
-        self.target = target
-        self.readonly = readonly
-        self.shallow = shallow
-        proxy_db.reference(self)
-
-    def __del__(self):
-        proxy_db.dereference(self)
 
 
 def proxy(target, readonly=False, shallow=False):
@@ -81,226 +55,6 @@ def proxy(target, readonly=False, shallow=False):
     return proxy_type(target, readonly=readonly, shallow=shallow)
 
 
-reactive = proxy
-readonly = partial(proxy, readonly=True)
-shallow_reactive = partial(proxy, shallow=True)
-shallow_readonly = partial(proxy, shallow=True, readonly=True)
-
-
-class StateModifiedError(Exception):
-    """
-    Raised when a proxy is modified in a watched (or computed) expression.
-    """
-
-    pass
-
-
-def read_trap(method, obj_cls):
-    fn = getattr(obj_cls, method)
-
-    @wraps(fn)
-    def trap(self, *args, **kwargs):
-        if Dep.stack:
-            proxy_db.attrs(self)["dep"].depend()
-        value = fn(self.target, *args, **kwargs)
-        if self.shallow:
-            return value
-        return proxy(value, readonly=self.readonly)
-
-    return trap
-
-
-def iterate_trap(method, obj_cls):
-    fn = getattr(obj_cls, method)
-
-    @wraps(fn)
-    def trap(self, *args, **kwargs):
-        if Dep.stack:
-            proxy_db.attrs(self)["dep"].depend()
-        iterator = fn(self.target, *args, **kwargs)
-        if self.shallow:
-            return iterator
-        if method == "items":
-            return (
-                (key, proxy(value, readonly=self.readonly)) for key, value in iterator
-            )
-        else:
-            proxied = partial(proxy, readonly=self.readonly)
-            return map(proxied, iterator)
-
-    return trap
-
-
-def read_key_trap(method, obj_cls):
-    fn = getattr(obj_cls, method)
-
-    @wraps(fn)
-    def inner(self, *args, **kwargs):
-        if Dep.stack:
-            key = args[0]
-            keydeps = proxy_db.attrs(self)["keydep"]
-            if key not in keydeps:
-                keydeps[key] = Dep()
-            keydeps[key].depend()
-        value = fn(self.target, *args, **kwargs)
-        if self.shallow:
-            return value
-        return proxy(value, readonly=self.readonly)
-
-    return inner
-
-
-def write_trap(method, obj_cls):
-    fn = getattr(obj_cls, method)
-
-    @wraps(fn)
-    def inner(self, *args, **kwargs):
-        if Dep.stack:
-            raise StateModifiedError()
-        old = self.target.copy()
-        retval = fn(self.target, *args, **kwargs)
-        attrs = proxy_db.attrs(self)
-        if obj_cls == dict:
-            change_detected = False
-            keydeps = attrs["keydep"]
-            for key, val in self.target.items():
-                if old.get(key) is not val:
-                    if key in keydeps:
-                        keydeps[key].notify()
-                    else:
-                        keydeps[key] = Dep()
-                    change_detected = True
-            if change_detected:
-                attrs["dep"].notify()
-        else:  # list and set
-            if self.target != old:
-                attrs["dep"].notify()
-
-        return retval
-
-    return inner
-
-
-def write_key_trap(method, obj_cls):
-    fn = getattr(obj_cls, method)
-    getitem_fn = getattr(obj_cls, "get")
-
-    @wraps(fn)
-    def inner(self, *args, **kwargs):
-        if Dep.stack:
-            raise StateModifiedError()
-        key = args[0]
-        attrs = proxy_db.attrs(self)
-        is_new = key not in attrs["keydep"]
-        old_value = getitem_fn(self.target, key) if not is_new else None
-        retval = fn(self.target, *args, **kwargs)
-        if method == "setdefault" and not self.shallow:
-            # This method is only available when readonly is false
-            retval = reactive(retval)
-
-        new_value = getitem_fn(self.target, key)
-        if is_new:
-            attrs["keydep"][key] = Dep()
-        if xor(old_value is None, new_value is None) or old_value != new_value:
-            attrs["keydep"][key].notify()
-            attrs["dep"].notify()
-        return retval
-
-    return inner
-
-
-def delete_trap(method, obj_cls):
-    fn = getattr(obj_cls, method)
-
-    @wraps(fn)
-    def inner(self, *args, **kwargs):
-        if Dep.stack:
-            raise StateModifiedError()
-        retval = fn(self.target, *args, **kwargs)
-        attrs = proxy_db.attrs(self)
-        attrs["dep"].notify()
-        for key in self._orphaned_keydeps():
-            attrs["keydep"][key].notify()
-            del attrs["keydep"][key]
-        return retval
-
-    return inner
-
-
-def delete_key_trap(method, obj_cls):
-    fn = getattr(obj_cls, method)
-
-    @wraps(fn)
-    def inner(self, *args, **kwargs):
-        if Dep.stack:
-            raise StateModifiedError()
-        retval = fn(self.target, *args, **kwargs)
-        key = args[0]
-        attrs = proxy_db.attrs(self)
-        attrs["dep"].notify()
-        attrs["keydep"][key].notify()
-        del attrs["keydep"][key]
-        return retval
-
-    return inner
-
-
-trap_map = {
-    "READERS": read_trap,
-    "KEYREADERS": read_key_trap,
-    "ITERATORS": iterate_trap,
-    "WRITERS": write_trap,
-    "KEYWRITERS": write_key_trap,
-    "DELETERS": delete_trap,
-    "KEYDELETERS": delete_key_trap,
-}
-
-
-class ReadonlyError(Exception):
-    """
-    Raised when a readonly proxy is modified.
-    """
-
-    pass
-
-
-def readonly_trap(method, obj_cls):
-    fn = getattr(obj_cls, method)
-
-    @wraps(fn)
-    def inner(self, *args, **kwargs):
-        raise ReadonlyError()
-
-    return inner
-
-
-trap_map_readonly = {
-    "READERS": read_trap,
-    "KEYREADERS": read_key_trap,
-    "ITERATORS": iterate_trap,
-    "WRITERS": readonly_trap,
-    "KEYWRITERS": readonly_trap,
-    "DELETERS": readonly_trap,
-    "KEYDELETERS": readonly_trap,
-}
-
-
-def bind_traps(proxy_cls, obj_cls, traps, trap_map):
-    for trap_type, methods in traps.items():
-        for method in methods:
-            trap = trap_map[trap_type](method, obj_cls)
-            setattr(proxy_cls, method, trap)
-
-
-def map_traps(obj_cls, traps, trap_map):
-    return {
-        method: trap_map[trap_type](method, obj_cls)
-        for trap_type, methods in traps.items()
-        for method in methods
-    }
-
-
-# TODO: pair with proxy function
 def to_raw(target):
     """
     Returns a raw object from which any trace of proxy has been replaced
@@ -322,3 +76,9 @@ def to_raw(target):
         return {to_raw(t) for t in target}
 
     return target
+
+
+reactive = proxy
+readonly = partial(proxy, readonly=True)
+shallow_reactive = partial(proxy, shallow=True)
+shallow_readonly = partial(proxy, shallow=True, readonly=True)

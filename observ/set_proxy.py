@@ -1,4 +1,6 @@
-from .observables import map_traps, Proxy, trap_map, trap_map_readonly, TYPE_LOOKUP
+from .observables import TYPE_LOOKUP
+from .proxy import Proxy
+from .traps import map_traps, trap_map, trap_map_readonly
 
 
 set_traps = {

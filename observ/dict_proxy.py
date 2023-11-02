@@ -1,7 +1,10 @@
 import sys
 
-from .observables import map_traps, Proxy, trap_map, trap_map_readonly, TYPE_LOOKUP
+from .observables import TYPE_LOOKUP
+from .proxy import Proxy
 from .proxy_db import proxy_db
+from .traps import map_traps, trap_map, trap_map_readonly
+
 
 dict_traps = {
     "READERS": {
@@ -52,9 +55,6 @@ if sys.version_info >= (3, 9, 0):
     dict_traps["READERS"].add("__or__")
     dict_traps["READERS"].add("__ror__")
     dict_traps["WRITERS"].add("__ior__")
-
-
-# class type(name, bases, dict, **kwds)
 
 
 class DictProxyBase(Proxy):
