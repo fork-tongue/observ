@@ -46,8 +46,7 @@ list_traps = {
 
 
 class ListProxyBase(Proxy):
-    def __init__(self, target, readonly=False, shallow=False):
-        super().__init__(target, readonly=readonly, shallow=shallow)
+    pass
 
 
 def readonly_list_proxy_init(self, target, shallow=False, **kwargs):

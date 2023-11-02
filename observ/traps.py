@@ -3,7 +3,6 @@ from operator import xor
 
 from .dep import Dep
 from .proxy import proxy
-from .proxy_db import proxy_db
 
 
 class StateModifiedError(Exception):
@@ -28,7 +27,7 @@ def read_trap(method, obj_cls):
     @wraps(fn)
     def trap(self, *args, **kwargs):
         if Dep.stack:
-            proxy_db.attrs(self)["dep"].depend()
+            self.proxy_db.attrs(self)["dep"].depend()
         value = fn(self.target, *args, **kwargs)
         if self.shallow:
             return value
@@ -43,7 +42,7 @@ def iterate_trap(method, obj_cls):
     @wraps(fn)
     def trap(self, *args, **kwargs):
         if Dep.stack:
-            proxy_db.attrs(self)["dep"].depend()
+            self.proxy_db.attrs(self)["dep"].depend()
         iterator = fn(self.target, *args, **kwargs)
         if self.shallow:
             return iterator
@@ -62,10 +61,10 @@ def read_key_trap(method, obj_cls):
     fn = getattr(obj_cls, method)
 
     @wraps(fn)
-    def inner(self, *args, **kwargs):
+    def trap(self, *args, **kwargs):
         if Dep.stack:
             key = args[0]
-            keydeps = proxy_db.attrs(self)["keydep"]
+            keydeps = self.proxy_db.attrs(self)["keydep"]
             if key not in keydeps:
                 keydeps[key] = Dep()
             keydeps[key].depend()
@@ -74,19 +73,19 @@ def read_key_trap(method, obj_cls):
             return value
         return proxy(value, readonly=self.readonly)
 
-    return inner
+    return trap
 
 
 def write_trap(method, obj_cls):
     fn = getattr(obj_cls, method)
 
     @wraps(fn)
-    def inner(self, *args, **kwargs):
+    def trap(self, *args, **kwargs):
         if Dep.stack:
             raise StateModifiedError()
         old = self.target.copy()
         retval = fn(self.target, *args, **kwargs)
-        attrs = proxy_db.attrs(self)
+        attrs = self.proxy_db.attrs(self)
         if obj_cls == dict:
             change_detected = False
             keydeps = attrs["keydep"]
@@ -105,7 +104,7 @@ def write_trap(method, obj_cls):
 
         return retval
 
-    return inner
+    return trap
 
 
 def write_key_trap(method, obj_cls):
@@ -113,11 +112,11 @@ def write_key_trap(method, obj_cls):
     getitem_fn = getattr(obj_cls, "get")
 
     @wraps(fn)
-    def inner(self, *args, **kwargs):
+    def trap(self, *args, **kwargs):
         if Dep.stack:
             raise StateModifiedError()
         key = args[0]
-        attrs = proxy_db.attrs(self)
+        attrs = self.proxy_db.attrs(self)
         is_new = key not in attrs["keydep"]
         old_value = getitem_fn(self.target, key) if not is_new else None
         retval = fn(self.target, *args, **kwargs)
@@ -133,43 +132,43 @@ def write_key_trap(method, obj_cls):
             attrs["dep"].notify()
         return retval
 
-    return inner
+    return trap
 
 
 def delete_trap(method, obj_cls):
     fn = getattr(obj_cls, method)
 
     @wraps(fn)
-    def inner(self, *args, **kwargs):
+    def trap(self, *args, **kwargs):
         if Dep.stack:
             raise StateModifiedError()
         retval = fn(self.target, *args, **kwargs)
-        attrs = proxy_db.attrs(self)
+        attrs = self.proxy_db.attrs(self)
         attrs["dep"].notify()
         for key in self._orphaned_keydeps():
             attrs["keydep"][key].notify()
             del attrs["keydep"][key]
         return retval
 
-    return inner
+    return trap
 
 
 def delete_key_trap(method, obj_cls):
     fn = getattr(obj_cls, method)
 
     @wraps(fn)
-    def inner(self, *args, **kwargs):
+    def trap(self, *args, **kwargs):
         if Dep.stack:
             raise StateModifiedError()
         retval = fn(self.target, *args, **kwargs)
         key = args[0]
-        attrs = proxy_db.attrs(self)
+        attrs = self.proxy_db.attrs(self)
         attrs["dep"].notify()
         attrs["keydep"][key].notify()
         del attrs["keydep"][key]
         return retval
 
-    return inner
+    return trap
 
 
 trap_map = {
@@ -187,10 +186,10 @@ def readonly_trap(method, obj_cls):
     fn = getattr(obj_cls, method)
 
     @wraps(fn)
-    def inner(self, *args, **kwargs):
+    def trap(self, *args, **kwargs):
         raise ReadonlyError()
 
-    return inner
+    return trap
 
 
 trap_map_readonly = {

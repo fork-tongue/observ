@@ -1,7 +1,4 @@
-import sys
-
 from .proxy import Proxy, TYPE_LOOKUP
-from .proxy_db import proxy_db
 from .traps import construct_methods_traps_dict, trap_map, trap_map_readonly
 
 
@@ -20,6 +17,8 @@ dict_traps = {
         "__sizeof__",
         "__str__",
         "keys",
+        "__or__",
+        "__ror__",
     },
     "KEYREADERS": {
         "get",
@@ -30,9 +29,11 @@ dict_traps = {
         "items",
         "values",
         "__iter__",
+        "__reversed__",
     },
     "WRITERS": {
         "update",
+        "__ior__",
     },
     "KEYWRITERS": {
         "setdefault",
@@ -48,20 +49,10 @@ dict_traps = {
     },
 }
 
-if sys.version_info >= (3, 8, 0):
-    dict_traps["ITERATORS"].add("__reversed__")
-if sys.version_info >= (3, 9, 0):
-    dict_traps["READERS"].add("__or__")
-    dict_traps["READERS"].add("__ror__")
-    dict_traps["WRITERS"].add("__ior__")
-
 
 class DictProxyBase(Proxy):
-    def __init__(self, target, readonly=False, shallow=False):
-        super().__init__(target, readonly=readonly, shallow=shallow)
-
     def _orphaned_keydeps(self):
-        return set(proxy_db.attrs(self)["keydep"].keys()) - set(self.target.keys())
+        return set(self.proxy_db.attrs(self)["keydep"].keys()) - set(self.target.keys())
 
 
 def readonly_dict_proxy_init(self, target, shallow=False, **kwargs):

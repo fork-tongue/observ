@@ -16,15 +16,17 @@ class Proxy:
     """
 
     __hash__ = None
+    __slots__ = ["target", "readonly", "shallow", "proxy_db", "__weakref__"]
 
     def __init__(self, target, readonly=False, shallow=False):
         self.target = target
         self.readonly = readonly
         self.shallow = shallow
-        proxy_db.reference(self)
+        self.proxy_db = proxy_db
+        self.proxy_db.reference(self)
 
     def __del__(self):
-        proxy_db.dereference(self)
+        self.proxy_db.dereference(self)
 
 
 # Lookup dict for mapping a type (dict, list, set) to a method

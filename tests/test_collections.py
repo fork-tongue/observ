@@ -48,6 +48,13 @@ EXCLUDED = {
     # __del__ is custom method on Proxy
     "__del__",
     "__getstate__",
+    # Following attributes are part of Proxy.__slots__
+    "__slots__",
+    "target",
+    "readonly",
+    "shallow",
+    "proxy_db",
+    "__weakref__",
 }
 
 

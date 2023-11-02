@@ -8,7 +8,7 @@ homepage = "https://github.com/fork-tongue/observ"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.8"
+python = ">=3.9"
 patchdiff = "~0.3.4"
 
 [tool.poetry.group.dev.dependencies]

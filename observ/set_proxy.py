@@ -55,8 +55,7 @@ set_traps = {
 
 
 class SetProxyBase(Proxy):
-    def __init__(self, target, readonly=False, shallow=False):
-        super().__init__(target, readonly=readonly, shallow=shallow)
+    pass
 
 
 def readonly_set_proxy_init(self, target, shallow=False, **kwargs):
