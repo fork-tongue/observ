@@ -39,7 +39,7 @@ def watch(
     return watcher
 
 
-watch_effect = partial(watch, immediate=True, deep=True, callback=None)
+watch_effect = partial(watch, immediate=False, deep=True, callback=None)
 
 
 def computed(_fn=None, *, deep=True):
