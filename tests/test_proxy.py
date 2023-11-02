@@ -2,13 +2,12 @@ import gc
 
 import pytest
 
+from observ.dict_proxy import DictProxy, ReadonlyDictProxy
 from observ.list_proxy import ListProxy, ReadonlyListProxy
 from observ.observables import (
-    DictProxy,
     Proxy,
     proxy,
     proxy_db,
-    ReadonlyDictProxy,
     ReadonlyError,
 )
 from observ.set_proxy import ReadonlySetProxy, SetProxy
