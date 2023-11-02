@@ -13,7 +13,8 @@ from typing import Any, Callable, Optional, TypeVar
 from weakref import ref, WeakSet
 
 from .dep import Dep
-from .observables import DictProxyBase, ListProxyBase, Proxy
+from .list_proxy import ListProxyBase
+from .observables import DictProxyBase, Proxy
 from .scheduler import scheduler
 from .set_proxy import SetProxyBase
 

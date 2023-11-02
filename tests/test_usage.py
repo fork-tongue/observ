@@ -4,7 +4,8 @@ from unittest.mock import Mock
 import pytest
 
 from observ import computed, reactive, to_raw, watch
-from observ.observables import ListProxy, Proxy, StateModifiedError
+from observ.list_proxy import ListProxy
+from observ.observables import Proxy, StateModifiedError
 from observ.watcher import WrongNumberOfArgumentsError
 
 
@@ -468,7 +469,6 @@ def test_computed():
 
 def test_watch_computed():
     a = reactive([0])
-    from observ.observables import ListProxy
 
     assert isinstance(a, ListProxy)
 
