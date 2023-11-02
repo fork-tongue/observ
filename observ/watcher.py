@@ -13,8 +13,9 @@ from typing import Any, Callable, Optional, TypeVar
 from weakref import ref, WeakSet
 
 from .dep import Dep
-from .observables import DictProxyBase, ListProxyBase, Proxy, SetProxyBase
+from .observables import DictProxyBase, ListProxyBase, Proxy
 from .scheduler import scheduler
+from .set_proxy import SetProxyBase
 
 
 T = TypeVar("T", bound=Callable[[], Any])

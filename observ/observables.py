@@ -67,14 +67,15 @@ def proxy(target, readonly=False, shallow=False):
 
     # Otherwise, create a new proxy
     proxy_type = None
-    if isinstance(target, dict):
-        proxy_type = DictProxy if not readonly else ReadonlyDictProxy
-    elif isinstance(target, list):
-        proxy_type = ListProxy if not readonly else ReadonlyListProxy
-    elif isinstance(target, set):
-        proxy_type = SetProxy if not readonly else ReadonlySetProxy
-    elif isinstance(target, tuple):
-        return tuple(proxy(x, readonly=readonly, shallow=shallow) for x in target)
+
+    for target_type, (writable_proxy_type, readonly_proxy_type) in TYPE_LOOKUP.items():
+        if isinstance(target, target_type):
+            proxy_type = readonly_proxy_type if readonly else writable_proxy_type
+            break
+    else:
+        if isinstance(target, tuple):
+            return tuple(proxy(x, readonly=readonly, shallow=shallow) for x in target)
+
     return proxy_type(target, readonly=readonly, shallow=shallow)
 
 
@@ -443,78 +444,10 @@ ReadonlyListProxy = type(
 )
 
 
-set_traps = {
-    "READERS": {
-        "copy",
-        "difference",
-        "intersection",
-        "isdisjoint",
-        "issubset",
-        "issuperset",
-        "symmetric_difference",
-        "union",
-        "__and__",
-        "__contains__",
-        "__eq__",
-        "__format__",
-        "__ge__",
-        "__gt__",
-        "__iand__",
-        "__ior__",
-        "__isub__",
-        "__ixor__",
-        "__le__",
-        "__len__",
-        "__lt__",
-        "__ne__",
-        "__or__",
-        "__rand__",
-        "__repr__",
-        "__ror__",
-        "__rsub__",
-        "__rxor__",
-        "__sizeof__",
-        "__str__",
-        "__sub__",
-        "__xor__",
-    },
-    "ITERATORS": {
-        "__iter__",
-    },
-    "WRITERS": {
-        "add",
-        "clear",
-        "difference_update",
-        "intersection_update",
-        "discard",
-        "pop",
-        "remove",
-        "symmetric_difference_update",
-        "update",
-    },
+TYPE_LOOKUP = {
+    dict: (DictProxy, ReadonlyDictProxy),
+    list: (ListProxy, ReadonlyListProxy),
 }
-
-
-class SetProxyBase(Proxy):
-    def __init__(self, target, readonly=False, shallow=False):
-        super().__init__(target, readonly=readonly, shallow=shallow)
-
-
-def readonly_set__init__(self, target, shallow=False, **kwargs):
-    super(ReadonlySetProxy, self).__init__(
-        target, shallow=shallow, **{**kwargs, "readonly": True}
-    )
-
-
-SetProxy = type("SetProxy", (SetProxyBase,), map_traps(set, set_traps, trap_map))
-ReadonlySetProxy = type(
-    "ReadonlysetProxy",
-    (SetProxyBase,),
-    {
-        "__init__": readonly_set__init__,
-        **map_traps(set, set_traps, trap_map_readonly),
-    },
-)
 
 
 # TODO: pair with proxy function

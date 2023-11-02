@@ -11,9 +11,8 @@ from observ.observables import (
     ReadonlyDictProxy,
     ReadonlyError,
     ReadonlyListProxy,
-    ReadonlySetProxy,
-    SetProxy,
 )
+from observ.set_proxy import ReadonlySetProxy, SetProxy
 
 
 def test_proxy_lifecycle():
