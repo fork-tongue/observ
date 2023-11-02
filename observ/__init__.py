@@ -9,4 +9,4 @@ from .proxy import (
     to_raw,
 )
 from .scheduler import scheduler
-from .watcher import computed, watch
+from .watcher import computed, watch, watch_effect
