@@ -5,14 +5,6 @@ from .dep import Dep
 from .proxy import proxy
 
 
-class StateModifiedError(Exception):
-    """
-    Raised when a proxy is modified in a watched (or computed) expression.
-    """
-
-    pass
-
-
 class ReadonlyError(Exception):
     """
     Raised when a readonly proxy is modified.
@@ -81,8 +73,6 @@ def write_trap(method, obj_cls):
 
     @wraps(fn)
     def trap(self, *args, **kwargs):
-        if Dep.stack:
-            raise StateModifiedError()
         old = self.target.copy()
         retval = fn(self.target, *args, **kwargs)
         attrs = self.proxy_db.attrs(self)
@@ -113,8 +103,6 @@ def write_key_trap(method, obj_cls):
 
     @wraps(fn)
     def trap(self, *args, **kwargs):
-        if Dep.stack:
-            raise StateModifiedError()
         key = args[0]
         attrs = self.proxy_db.attrs(self)
         is_new = key not in attrs["keydep"]
@@ -140,8 +128,6 @@ def delete_trap(method, obj_cls):
 
     @wraps(fn)
     def trap(self, *args, **kwargs):
-        if Dep.stack:
-            raise StateModifiedError()
         retval = fn(self.target, *args, **kwargs)
         attrs = self.proxy_db.attrs(self)
         attrs["dep"].notify()
@@ -158,8 +144,6 @@ def delete_key_trap(method, obj_cls):
 
     @wraps(fn)
     def trap(self, *args, **kwargs):
-        if Dep.stack:
-            raise StateModifiedError()
         retval = fn(self.target, *args, **kwargs)
         key = args[0]
         attrs = self.proxy_db.attrs(self)
