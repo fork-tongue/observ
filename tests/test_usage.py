@@ -6,7 +6,6 @@ import pytest
 from observ import computed, reactive, to_raw, watch
 from observ.list_proxy import ListProxy
 from observ.proxy import Proxy
-from observ.traps import StateModifiedError
 from observ.watcher import WrongNumberOfArgumentsError
 
 
@@ -458,14 +457,13 @@ def test_computed():
 
     def _expr_with_write():
         # Writing to the state during a computed
-        # expression should raise a StateModifiedError
+        # expression should be OK and not cause recursion errors
         # Trigger a key writer
         a["bar"] = a["foo"] * 2
         return a["foo"] * 2
 
     computed_expr = computed(_expr_with_write)
-    with pytest.raises(StateModifiedError):
-        _ = computed_expr()
+    _ = computed_expr()
 
 
 def test_watch_computed():
@@ -475,34 +473,33 @@ def test_watch_computed():
 
     @computed
     def _times_ten():
-        # This next line should trigger the StateModifiedError
+        # This next line modifies state
         # when the watcher is evaluated
         # Trigger a writer trap
         a.append(0)
         return a[0] * 10
 
-    with pytest.raises(StateModifiedError):
-        _ = watch(_times_ten, None, sync=True)
+    _ = watch(_times_ten, None, sync=True)
 
     a = reactive({"foo": "bar"})
 
     @computed
     def _comp_fail():
         # Trigger a key deleter trap
-        a.pop()
-        return a[0]
+        a.pop("foo")
+        return a.get("foo")
 
-    with pytest.raises(StateModifiedError):
-        _ = watch(_comp_fail, None, sync=True)
+    _ = watch(_comp_fail, None, sync=True)
+
+    a = reactive({"foo": "bar"})
 
     @computed
     def _comp_fail():
         # Trigger a deleter trap
         a.clear()
-        return a[0]
+        return a.get("foo")
 
-    with pytest.raises(StateModifiedError):
-        _ = watch(_comp_fail, None, sync=True)
+    _ = watch(_comp_fail, None, sync=True)
 
 
 def test_computed_deep():

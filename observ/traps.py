@@ -5,14 +5,6 @@ from .dep import Dep
 from .proxy import proxy
 
 
-class StateModifiedError(Exception):
-    """
-    Raised when a proxy is modified in a watched (or computed) expression.
-    """
-
-    pass
-
-
 class ReadonlyError(Exception):
     """
     Raised when a readonly proxy is modified.

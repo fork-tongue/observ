@@ -147,6 +147,7 @@ class Watcher:
             self.callback = weak(callback.__self__, callback.__func__)
         else:
             self.callback = callback
+        self.no_recurse = callback is None
         self.deep = bool(deep)
         self.lazy = lazy
         self.dirty = self.lazy
@@ -156,7 +157,11 @@ class Watcher:
     def update(self) -> None:
         if self.lazy:
             self.dirty = True
-        elif self.sync:
+            return
+
+        if Dep.stack and Dep.stack[-1] is self and self.no_recurse:
+            return
+        if self.sync:
             self.run()
         else:
             scheduler.queue(self)

@@ -1,5 +1,3 @@
-import pytest
-
 from observ import reactive, scheduler
 from observ.watcher import watch_effect
 
@@ -33,13 +31,15 @@ def test_watch_effect_scheduled(noop_request_flush):
         nonlocal count_mirror
         count_mirror = state["count"]
 
-    watcher = watch_effect(bump)
-    assert watcher.lazy is False
+    _ = watch_effect(bump)
 
     assert state["count"] == 0
     assert count_mirror == 0
 
     state["count"] = 1
+    assert state["count"] == 1
+    assert count_mirror == 0
+
     scheduler.flush()
 
     assert state["count"] == 1
@@ -54,11 +54,11 @@ def test_watch_effect_recursion():
         nonlocal count_mirror
         count_mirror = state["count"]
         # Adjust the same value that triggerred the bump
-        # This should trigger a RecursionError
         state["count"] += 1
 
-    with pytest.raises(RecursionError):
-        watch_effect(bump, sync=True)
+    _ = watch_effect(bump, sync=True)
+    assert state["count"] == 1
+    assert count_mirror == 0
 
 
 def test_watch_effect_scheduled_recursion(noop_request_flush):
@@ -68,18 +68,29 @@ def test_watch_effect_scheduled_recursion(noop_request_flush):
     def bump():
         nonlocal count_mirror
         count_mirror = state["count"]
+        # Adjust the same value that triggerred the bump
         state["count"] += 1
 
-    watcher = watch_effect(bump)
-    assert watcher.lazy is False
+    _ = watch_effect(bump)
 
     # Bump should have bumped the version
     assert state["count"] == 1
     assert count_mirror == 0
 
-    # state["count"] = 1
-    # with pytest.raises()
+    # Doesn't do anything
     scheduler.flush()
 
+    assert state["count"] == 1
+    assert count_mirror == 0
+
+    # Still does not trigger the effect
+    state["count"] += 1
+
     assert state["count"] == 2
-    assert count_mirror == 1
+    assert count_mirror == 0
+
+    # But this should trigger it!
+    scheduler.flush()
+
+    assert state["count"] == 3
+    assert count_mirror == 2
