@@ -9,6 +9,18 @@ import warnings
 
 
 class Scheduler:
+    __slots__ = [
+        "_queue",
+        "_queue_indices",
+        "flushing",
+        "has",
+        "circular",
+        "index",
+        "waiting",
+        "request_flush",
+        "detect_cycles",
+    ]
+
     def __init__(self):
         self._queue = []
         self._queue_indices = []
