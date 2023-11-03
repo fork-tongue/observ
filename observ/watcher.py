@@ -114,6 +114,22 @@ class WrongNumberOfArgumentsError(TypeError):
 
 
 class Watcher:
+    __slots__ = [
+        "id",
+        "fn",
+        "_deps",
+        "_new_deps",
+        "sync",
+        "callback",
+        "no_recurse",
+        "deep",
+        "lazy",
+        "dirty",
+        "value",
+        "_number_of_callback_args",
+        "__weakref__",
+    ]
+
     def __init__(
         self,
         fn: Callable[[], Any] | Proxy | list[Proxy],
