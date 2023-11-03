@@ -18,7 +18,7 @@ def read_trap(method, obj_cls):
 
     @wraps(fn)
     def trap(self, *args, **kwargs):
-        if Dep.stack:
+        if self.Dep.stack:
             self.proxy_db.attrs(self)["dep"].depend()
         value = fn(self.target, *args, **kwargs)
         if self.shallow:
@@ -33,7 +33,7 @@ def iterate_trap(method, obj_cls):
 
     @wraps(fn)
     def trap(self, *args, **kwargs):
-        if Dep.stack:
+        if self.Dep.stack:
             self.proxy_db.attrs(self)["dep"].depend()
         iterator = fn(self.target, *args, **kwargs)
         if self.shallow:
@@ -54,7 +54,7 @@ def read_key_trap(method, obj_cls):
 
     @wraps(fn)
     def trap(self, *args, **kwargs):
-        if Dep.stack:
+        if self.Dep.stack:
             key = args[0]
             keydeps = self.proxy_db.attrs(self)["keydep"]
             if key not in keydeps:

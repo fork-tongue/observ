@@ -1,5 +1,6 @@
 from functools import partial
 
+from .dep import Dep
 from .proxy_db import proxy_db
 
 
@@ -16,7 +17,7 @@ class Proxy:
     """
 
     __hash__ = None
-    __slots__ = ["target", "readonly", "shallow", "proxy_db", "__weakref__"]
+    __slots__ = ["target", "readonly", "shallow", "proxy_db", "Dep", "__weakref__"]
 
     def __init__(self, target, readonly=False, shallow=False):
         self.target = target
@@ -24,6 +25,7 @@ class Proxy:
         self.shallow = shallow
         self.proxy_db = proxy_db
         self.proxy_db.reference(self)
+        self.Dep = Dep
 
     def __del__(self):
         self.proxy_db.dereference(self)
