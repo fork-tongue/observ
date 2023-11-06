@@ -54,8 +54,6 @@ EXCLUDED = {
     "target",
     "readonly",
     "shallow",
-    "proxy_db",
-    "Dep",
     "__weakref__",
 }
 

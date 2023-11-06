@@ -1,9 +1,10 @@
-__version__ = "0.12.0"
+__version__ = "0.13.0"
 
 
 from .proxy import (
     reactive,
     readonly,
+    ref,
     shallow_reactive,
     shallow_readonly,
     to_raw,

@@ -1,4 +1,5 @@
 from .proxy import Proxy, TYPE_LOOKUP
+from .proxy_db import proxy_db
 from .traps import construct_methods_traps_dict, trap_map, trap_map_readonly
 
 
@@ -52,7 +53,7 @@ dict_traps = {
 
 class DictProxyBase(Proxy):
     def _orphaned_keydeps(self):
-        return set(self.proxy_db.attrs(self)["keydep"].keys()) - set(self.target.keys())
+        return set(proxy_db.attrs(self)["keydep"].keys()) - set(self.target.keys())
 
 
 def readonly_dict_proxy_init(self, target, shallow=False, **kwargs):
