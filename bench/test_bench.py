@@ -10,10 +10,12 @@ def bench_dict(plain, n=1000):
         obj = {} if plain else reactive({})
         obj["bar"] = "baz"
         obj["quux"] = "quuz"
-        obj.update({
-            "bar": "foo",
-            "quazi": "var",
-        })
+        obj.update(
+            {
+                "bar": "foo",
+                "quazi": "var",
+            }
+        )
         del obj["bar"]
         assert obj["quux"]  # read something
         obj.clear()
