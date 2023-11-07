@@ -5,7 +5,7 @@ import pytest
 from observ import reactive
 
 
-def bench_dict(plain, n=1000):
+def bench_dict(plain, n=10000):
     for _ in range(n):
         obj = {} if plain else reactive({})
         obj["bar"] = "baz"
@@ -21,6 +21,7 @@ def bench_dict(plain, n=1000):
         obj.clear()
 
 
+@pytest.mark.timeout(timeout=0)
 @pytest.mark.benchmark(
     group="dict_plain_vs_reactive",
 )
@@ -30,7 +31,7 @@ def test_dict_plain_vs_reactive(benchmark, name):
     benchmark(bench_fn)
 
 
-def bench_list(plain, n=1000):
+def bench_list(plain, n=10000):
     for _ in range(n):
         obj = [] if plain else reactive([])
         obj.append("bar")
@@ -41,6 +42,7 @@ def bench_list(plain, n=1000):
         obj.clear()
 
 
+@pytest.mark.timeout(timeout=0)
 @pytest.mark.benchmark(
     group="list_plain_vs_reactive",
 )
@@ -50,7 +52,7 @@ def test_list_plain_vs_reactive(benchmark, name):
     benchmark(bench_fn)
 
 
-def bench_set(plain, n=1000):
+def bench_set(plain, n=10000):
     for _ in range(n):
         obj = set() if plain else reactive(set())
         obj.add("bar")
@@ -59,6 +61,7 @@ def bench_set(plain, n=1000):
         obj.clear()
 
 
+@pytest.mark.timeout(timeout=0)
 @pytest.mark.benchmark(
     group="set_plain_vs_reactive",
 )
