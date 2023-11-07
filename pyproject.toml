@@ -10,6 +10,7 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = ">=3.9"
 patchdiff = "~0.3.4"
+pytest-benchmark = "^4.0.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "*"
