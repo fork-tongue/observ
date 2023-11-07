@@ -31,3 +31,7 @@ urllib3 = { version = "*", python = "<4"}
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+addopts = "--benchmark-columns='mean, stddev, rounds' --benchmark-autosave"
+timeout = 3
