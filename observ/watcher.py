@@ -3,23 +3,32 @@ watchers perform dependency tracking via functions acting on
 observable datastructures, and optionally trigger callback when
 a change is detected.
 """
+from __future__ import annotations
+
 from collections.abc import Container
-from functools import wraps
+from functools import partial, wraps
 import inspect
 from itertools import count
 from typing import Any, Callable, Optional, TypeVar
-from weakref import WeakSet
+from weakref import ref, WeakSet
 
 from .dep import Dep
-from .observables import DictProxyBase, ListProxyBase, SetProxyBase
+from .dict_proxy import DictProxyBase
+from .list_proxy import ListProxyBase
+from .proxy import Proxy
 from .scheduler import scheduler
+from .set_proxy import SetProxyBase
 
 
-T = TypeVar("T", bound=Callable)
+T = TypeVar("T", bound=Callable[[], Any])
 
 
 def watch(
-    fn: Callable, callback: Optional[Callable], sync=False, deep=False, immediate=False
+    fn: Callable[[], Any] | Proxy | list[Proxy],
+    callback: Optional[Callable] = None,
+    sync: bool = False,
+    deep: bool | None = None,
+    immediate: bool = False,
 ):
     watcher = Watcher(fn, sync=sync, lazy=False, deep=deep, callback=callback)
     if immediate:
@@ -28,6 +37,9 @@ def watch(
         if watcher.callback:
             watcher.run_callback(watcher.value, None)
     return watcher
+
+
+watch_effect = partial(watch, immediate=False, deep=True, callback=None)
 
 
 def computed(_fn=None, *, deep=True):
@@ -43,7 +55,7 @@ def computed(_fn=None, *, deep=True):
         def getter():
             if watcher.dirty:
                 watcher.evaluate()
-            if Dep.stack:
+            if watcher.Dep.stack:
                 watcher.depend()
             return watcher.value
 
@@ -102,8 +114,30 @@ class WrongNumberOfArgumentsError(TypeError):
 
 
 class Watcher:
+    __slots__ = [
+        "id",
+        "fn",
+        "_deps",
+        "_new_deps",
+        "sync",
+        "callback",
+        "no_recurse",
+        "deep",
+        "lazy",
+        "dirty",
+        "value",
+        "Dep",
+        "_number_of_callback_args",
+        "__weakref__",
+    ]
+
     def __init__(
-        self, fn: Callable, sync=False, lazy=True, deep=False, callback: Callable = None
+        self,
+        fn: Callable[[], Any] | Proxy | list[Proxy],
+        sync: bool = False,
+        lazy: bool = True,
+        deep: bool | None = None,
+        callback: Callable = None,
     ) -> None:
         """
         sync: Ignore the scheduler
@@ -111,13 +145,28 @@ class Watcher:
         deep: Deep watch the watched value
         callback: Method to call when value has changed
         """
+        self.Dep = Dep
         self.id = next(_ids)
-        self.fn = fn
+        if callable(fn):
+            if is_bound_method(fn):
+                self.fn = weak(fn.__self__, fn.__func__)
+            else:
+                self.fn = fn
+        else:
+            self.fn = lambda: fn
+            # Default to deep watching when watching a proxy
+            # or a list of proxies
+            if deep is None:
+                deep = True
         self._deps, self._new_deps = WeakSet(), WeakSet()
 
         self.sync = sync
-        self.callback = callback
-        self.deep = deep
+        if is_bound_method(callback):
+            self.callback = weak(callback.__self__, callback.__func__)
+        else:
+            self.callback = callback
+        self.no_recurse = callback is None
+        self.deep = bool(deep)
         self.lazy = lazy
         self.dirty = self.lazy
         self.value = None if self.lazy else self.get()
@@ -126,7 +175,11 @@ class Watcher:
     def update(self) -> None:
         if self.lazy:
             self.dirty = True
-        elif self.sync:
+            return
+
+        if self.Dep.stack and self.Dep.stack[-1] is self and self.no_recurse:
+            return
+        if self.sync:
             self.run()
         else:
             scheduler.queue(self)
@@ -144,7 +197,7 @@ class Watcher:
             if self.callback:
                 self.run_callback(self.value, old_value)
 
-    def run_callback(self, new, old):
+    def run_callback(self, new, old) -> None:
         """
         Runs the callback. When the number of arguments is still unknown
         for the callback, it will fall into the try/except contstruct
@@ -180,7 +233,7 @@ class Watcher:
         self._run_callback(new, old)
         self._number_of_callback_args = 2
 
-    def _run_callback(self, *args):
+    def _run_callback(self, *args) -> None:
         """
         Run the callback with the given arguments. When the callback
         raises a TypeError, check to see if the error results from
@@ -201,13 +254,13 @@ class Watcher:
                 del frames
 
     def get(self) -> Any:
-        Dep.stack.append(self)
+        self.Dep.stack.append(self)
         try:
             value = self.fn()
             if self.deep:
                 traverse(value)
         finally:
-            Dep.stack.pop()
+            self.Dep.stack.pop()
             self.cleanup_deps()
         return value
 
@@ -227,10 +280,59 @@ class Watcher:
     def depend(self) -> None:
         """This function is used by other watchers to depend on everything
         this watcher depends on."""
-        if Dep.stack:
+        if self.Dep.stack:
             for dep in self._deps:
                 dep.depend()
 
     @property
     def fn_fqn(self) -> str:
         return f"{self.fn.__module__}.{self.fn.__qualname__}"
+
+
+def weak(obj: Any, method: Callable):
+    """
+    Returns a wrapper for the given method that will only call the method if the
+    given object is not garbage collected yet. It does so by using a weakref.ref
+    and checking its value before calling the actual method when the wrapper is
+    called.
+    """
+    weak_obj = ref(obj)
+
+    sig = inspect.signature(method)
+    nr_arguments = len(sig.parameters)
+
+    if nr_arguments == 1:
+
+        @wraps(method)
+        def wrapped():
+            if this := weak_obj():
+                return method(this)
+
+        return wrapped
+    elif nr_arguments == 2:
+
+        @wraps(method)
+        def wrapped(new):
+            if this := weak_obj():
+                return method(this, new)
+
+        return wrapped
+    elif nr_arguments == 3:
+
+        @wraps(method)
+        def wrapped(new, old):
+            if this := weak_obj():
+                return method(this, new, old)
+
+        return wrapped
+    else:
+        raise WrongNumberOfArgumentsError(
+            "Please use 1, 2 or 3 arguments for callbacks"
+        )
+
+
+def is_bound_method(fn: Callable):
+    """
+    Returns whether the given function is a bound method.
+    """
+    return hasattr(fn, "__self__") and hasattr(fn, "__func__")

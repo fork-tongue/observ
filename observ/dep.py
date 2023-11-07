@@ -7,6 +7,7 @@ from weakref import WeakSet
 
 
 class Dep:
+    __slots__ = ["_subs", "__weakref__"]
     stack: List["Watcher"] = []  # noqa: F821
 
     def __init__(self) -> None:

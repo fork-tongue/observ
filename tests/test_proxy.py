@@ -2,18 +2,12 @@ import gc
 
 import pytest
 
-from observ.observables import (
-    DictProxy,
-    ListProxy,
-    Proxy,
-    proxy,
-    proxy_db,
-    ReadonlyDictProxy,
-    ReadonlyError,
-    ReadonlyListProxy,
-    ReadonlySetProxy,
-    SetProxy,
-)
+from observ.dict_proxy import DictProxy, ReadonlyDictProxy
+from observ.list_proxy import ListProxy, ReadonlyListProxy
+from observ.proxy import Proxy, proxy
+from observ.proxy_db import proxy_db
+from observ.set_proxy import ReadonlySetProxy, SetProxy
+from observ.traps import ReadonlyError
 
 
 def test_proxy_lifecycle():

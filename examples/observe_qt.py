@@ -7,8 +7,10 @@ adjusts the state while the other watches the state
 and updates the label whenever a computed property
 based on the state changes.
 """
+import asyncio
 from time import sleep
 
+from PySide6 import QtAsyncio
 from PySide6.QtCore import QObject, QThread, Signal
 from PySide6.QtWidgets import (
     QApplication,
@@ -126,8 +128,8 @@ if __name__ == "__main__":
 
     app = QApplication([])
 
-    # Register with Qt's event loop
-    scheduler.register_qt()
+    asyncio.set_event_loop_policy(QtAsyncio.QAsyncioEventLoopPolicy())
+    scheduler.register_asyncio()
 
     # Create layout and pass state to widgets
     layout = QVBoxLayout()

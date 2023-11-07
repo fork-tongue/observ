@@ -1,7 +1,7 @@
-__version__ = "0.9.2"
+__version__ = "0.12.0"
 
 
-from .observables import (
+from .proxy import (
     reactive,
     readonly,
     shallow_reactive,
@@ -9,4 +9,4 @@ from .observables import (
     to_raw,
 )
 from .scheduler import scheduler
-from .watcher import computed, watch
+from .watcher import computed, watch, watch_effect

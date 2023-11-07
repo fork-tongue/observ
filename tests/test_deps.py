@@ -1,5 +1,5 @@
 from observ import computed, reactive
-from observ.observables import proxy_db
+from observ.proxy import proxy_db
 
 
 def test_deps_copy():

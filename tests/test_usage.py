@@ -4,7 +4,8 @@ from unittest.mock import Mock
 import pytest
 
 from observ import computed, reactive, to_raw, watch
-from observ.observables import ListProxy, Proxy, StateModifiedError
+from observ.list_proxy import ListProxy
+from observ.proxy import Proxy
 from observ.watcher import WrongNumberOfArgumentsError
 
 
@@ -456,52 +457,49 @@ def test_computed():
 
     def _expr_with_write():
         # Writing to the state during a computed
-        # expression should raise a StateModifiedError
+        # expression should be OK and not cause recursion errors
         # Trigger a key writer
         a["bar"] = a["foo"] * 2
         return a["foo"] * 2
 
     computed_expr = computed(_expr_with_write)
-    with pytest.raises(StateModifiedError):
-        _ = computed_expr()
+    _ = computed_expr()
 
 
 def test_watch_computed():
     a = reactive([0])
-    from observ.observables import ListProxy
 
     assert isinstance(a, ListProxy)
 
     @computed
     def _times_ten():
-        # This next line should trigger the StateModifiedError
+        # This next line modifies state
         # when the watcher is evaluated
         # Trigger a writer trap
         a.append(0)
         return a[0] * 10
 
-    with pytest.raises(StateModifiedError):
-        _ = watch(_times_ten, None, sync=True)
+    _ = watch(_times_ten, None, sync=True)
 
     a = reactive({"foo": "bar"})
 
     @computed
     def _comp_fail():
         # Trigger a key deleter trap
-        a.pop()
-        return a[0]
+        a.pop("foo")
+        return a.get("foo")
 
-    with pytest.raises(StateModifiedError):
-        _ = watch(_comp_fail, None, sync=True)
+    _ = watch(_comp_fail, None, sync=True)
+
+    a = reactive({"foo": "bar"})
 
     @computed
     def _comp_fail():
         # Trigger a deleter trap
         a.clear()
-        return a[0]
+        return a.get("foo")
 
-    with pytest.raises(StateModifiedError):
-        _ = watch(_comp_fail, None, sync=True)
+    _ = watch(_comp_fail, None, sync=True)
 
 
 def test_computed_deep():
@@ -625,3 +623,158 @@ def test_usage_class_instances():
     # write to a class attribute
     a[2].foo = 10
     assert called == 2  # class instances are NOT reactive
+
+
+def test_watch_get_non_existing():
+    a = reactive({})
+
+    def result():
+        return a.get("foo", False)
+
+    watcher = watch(result, None, sync=True)
+
+    assert watcher.value is False
+
+    a["foo"] = True
+
+    assert watcher.value is True
+
+
+def test_watch_get_non_existing_dict():
+    a = reactive(dict())
+
+    def result():
+        return "foo" in a
+
+    watcher = watch(result, None, sync=True)
+
+    assert watcher.value is False
+
+    a["foo"] = "bar"
+
+    assert watcher.value is True
+
+
+def test_watch_get_non_existing_set():
+    a = reactive(set())
+
+    def result():
+        return "foo" in a
+
+    watcher = watch(result, None, sync=True)
+
+    assert watcher.value is False
+
+    a.add("foo")
+
+    assert watcher.value is True
+
+
+def test_watch_get_non_existing_list():
+    a = reactive(list())
+
+    def result():
+        return "foo" in a
+
+    watcher = watch(result, None, sync=True)
+
+    assert watcher.value is False
+
+    a.append("foo")
+
+    assert watcher.value is True
+
+
+def test_watch_setdefault_new_key():
+    a = reactive(dict())
+    cb = Mock()
+
+    watcher = watch(lambda: a, cb, sync=True, deep=True)  # noqa: F841
+
+    some_list = a.setdefault("foo", [])
+    assert cb.call_count == 1
+
+    some_list.append("bar")
+    assert cb.call_count == 2
+
+
+def test_watch_setdefault_existing_key():
+    a = reactive({"foo": []})
+    cb = Mock()
+
+    watcher = watch(lambda: a, cb, sync=True, deep=True)  # noqa: F841
+
+    some_list = a.setdefault("foo", [])
+    assert cb.call_count == 0
+
+    some_list.append("bar")
+    assert cb.call_count == 1
+
+
+def test_use_weird_types_as_value():
+    # TypeError: bad argument type for built-in operation
+    # Might happen with types that can't be compare to None
+    # Problem first encountered with PySide6.QtCore.Qt.ItemFlags object
+    class Foo(int):
+        """Custom class that can't be compare to None"""
+
+        def __eq__(self, other):
+            return not (other < self or other > self)
+
+        def __ne__(self, other):
+            return not self.__eq__(other)
+
+    foo = Foo(3)
+    comparison = None
+
+    assert foo == 3
+    assert foo != 4
+    assert foo != 2
+
+    # Check that comparing with a None value raises TypeError
+    with pytest.raises(TypeError):
+        foo != comparison
+
+    a = reactive(dict())
+    a["foo"] = Foo(3)
+
+
+def test_watch_reactive_object():
+    a = reactive({"foo": "foo"})
+    cb = Mock()
+
+    watcher = watch(  # noqa: F841
+        a,
+        cb,
+        immediate=False,
+        sync=True,
+    )
+
+    assert cb.call_count == 0
+
+    a["foo"] = "bar"
+
+    assert cb.call_count == 1
+
+
+def test_watch_list_of_reactive_objects():
+    a = reactive({"foo": "foo"})
+    b = reactive(["bar"])
+    cb = Mock()
+
+    watcher = watch(  # noqa: F841
+        [a, b],
+        cb,
+        immediate=False,
+        sync=True,
+    )
+
+    assert cb.call_count == 0
+
+    a["foo"] = "bar"
+
+    assert cb.call_count == 1
+
+    b.append("foo")
+
+    assert cb.call_count == 2
