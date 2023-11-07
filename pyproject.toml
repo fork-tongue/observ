@@ -33,5 +33,5 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
-addopts = "--benchmark-columns='mean, stddev, rounds' --benchmark-autosave"
+addopts = "--benchmark-columns='mean, stddev, rounds'"
 timeout = 3
