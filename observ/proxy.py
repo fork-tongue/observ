@@ -1,6 +1,5 @@
 from functools import partial
 
-from .dep import Dep
 from .proxy_db import proxy_db
 
 
@@ -17,18 +16,16 @@ class Proxy:
     """
 
     __hash__ = None
-    __slots__ = ["target", "readonly", "shallow", "proxy_db", "Dep", "__weakref__"]
+    __slots__ = ["target", "readonly", "shallow", "__weakref__"]
 
     def __init__(self, target, readonly=False, shallow=False):
         self.target = target
         self.readonly = readonly
         self.shallow = shallow
-        self.proxy_db = proxy_db
-        self.proxy_db.reference(self)
-        self.Dep = Dep
+        proxy_db.reference(self)
 
     def __del__(self):
-        self.proxy_db.dereference(self)
+        proxy_db.dereference(self)
 
 
 # Lookup dict for mapping a type (dict, list, set) to a method
@@ -63,22 +60,21 @@ def proxy(target, readonly=False, shallow=False):
     if existing_proxy is not None:
         return existing_proxy
 
-    # We can only wrap the following datatypes
-    if not isinstance(target, (dict, list, tuple, set)):
-        return target
-
-    # Otherwise, create a new proxy
-    proxy_type = None
-
+    # Create a new proxy
     for target_type, (writable_proxy_type, readonly_proxy_type) in TYPE_LOOKUP.items():
         if isinstance(target, target_type):
             proxy_type = readonly_proxy_type if readonly else writable_proxy_type
-            break
-    else:
-        if isinstance(target, tuple):
-            return tuple(proxy(x, readonly=readonly, shallow=shallow) for x in target)
+            return proxy_type(target, readonly=readonly, shallow=shallow)
 
-    return proxy_type(target, readonly=readonly, shallow=shallow)
+    if isinstance(target, tuple):
+        return tuple(proxy(x, readonly=readonly, shallow=shallow) for x in target)
+
+    # We can't proxy a plain value
+    return target
+
+
+def ref(target):
+    return proxy({"value": target})
 
 
 reactive = proxy

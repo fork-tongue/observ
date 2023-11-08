@@ -3,7 +3,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from observ import computed, reactive, to_raw, watch
+from observ import computed, reactive, ref, to_raw, watch
 from observ.list_proxy import ListProxy
 from observ.proxy import Proxy
 from observ.watcher import WrongNumberOfArgumentsError
@@ -778,3 +778,24 @@ def test_watch_list_of_reactive_objects():
     b.append("foo")
 
     assert cb.call_count == 2
+
+
+def test_usage_ref():
+    counter = ref(0)
+    called = 0
+    values = ()
+
+    def _callback(new, old):
+        nonlocal called
+        nonlocal values
+        called += 1
+        values = (new, old)
+
+    watcher = watch(lambda: counter["value"], _callback, sync=True)
+
+    assert not watcher.dirty
+    assert called == 0
+    counter["value"] += 1
+    assert called == 1
+    assert values[0] == 1
+    assert values[1] == 0
