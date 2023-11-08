@@ -104,9 +104,10 @@ class ProxyDb:
         Returns a proxy from the collection for the given object and configuration.
         Will return None if there is no proxy for the object's id.
         """
-        if id(target) not in self.db:
+        try:
+            return self.db[id(target)]["proxies"].get((readonly, shallow))
+        except KeyError:
             return None
-        return self.db[id(target)]["proxies"].get((readonly, shallow))
 
 
 # Create a global proxy collection
