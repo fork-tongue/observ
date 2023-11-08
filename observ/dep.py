@@ -11,18 +11,27 @@ class Dep:
     stack: List["Watcher"] = []  # noqa: F821
 
     def __init__(self) -> None:
-        self._subs: WeakSet["Watcher"] = WeakSet()  # noqa: F821
+        self._subs: WeakSet["Watcher"] = None  # noqa: F821
 
     def add_sub(self, sub: "Watcher") -> None:  # noqa: F821
+        if self._subs is None:
+            self._subs = WeakSet()
         self._subs.add(sub)
 
     def remove_sub(self, sub: "Watcher") -> None:  # noqa: F821
-        self._subs.remove(sub)
+        if self._subs:
+            self._subs.remove(sub)
 
     def depend(self) -> None:
         if self.stack:
             self.stack[-1].add_dep(self)
 
     def notify(self) -> None:
-        for sub in sorted(self._subs, key=lambda s: s.id):
-            sub.update()
+        # just iterating over self._subs even if
+        # it is empty is 10x slower
+        # than putting this if-statement in front of it
+        # because a weakset must acquire a lock on its
+        # weak references before iterating
+        if self._subs:
+            for sub in sorted(self._subs, key=lambda s: s.id):
+                sub.update()
