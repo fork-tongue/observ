@@ -16,7 +16,7 @@ def bench_dict(plain, add_watcher):
     for _ in range(N):
         obj = {} if plain else reactive({})
         if add_watcher:
-            watcher = watch(obj, callback=noop, deep=True, sync=True)
+            watcher = watch(obj, callback=noop, deep=True, sync=True)  # noqa: F841
         obj["bar"] = "baz"
         obj["quux"] = "quuz"
         obj.update(
@@ -44,7 +44,7 @@ def bench_list(plain, add_watcher):
     for _ in range(N):
         obj = [] if plain else reactive([])
         if add_watcher:
-            watcher = watch(obj, callback=noop, deep=True, sync=True)
+            watcher = watch(obj, callback=noop, deep=True, sync=True)  # noqa: F841
         obj.append("bar")
         obj.extend(["quux", "quuz"])
         obj[1] = "foo"
@@ -67,7 +67,7 @@ def bench_set(plain, add_watcher):
     for _ in range(N):
         obj = set() if plain else reactive(set())
         if add_watcher:
-            watcher = watch(obj, callback=noop, deep=True, sync=True)
+            watcher = watch(obj, callback=noop, deep=True, sync=True)  # noqa: F841
         obj.add("bar")
         obj.update({"quux", "quuz"})
         _ = list(iter(obj))  # read something
