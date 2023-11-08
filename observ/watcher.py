@@ -55,7 +55,7 @@ def computed(_fn=None, *, deep=True):
         def getter():
             if watcher.dirty:
                 watcher.evaluate()
-            if watcher.Dep.stack:
+            if Dep.stack:
                 watcher.depend()
             return watcher.value
 
@@ -126,7 +126,6 @@ class Watcher:
         "lazy",
         "dirty",
         "value",
-        "Dep",
         "_number_of_callback_args",
         "__weakref__",
     ]
@@ -145,7 +144,6 @@ class Watcher:
         deep: Deep watch the watched value
         callback: Method to call when value has changed
         """
-        self.Dep = Dep
         self.id = next(_ids)
         if callable(fn):
             if is_bound_method(fn):
@@ -177,7 +175,7 @@ class Watcher:
             self.dirty = True
             return
 
-        if self.Dep.stack and self.Dep.stack[-1] is self and self.no_recurse:
+        if Dep.stack and Dep.stack[-1] is self and self.no_recurse:
             return
         if self.sync:
             self.run()
@@ -254,13 +252,13 @@ class Watcher:
                 del frames
 
     def get(self) -> Any:
-        self.Dep.stack.append(self)
+        Dep.stack.append(self)
         try:
             value = self.fn()
             if self.deep:
                 traverse(value)
         finally:
-            self.Dep.stack.pop()
+            Dep.stack.pop()
             self.cleanup_deps()
         return value
 
@@ -280,7 +278,7 @@ class Watcher:
     def depend(self) -> None:
         """This function is used by other watchers to depend on everything
         this watcher depends on."""
-        if self.Dep.stack:
+        if Dep.stack:
             for dep in self._deps:
                 dep.depend()
 

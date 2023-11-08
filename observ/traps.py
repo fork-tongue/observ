@@ -3,6 +3,7 @@ from operator import xor
 
 from .dep import Dep
 from .proxy import proxy
+from .proxy_db import proxy_db
 
 
 class ReadonlyError(Exception):
@@ -18,8 +19,8 @@ def read_trap(method, obj_cls):
 
     @wraps(fn)
     def trap(self, *args, **kwargs):
-        if self.Dep.stack:
-            self.proxy_db.attrs(self)["dep"].depend()
+        if Dep.stack:
+            proxy_db.attrs(self)["dep"].depend()
         value = fn(self.target, *args, **kwargs)
         if self.shallow:
             return value
@@ -33,8 +34,8 @@ def iterate_trap(method, obj_cls):
 
     @wraps(fn)
     def trap(self, *args, **kwargs):
-        if self.Dep.stack:
-            self.proxy_db.attrs(self)["dep"].depend()
+        if Dep.stack:
+            proxy_db.attrs(self)["dep"].depend()
         iterator = fn(self.target, *args, **kwargs)
         if self.shallow:
             return iterator
@@ -54,9 +55,9 @@ def read_key_trap(method, obj_cls):
 
     @wraps(fn)
     def trap(self, *args, **kwargs):
-        if self.Dep.stack:
+        if Dep.stack:
             key = args[0]
-            keydeps = self.proxy_db.attrs(self)["keydep"]
+            keydeps = proxy_db.attrs(self)["keydep"]
             if key not in keydeps:
                 keydeps[key] = Dep()
             keydeps[key].depend()
@@ -75,7 +76,7 @@ def write_trap(method, obj_cls):
     def trap(self, *args, **kwargs):
         old = self.target.copy()
         retval = fn(self.target, *args, **kwargs)
-        attrs = self.proxy_db.attrs(self)
+        attrs = proxy_db.attrs(self)
         if obj_cls == dict:
             change_detected = False
             keydeps = attrs["keydep"]
@@ -104,7 +105,7 @@ def write_key_trap(method, obj_cls):
     @wraps(fn)
     def trap(self, *args, **kwargs):
         key = args[0]
-        attrs = self.proxy_db.attrs(self)
+        attrs = proxy_db.attrs(self)
         is_new = key not in attrs["keydep"]
         old_value = getitem_fn(self.target, key) if not is_new else None
         retval = fn(self.target, *args, **kwargs)
@@ -129,7 +130,7 @@ def delete_trap(method, obj_cls):
     @wraps(fn)
     def trap(self, *args, **kwargs):
         retval = fn(self.target, *args, **kwargs)
-        attrs = self.proxy_db.attrs(self)
+        attrs = proxy_db.attrs(self)
         attrs["dep"].notify()
         for key in self._orphaned_keydeps():
             attrs["keydep"][key].notify()
@@ -146,7 +147,7 @@ def delete_key_trap(method, obj_cls):
     def trap(self, *args, **kwargs):
         retval = fn(self.target, *args, **kwargs)
         key = args[0]
-        attrs = self.proxy_db.attrs(self)
+        attrs = proxy_db.attrs(self)
         attrs["dep"].notify()
         attrs["keydep"][key].notify()
         del attrs["keydep"][key]
