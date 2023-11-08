@@ -2,12 +2,21 @@ from functools import partial
 
 import pytest
 
-from observ import reactive
+from observ import reactive, watch
 
 
-def bench_dict(plain, n=10000):
-    for _ in range(n):
+def noop():
+    pass
+
+
+N = 10000
+
+
+def bench_dict(plain, add_watcher):
+    for _ in range(N):
         obj = {} if plain else reactive({})
+        if add_watcher:
+            watcher = watch(obj, callback=noop, deep=True, sync=True)
         obj["bar"] = "baz"
         obj["quux"] = "quuz"
         obj.update(
@@ -17,7 +26,7 @@ def bench_dict(plain, n=10000):
             }
         )
         del obj["bar"]
-        assert obj["quux"]  # read something
+        _ = obj["quux"]  # read something
         obj.clear()
 
 
@@ -25,20 +34,22 @@ def bench_dict(plain, n=10000):
 @pytest.mark.benchmark(
     group="dict_plain_vs_reactive",
 )
-@pytest.mark.parametrize("name", ["plain", "reactive"])
+@pytest.mark.parametrize("name", ["plain", "reactive", "reactive+watcher"])
 def test_dict_plain_vs_reactive(benchmark, name):
-    bench_fn = partial(bench_dict, name == "plain")
+    bench_fn = partial(bench_dict, name == "plain", name.endswith("+watcher"))
     benchmark(bench_fn)
 
 
-def bench_list(plain, n=10000):
-    for _ in range(n):
+def bench_list(plain, add_watcher):
+    for _ in range(N):
         obj = [] if plain else reactive([])
+        if add_watcher:
+            watcher = watch(obj, callback=noop, deep=True, sync=True)
         obj.append("bar")
         obj.extend(["quux", "quuz"])
         obj[1] = "foo"
         obj.pop(0)
-        assert obj[0]  # read something
+        _ = obj[0]  # read something
         obj.clear()
 
 
@@ -46,18 +57,20 @@ def bench_list(plain, n=10000):
 @pytest.mark.benchmark(
     group="list_plain_vs_reactive",
 )
-@pytest.mark.parametrize("name", ["plain", "reactive"])
+@pytest.mark.parametrize("name", ["plain", "reactive", "reactive+watcher"])
 def test_list_plain_vs_reactive(benchmark, name):
-    bench_fn = partial(bench_list, name == "plain")
+    bench_fn = partial(bench_list, name == "plain", name.endswith("+watcher"))
     benchmark(bench_fn)
 
 
-def bench_set(plain, n=10000):
-    for _ in range(n):
+def bench_set(plain, add_watcher):
+    for _ in range(N):
         obj = set() if plain else reactive(set())
+        if add_watcher:
+            watcher = watch(obj, callback=noop, deep=True, sync=True)
         obj.add("bar")
         obj.update({"quux", "quuz"})
-        assert list(iter(obj))  # read something
+        _ = list(iter(obj))  # read something
         obj.clear()
 
 
@@ -65,7 +78,7 @@ def bench_set(plain, n=10000):
 @pytest.mark.benchmark(
     group="set_plain_vs_reactive",
 )
-@pytest.mark.parametrize("name", ["plain", "reactive"])
+@pytest.mark.parametrize("name", ["plain", "reactive", "reactive+watcher"])
 def test_set_plain_vs_reactive(benchmark, name):
-    bench_fn = partial(bench_set, name == "plain")
+    bench_fn = partial(bench_set, name == "plain", name.endswith("+watcher"))
     benchmark(bench_fn)

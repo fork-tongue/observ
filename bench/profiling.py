@@ -1,9 +1,16 @@
-from observ import reactive
+from observ import reactive, watch
 
 
-@profile
+def noop():
+    pass
+
+
+# @profile
 def main():
     obj = reactive({})
+
+    watch(obj, callback=noop, deep=True, sync=True)
+
     obj["bar"] = "baz"
     obj["quux"] = "quuz"
     obj.update(
