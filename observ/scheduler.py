@@ -79,7 +79,7 @@ class Scheduler:
             warnings.warn(
                 "QtAsyncio module available: please consider using `register_asyncio` "
                 "and call the following code:\n"
-                f"    from {qt} import QtAsyncio\n"
+                f"    from {qt} import QtAsyncio\n"  # noqa: E272
                 "    asyncio.set_event_loop_policy(QtAsyncio.QAsyncioEventLoopPolicy())"
                 ""
             )
