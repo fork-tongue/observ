@@ -115,7 +115,7 @@ class WrongNumberOfArgumentsError(TypeError):
 
 
 class Watcher(Generic[T]):
-    __slots__ = [
+    __slots__ = (
         "id",
         "fn",
         "_deps",
@@ -129,7 +129,7 @@ class Watcher(Generic[T]):
         "value",
         "_number_of_callback_args",
         "__weakref__",
-    ]
+    )
 
     def __init__(
         self,
