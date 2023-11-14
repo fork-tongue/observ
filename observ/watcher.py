@@ -267,8 +267,6 @@ class Watcher:
             value_or_coro = self.fn()
             if self.fn_async and value_or_coro:
                 loop = asyncio.get_event_loop_policy().get_event_loop()
-                if not loop.is_running():
-                    raise RuntimeError("Not gonna work")
                 loop.create_task(value_or_coro)
                 return
             if self.deep:

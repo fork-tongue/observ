@@ -1,9 +1,13 @@
 import asyncio
-import sys
 
 import pytest
 
 from observ import reactive, watch, watch_effect
+
+
+def flush(loop):
+    while pending := asyncio.all_tasks(loop):
+        loop.run_until_complete(asyncio.gather(*pending))
 
 
 @pytest.fixture
@@ -31,26 +35,11 @@ def test_asyncio_watch_callback(plain_loop):
     assert len(a) == 3
 
 
-def test_asyncio_watch_expression_not_supported(plain_loop):
-    a = reactive([1, 2])
-
-    async def _expr():
-        len_a = len(a)
-        await asyncio.sleep(0)
-        return len_a
-
-    # should raise runtimeerror
-    # either because python<3.12 or because
-    # task factory is not eager
-    with pytest.raises(RuntimeError):
-        watcher = watch(_expr, sync=True)  # noqa: F841
-
-
 @pytest.fixture
 def eager_loop(plain_loop):
     # only python>=3.12
     if not getattr(asyncio, "eager_task_factory", None):
-        yield
+        pytest.skip()
         return
 
     old_factory = plain_loop.get_task_factory()
@@ -64,52 +53,70 @@ def eager_loop(plain_loop):
 def test_asyncio_watch_effect_eager_loop(eager_loop):
     a = reactive([1, 2])
     called = 0
+    completed = 0
 
     async def _expr():
-        nonlocal called
+        nonlocal called, completed
+        called += 1
         len_a = len(a)  # noqa: F841
         await asyncio.sleep(0)
-        called += 1
-
-    if sys.version_info < (3, 12, 0):
-        with pytest.raises(RuntimeError):
-            watcher = watch_effect(_expr, sync=True)
-        return
+        await asyncio.sleep(0)
+        completed += 1
 
     async def _coroutine():
         return watch_effect(_expr, sync=True)
 
     watcher = eager_loop.run_until_complete(_coroutine())  # noqa: F841
     assert called == 1
+    assert completed == 0
+    flush(eager_loop)
+    assert called == 1
+    assert completed == 1
 
     async def _coroutine():
         a.append(3)
 
     eager_loop.run_until_complete(_coroutine())
-
     assert called == 2
-    assert len(a) == 3
+    assert completed == 1
+    flush(eager_loop)
+    assert called == 2
+    assert completed == 2
 
 
 def test_asyncio_watch_effect_plain_loop(plain_loop):
     a = reactive([1, 2])
     called = 0
+    completed = 0
 
     async def _expr():
-        nonlocal called
+        nonlocal called, completed
+        called += 1
         len_a = len(a)  # noqa: F841
         await asyncio.sleep(0)
-        called += 1
-
-    if sys.version_info < (3, 12, 0):
-        with pytest.raises(RuntimeError):
-            watcher = watch_effect(_expr, sync=True)
-        return
+        await asyncio.sleep(0)
+        completed += 1
 
     async def _coroutine():
         return watch_effect(_expr, sync=True)
 
     watcher = plain_loop.run_until_complete(_coroutine())  # noqa: F841
+    assert called == 1
+    assert completed == 0
+    flush(plain_loop)
+    assert called == 1
+    assert completed == 1
 
-    with pytest.xfail("doesn't work without eager loop"):
-        assert called == 1
+    async def _coroutine():
+        a.append(3)
+
+    plain_loop.run_until_complete(_coroutine())
+    # nothing happens because the coroutine did not run eagerly
+    # (synchronously until its first await statement) which
+    # means that the reactive datastructures were not accessed
+    # while the Dep tracking mechanism was active
+    assert called == 1
+    assert completed == 1
+    flush(plain_loop)
+    assert called == 1
+    assert completed == 1
