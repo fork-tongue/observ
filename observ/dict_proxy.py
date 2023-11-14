@@ -51,7 +51,7 @@ dict_traps = {
 }
 
 
-class DictProxyBase(Proxy):
+class DictProxyBase(Proxy[dict]):
     def _orphaned_keydeps(self):
         return set(proxy_db.attrs(self)["keydep"].keys()) - set(self.target.keys())
 

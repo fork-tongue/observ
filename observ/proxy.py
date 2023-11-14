@@ -1,9 +1,14 @@
+from __future__ import annotations
+
 from functools import partial
+from typing import cast, Generic, Literal, TypedDict, TypeVar
 
 from .proxy_db import proxy_db
 
+T = TypeVar("T")
 
-class Proxy:
+
+class Proxy(Generic[T]):
     """
     Proxy for an object/target.
 
@@ -16,9 +21,9 @@ class Proxy:
     """
 
     __hash__ = None
-    __slots__ = ["target", "readonly", "shallow", "__weakref__"]
+    __slots__ = ("target", "readonly", "shallow", "__weakref__")
 
-    def __init__(self, target, readonly=False, shallow=False):
+    def __init__(self, target: T, readonly=False, shallow=False):
         self.target = target
         self.readonly = readonly
         self.shallow = shallow
@@ -33,7 +38,7 @@ class Proxy:
 TYPE_LOOKUP = {}
 
 
-def proxy(target, readonly=False, shallow=False):
+def proxy(target: T, readonly=False, shallow=False) -> T:
     """
     Returns a Proxy for the given object. If a proxy for the given
     configuration already exists, it will return that instead of
@@ -67,14 +72,26 @@ def proxy(target, readonly=False, shallow=False):
             return proxy_type(target, readonly=readonly, shallow=shallow)
 
     if isinstance(target, tuple):
-        return tuple(proxy(x, readonly=readonly, shallow=shallow) for x in target)
+        return cast(
+            T, tuple(proxy(x, readonly=readonly, shallow=shallow) for x in target)
+        )
 
     # We can't proxy a plain value
-    return target
+    return cast(T, target)
 
 
-def ref(target):
-    return proxy({"value": target})
+try:
+    # for Python >= 3.11
+    class Ref(TypedDict, Generic[T]):
+        value: T
+
+    def ref(target: T) -> Ref[T]:
+        return proxy(Ref(value=target))
+
+except TypeError:
+    # before python 3.11 a TypedDict cannot inherit from a non-TypedDict class
+    def ref(target: T) -> dict[Literal["value"], T]:
+        return proxy({"value": target})
 
 
 reactive = proxy
@@ -83,7 +100,7 @@ shallow_reactive = partial(proxy, shallow=True)
 shallow_readonly = partial(proxy, shallow=True, readonly=True)
 
 
-def to_raw(target):
+def to_raw(target: Proxy[T] | T) -> T:
     """
     Returns a raw object from which any trace of proxy has been replaced
     with its wrapped target value.
@@ -92,15 +109,15 @@ def to_raw(target):
         return to_raw(target.target)
 
     if isinstance(target, list):
-        return [to_raw(t) for t in target]
+        return cast(T, [to_raw(t) for t in target])
 
     if isinstance(target, dict):
-        return {key: to_raw(value) for key, value in target.items()}
+        return cast(T, {key: to_raw(value) for key, value in target.items()})
 
     if isinstance(target, tuple):
-        return tuple(to_raw(t) for t in target)
+        return cast(T, tuple(to_raw(t) for t in target))
 
     if isinstance(target, set):
-        return {to_raw(t) for t in target}
+        return cast(T, {to_raw(t) for t in target})
 
     return target
