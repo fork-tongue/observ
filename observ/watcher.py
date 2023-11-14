@@ -129,6 +129,8 @@ class Watcher:
         "_number_of_callback_args",
         "__weakref__",
     ]
+    on_created = None
+    on_destroyed = None
 
     def __init__(
         self,
@@ -140,7 +142,7 @@ class Watcher:
     ) -> None:
         """
         sync: Ignore the scheduler
-        lazy: Only reevalutate when value is requested
+        lazy: Only reevaluate when value is requested
         deep: Deep watch the watched value
         callback: Method to call when value has changed
         """
@@ -169,6 +171,13 @@ class Watcher:
         self.dirty = self.lazy
         self.value = None if self.lazy else self.get()
         self._number_of_callback_args = None
+
+        if Watcher.on_created:
+            Watcher.on_created(self)
+
+    def __del__(self):
+        if Watcher.on_destroyed:
+            Watcher.on_destroyed(self)
 
     def update(self) -> None:
         if self.lazy:
