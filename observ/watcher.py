@@ -154,18 +154,6 @@ class Watcher:
             else:
                 self.fn = fn
             self.fn_async = inspect.iscoroutinefunction(fn)
-            if self.fn_async:
-                loop = asyncio.get_event_loop_policy().get_event_loop()
-                try:
-                    if loop.get_task_factory() is not asyncio.eager_task_factory:
-                        raise RuntimeError(
-                            "async watch expressions are only supported"
-                            "when asyncio.eager_task_factory is configured"
-                        )
-                except AttributeError:
-                    raise RuntimeError(
-                        "async watch expressions are only supported on python>=3.12"
-                    )
         else:
             self.fn = lambda: fn
             self.fn_async = False
