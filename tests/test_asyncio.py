@@ -32,11 +32,12 @@ def asyncio_eager():
         return
 
     loop = asyncio.get_event_loop_policy().get_event_loop()
+    old_factory = loop.get_task_factory()
     loop.set_task_factory(asyncio.eager_task_factory)
     try:
         yield
     finally:
-        loop.set_task_factory()
+        loop.set_task_factory(old_factory)
 
 
 def test_asyncio_watch_expression_not_supported():
