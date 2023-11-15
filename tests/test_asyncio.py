@@ -120,3 +120,40 @@ def test_asyncio_watch_effect_plain_loop(plain_loop):
     flush(plain_loop)
     assert called == 1
     assert completed == 1
+
+
+def test_asyncio_watch_effect_method(eager_loop):
+    a = reactive([1, 2])
+    called = 0
+    completed = 0
+
+    class Foo:
+        async def _expr(self):
+            nonlocal called, completed
+            called += 1
+            len_a = len(a)  # noqa: F841
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+            completed += 1
+
+    foo = Foo()
+
+    async def _coroutine():
+        return watch_effect(foo._expr, sync=True)
+
+    watcher = eager_loop.run_until_complete(_coroutine())  # noqa: F841
+    assert called == 1
+    assert completed == 0
+    flush(eager_loop)
+    assert called == 1
+    assert completed == 1
+
+    async def _coroutine():
+        a.append(3)
+
+    eager_loop.run_until_complete(_coroutine())
+    assert called == 2
+    assert completed == 1
+    flush(eager_loop)
+    assert called == 2
+    assert completed == 2

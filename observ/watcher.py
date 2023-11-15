@@ -311,30 +311,55 @@ def weak(obj: Any, method: Callable):
     weak_obj = ref(obj)
 
     sig = inspect.signature(method)
+    iscoro = inspect.iscoroutinefunction(method)
     nr_arguments = len(sig.parameters)
 
     if nr_arguments == 1:
+        if iscoro:
 
-        @wraps(method)
-        def wrapped():
-            if this := weak_obj():
-                return method(this)
+            @wraps(method)
+            async def wrapped():
+                if this := weak_obj():
+                    return await method(this)
+
+        else:
+
+            @wraps(method)
+            def wrapped():
+                if this := weak_obj():
+                    return method(this)
 
         return wrapped
     elif nr_arguments == 2:
+        if iscoro:
 
-        @wraps(method)
-        def wrapped(new):
-            if this := weak_obj():
-                return method(this, new)
+            @wraps(method)
+            async def wrapped(new):
+                if this := weak_obj():
+                    return await method(this, new)
+
+        else:
+
+            @wraps(method)
+            def wrapped(new):
+                if this := weak_obj():
+                    return method(this, new)
 
         return wrapped
     elif nr_arguments == 3:
+        if iscoro:
 
-        @wraps(method)
-        def wrapped(new, old):
-            if this := weak_obj():
-                return method(this, new, old)
+            @wraps(method)
+            async def wrapped(new, old):
+                if this := weak_obj():
+                    return await method(this, new, old)
+
+        else:
+
+            @wraps(method)
+            def wrapped(new, old):
+                if this := weak_obj():
+                    return method(this, new, old)
 
         return wrapped
     else:
