@@ -160,13 +160,19 @@ def test_asyncio_watch_effect_method(eager_loop):
 
 
 def test_asyncio_watch_effect_from_sync(eager_loop):
+    a = reactive([1, 2])
+    called = 0
+
     async def _expr():
-        pass
+        nonlocal called
+        len_a = len(a)  # noqa: F841
+        await asyncio.sleep(0)
+        called += 1
 
-    with pytest.raises(RuntimeError):
-        watch_effect(_expr, sync=True)
-
-    flush(eager_loop)
+    watcher = watch_effect(_expr, sync=True)  # noqa: F841
+    assert called == 1
+    a.append(3)
+    assert called == 2
 
 
 def test_asyncio_watcher_sync_callback_from_async(eager_loop):
