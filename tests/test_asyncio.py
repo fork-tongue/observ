@@ -157,3 +157,34 @@ def test_asyncio_watch_effect_method(eager_loop):
     flush(eager_loop)
     assert called == 2
     assert completed == 2
+
+
+def test_asyncio_watch_effect_from_sync(eager_loop):
+    async def _expr():
+        pass
+
+    with pytest.raises(RuntimeError):
+        watch_effect(_expr, sync=True)
+
+    flush(eager_loop)
+
+
+def test_asyncio_watcher_sync_callback_from_async(eager_loop):
+    a = reactive([1, 2])
+    called = 0
+
+    async def _callback():
+        nonlocal called
+        called += 1
+
+    def _expr():
+        return len(a)
+
+    async def _coroutine():
+        return watch(_expr, _callback, immediate=True, sync=True)
+
+    watcher = eager_loop.run_until_complete(_coroutine())  # noqa: F841
+    assert called == 1
+    a.append(3)
+    flush(eager_loop)
+    assert called == 2

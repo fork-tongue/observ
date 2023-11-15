@@ -236,7 +236,7 @@ class Watcher:
 
         if self.callback_async and maybe_coro:
             loop = asyncio.get_event_loop_policy().get_event_loop()
-            if self.sync:
+            if self.sync and not loop.is_running():
                 loop.run_until_complete(maybe_coro)
             else:
                 loop.create_task(maybe_coro)
@@ -262,11 +262,15 @@ class Watcher:
                 del frames
 
     def get(self) -> Any:
+        if self.fn_async:
+            loop = asyncio.get_event_loop_policy().get_event_loop()
+            if not loop.is_running():
+                raise RuntimeError("event loop must be running for dependency tracking")
+
         Dep.stack.append(self)
         try:
             value_or_coro = self.fn()
             if self.fn_async and value_or_coro:
-                loop = asyncio.get_event_loop_policy().get_event_loop()
                 loop.create_task(value_or_coro)
                 return
             if self.deep:
