@@ -15,7 +15,7 @@ class ProxyDb:
     removed from the collection.
     """
 
-    __slots__ = ["db"]
+    __slots__ = ("db",)
 
     def __init__(self):
         self.db = {}

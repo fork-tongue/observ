@@ -54,7 +54,7 @@ set_traps = {
 }
 
 
-class SetProxyBase(Proxy):
+class SetProxyBase(Proxy[set]):
     pass
 
 

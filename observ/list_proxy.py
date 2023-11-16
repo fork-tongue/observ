@@ -45,7 +45,7 @@ list_traps = {
 }
 
 
-class ListProxyBase(Proxy):
+class ListProxyBase(Proxy[list]):
     pass
 
 

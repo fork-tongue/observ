@@ -55,6 +55,10 @@ EXCLUDED = {
     "readonly",
     "shallow",
     "__weakref__",
+    # exclude attributes added by typing.Generic
+    "_is_protocol",
+    "__orig_bases__",
+    "__parameters__",
 }
 
 
