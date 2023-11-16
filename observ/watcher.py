@@ -9,27 +9,28 @@ from collections.abc import Container
 from functools import partial, wraps
 import inspect
 from itertools import count
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, Callable, Generic, Optional, TypeVar, Union
 from weakref import ref, WeakSet
 
 from .dep import Dep
 from .dict_proxy import DictProxyBase
 from .list_proxy import ListProxyBase
-from .proxy import Proxy
 from .scheduler import scheduler
 from .set_proxy import SetProxyBase
 
 
-T = TypeVar("T", bound=Callable[[], Any])
+T = TypeVar("T")
+Watchable = Union[Callable[[], T], T]
+WatchCallback = Union[Callable[[], Any], Callable[[T], Any], Callable[[T, T], Any]]
 
 
 def watch(
-    fn: Callable[[], Any] | Proxy | list[Proxy],
-    callback: Optional[Callable] = None,
+    fn: Watchable[T],
+    callback: WatchCallback[T] | None = None,
     sync: bool = False,
     deep: bool | None = None,
     immediate: bool = False,
-):
+) -> Watcher[T]:
     watcher = Watcher(fn, sync=sync, lazy=False, deep=deep, callback=callback)
     if immediate:
         watcher.dirty = True
@@ -42,8 +43,8 @@ def watch(
 watch_effect = partial(watch, immediate=False, deep=True, callback=None)
 
 
-def computed(_fn=None, *, deep=True):
-    def decorator_computed(fn: T) -> T:
+def computed(_fn: Callable[[], T] | None = None, *, deep=True) -> Callable[[], T]:
+    def decorator_computed(fn: Callable[[], T]) -> Callable[[], T]:
         """
         Create a watcher for an expression.
         Note: make sure fn doesn't need any arguments to run
@@ -113,8 +114,8 @@ class WrongNumberOfArgumentsError(TypeError):
     pass
 
 
-class Watcher:
-    __slots__ = [
+class Watcher(Generic[T]):
+    __slots__ = (
         "id",
         "fn",
         "_deps",
@@ -128,17 +129,17 @@ class Watcher:
         "value",
         "_number_of_callback_args",
         "__weakref__",
-    ]
+    )
     on_created: Optional[Callable[[Watcher], None]] = None
     on_destroyed: Optional[Callable[[Watcher], None]] = None
 
     def __init__(
         self,
-        fn: Callable[[], Any] | Proxy | list[Proxy],
+        fn: Watchable[T],
         sync: bool = False,
         lazy: bool = True,
         deep: bool | None = None,
-        callback: Callable = None,
+        callback: WatchCallback[T] | None = None,
     ) -> None:
         """
         sync: Ignore the scheduler
