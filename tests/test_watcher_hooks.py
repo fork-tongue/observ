@@ -25,6 +25,7 @@ def test_watcher_hooks():
             called += 1
 
         watch(lambda: len(a), _callback, sync=True)
+        assert len(watchers) == 1
         assert called == 0
         a.append(3)
         assert called == 1
