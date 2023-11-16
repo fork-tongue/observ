@@ -269,10 +269,10 @@ class Watcher(Generic[T]):
             if self.fn_async and value_or_coro:
                 loop = asyncio.get_event_loop_policy().get_event_loop()
                 if not loop.is_running():
-                    loop.run_until_complete(value_or_coro)
+                    value_or_coro = loop.run_until_complete(value_or_coro)
                 else:
                     loop.create_task(value_or_coro)
-                return
+                    return
             if self.deep:
                 traverse(value_or_coro)
         finally:

@@ -289,14 +289,35 @@ def test_asyncio_watcher_multi(
         a.append(3)
 
     # ASSERTS pt II
-    if expr_async:
-        assert (called, completed) == (0, 0)
-    elif create_loop is create_plain_loop and callback_async and write_async:
+    if (
+        create_loop is create_plain_loop
+        and not expr_async
+        and callback_async
+        and write_async
+    ):
         assert (called, completed) == (1, 0)
+    elif (
+        create_loop is create_plain_loop
+        and expr_async
+        and callback_async
+        and not create_async
+        and write_async
+    ):
+        assert (called, completed) == (1, 0)
+    elif create_loop is create_plain_loop and expr_async and create_async:
+        assert (called, completed) == (0, 0)
+    elif (
+        create_loop is create_eager_loop and expr_async and create_async and write_async
+    ):
+        assert (called, completed) == (0, 0)
     else:
         assert (called, completed) == (1, 1)
     flush(loop)
-    if expr_async:
+    if create_loop is create_plain_loop and expr_async and create_async:
+        assert (called, completed) == (0, 0)
+    elif (
+        create_loop is create_eager_loop and expr_async and create_async and write_async
+    ):
         assert (called, completed) == (0, 0)
     else:
         assert (called, completed) == (1, 1)
