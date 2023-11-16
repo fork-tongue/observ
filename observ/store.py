@@ -1,5 +1,5 @@
 from functools import partial, wraps
-from typing import Callable, Collection, TypeVar
+from typing import Callable, Generic, TypeVar
 
 import patchdiff
 
@@ -51,12 +51,15 @@ def computed(_fn=None, *, deep=True):
     return decorator_computed(_fn)
 
 
-class Store:
+S = TypeVar("S")
+
+
+class Store(Generic[S]):
     """
     Store that tracks mutations to state in order to enable undo/redo functionality
     """
 
-    def __init__(self, state: Collection, strict=True):
+    def __init__(self, state: S, strict=True):
         """
         Creates a store with the given state as the initial state.
         When `strict` is False, calling mutations that do not result

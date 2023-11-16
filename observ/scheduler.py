@@ -9,7 +9,7 @@ import warnings
 
 
 class Scheduler:
-    __slots__ = [
+    __slots__ = (
         "_queue",
         "_queue_indices",
         "flushing",
@@ -19,7 +19,7 @@ class Scheduler:
         "waiting",
         "request_flush",
         "detect_cycles",
-    ]
+    )
 
     def __init__(self):
         self._queue = []
