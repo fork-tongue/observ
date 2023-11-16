@@ -10,11 +10,30 @@ def flush(loop):
         loop.run_until_complete(asyncio.gather(*pending))
 
 
-@pytest.fixture
-def plain_loop():
+def create_plain_loop():
     loop = asyncio.new_event_loop()
     asyncio.get_event_loop_policy().set_event_loop(loop)
     return loop
+
+
+@pytest.fixture
+def plain_loop():
+    return create_plain_loop()
+
+
+def create_eager_loop():
+    # only python>=3.12
+    if not hasattr(asyncio, "eager_task_factory"):
+        pytest.skip()
+
+    loop = create_plain_loop()
+    loop.set_task_factory(asyncio.eager_task_factory)
+    return loop
+
+
+@pytest.fixture
+def eager_loop():
+    return create_eager_loop()
 
 
 def test_asyncio_watch_callback(plain_loop):
@@ -33,21 +52,6 @@ def test_asyncio_watch_callback(plain_loop):
     a.append(3)
     assert called == 1
     assert len(a) == 3
-
-
-@pytest.fixture
-def eager_loop(plain_loop):
-    # only python>=3.12
-    if not getattr(asyncio, "eager_task_factory", None):
-        pytest.skip()
-        return
-
-    old_factory = plain_loop.get_task_factory()
-    plain_loop.set_task_factory(asyncio.eager_task_factory)
-    try:
-        yield plain_loop
-    finally:
-        plain_loop.set_task_factory(old_factory)
 
 
 def test_asyncio_watch_effect_eager_loop(eager_loop):
@@ -159,7 +163,7 @@ def test_asyncio_watch_effect_method(eager_loop):
     assert completed == 2
 
 
-def test_asyncio_watch_effect_from_sync(eager_loop):
+def test_asyncio_watch_effect_from_sync(plain_loop):
     a = reactive([1, 2])
     called = 0
 
@@ -175,7 +179,7 @@ def test_asyncio_watch_effect_from_sync(eager_loop):
     assert called == 2
 
 
-def test_asyncio_watcher_sync_callback_from_async(eager_loop):
+def test_asyncio_watcher_sync_callback_from_async(plain_loop):
     a = reactive([1, 2])
     called = 0
 
@@ -189,8 +193,203 @@ def test_asyncio_watcher_sync_callback_from_async(eager_loop):
     async def _coroutine():
         return watch(_expr, _callback, immediate=True, sync=True)
 
-    watcher = eager_loop.run_until_complete(_coroutine())  # noqa: F841
+    watcher = plain_loop.run_until_complete(_coroutine())  # noqa: F841
     assert called == 1
     a.append(3)
-    flush(eager_loop)
+    flush(plain_loop)
     assert called == 2
+
+
+w_testcases = []
+for create_loop in [create_plain_loop, create_eager_loop]:
+    for expr_async in [False, True]:
+        for callback_async in [False, True]:
+            for create_async in [False, True]:
+                for write_async in [False, True]:
+                    idstr = "-".join(
+                        [
+                            "plain_loop"
+                            if create_loop is create_plain_loop
+                            else "eager_loop",
+                            "expr_async" if expr_async else "expr_sync",
+                            "callback_async" if callback_async else "callback_sync",
+                            "create_async" if create_async else "create_sync",
+                            "write_async" if write_async else "write_sync",
+                        ]
+                    )
+                    w_testcases.append(
+                        pytest.param(
+                            create_loop,
+                            expr_async,
+                            callback_async,
+                            create_async,
+                            write_async,
+                            id=idstr,
+                        )
+                    )
+
+
+@pytest.mark.parametrize(
+    "create_loop,expr_async,callback_async,create_async,write_async", w_testcases
+)
+def test_asyncio_watcher_multi(
+    create_loop, expr_async, callback_async, create_async, write_async
+):
+    loop = create_loop()
+    a = reactive([1, 2])
+    called = 0
+    completed = 0
+
+    if expr_async:
+
+        async def _expr():
+            return len(a)
+
+    else:
+
+        def _expr():
+            return len(a)
+
+    if callback_async:
+
+        async def _callback():
+            nonlocal called, completed
+            called += 1
+            await asyncio.sleep(0)
+            completed += 1
+
+    else:
+
+        def _callback():
+            nonlocal called, completed
+            called += 1
+            completed += 1
+
+    if create_async:
+
+        async def _create():
+            return watch(_expr, _callback, sync=True)
+
+        _ = loop.run_until_complete(_create())
+    else:
+        _ = watch(_expr, _callback, sync=True)
+
+    # ASSERTS pt I
+    assert (called, completed) == (0, 0)
+    flush(loop)
+    assert (called, completed) == (0, 0)
+
+    if write_async:
+
+        async def _write():
+            a.append(3)
+
+        loop.run_until_complete(_write())
+    else:
+        a.append(3)
+
+    # ASSERTS pt II
+    if expr_async:
+        assert (called, completed) == (0, 0)
+    elif create_loop is create_plain_loop and callback_async and write_async:
+        assert (called, completed) == (1, 0)
+    else:
+        assert (called, completed) == (1, 1)
+    flush(loop)
+    if expr_async:
+        assert (called, completed) == (0, 0)
+    else:
+        assert (called, completed) == (1, 1)
+
+
+we_testcases = []
+for create_loop in [create_plain_loop, create_eager_loop]:
+    for expr_async in [False, True]:
+        for create_async in [False, True]:
+            for write_async in [False, True]:
+                idstr = "-".join(
+                    [
+                        "plain_loop"
+                        if create_loop is create_plain_loop
+                        else "eager_loop",
+                        "expr_async" if expr_async else "expr_sync",
+                        "create_async" if create_async else "create_sync",
+                        "write_async" if write_async else "write_sync",
+                    ]
+                )
+                we_testcases.append(
+                    pytest.param(
+                        create_loop, expr_async, create_async, write_async, id=idstr
+                    )
+                )
+
+
+@pytest.mark.parametrize(
+    "create_loop,expr_async,create_async,write_async", we_testcases
+)
+def test_asyncio_watcheffect_multi(create_loop, expr_async, create_async, write_async):
+    loop = create_loop()
+    a = reactive([1, 2])
+    called = 0
+    completed = 0
+
+    if expr_async:
+
+        async def _expr():
+            nonlocal called, completed
+            called += 1
+            _ = len(a)
+            await asyncio.sleep(0)
+            completed += 1
+
+    else:
+
+        def _expr():
+            nonlocal called, completed
+            called += 1
+            _ = len(a)
+            completed += 1
+
+    if create_async:
+
+        async def _create():
+            return watch_effect(_expr, sync=True)
+
+        _ = loop.run_until_complete(_create())
+    else:
+        _ = watch_effect(_expr, sync=True)
+
+    # ASSERTS pt I
+    if create_loop is create_plain_loop and expr_async and create_async:
+        assert (called, completed) == (1, 0)
+    else:
+        assert (called, completed) == (1, 1)
+    flush(loop)
+    assert (called, completed) == (1, 1)
+
+    if write_async:
+
+        async def _write():
+            a.append(3)
+
+        loop.run_until_complete(_write())
+    else:
+        a.append(3)
+
+    # ASSERTS pt II
+    if create_loop is create_plain_loop and expr_async and create_async:
+        assert (called, completed) == (1, 1)
+    elif (
+        create_loop is create_plain_loop
+        and expr_async
+        and not create_async
+        and write_async
+    ):
+        assert (called, completed) == (2, 1)
+    else:
+        assert (called, completed) == (2, 2)
+    flush(loop)
+    if create_loop is create_plain_loop and expr_async and create_async:
+        assert (called, completed) == (1, 1)
+    else:
+        assert (called, completed) == (2, 2)

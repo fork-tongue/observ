@@ -236,7 +236,7 @@ class Watcher:
 
         if self.callback_async and maybe_coro:
             loop = asyncio.get_event_loop_policy().get_event_loop()
-            if self.sync and not loop.is_running():
+            if not loop.is_running():
                 loop.run_until_complete(maybe_coro)
             else:
                 loop.create_task(maybe_coro)
@@ -267,7 +267,7 @@ class Watcher:
             value_or_coro = self.fn()
             if self.fn_async and value_or_coro:
                 loop = asyncio.get_event_loop_policy().get_event_loop()
-                if self.sync and not loop.is_running():
+                if not loop.is_running():
                     loop.run_until_complete(value_or_coro)
                 else:
                     loop.create_task(value_or_coro)
