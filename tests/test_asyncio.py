@@ -243,7 +243,13 @@ def test_asyncio_watcher_multi(
     if expr_async:
 
         async def _expr():
-            return len(a)
+            _len = len(a)
+            # we need more than one await statement here
+            # because of the way loop.run_until_complete works
+            # see explanation below
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+            return _len
 
     else:
 
@@ -255,6 +261,10 @@ def test_asyncio_watcher_multi(
         async def _callback():
             nonlocal called, completed
             called += 1
+            # we need more than one await statement here
+            # because of the way loop.run_until_complete works
+            # see explanation below
+            await asyncio.sleep(0)
             await asyncio.sleep(0)
             completed += 1
 
@@ -275,6 +285,10 @@ def test_asyncio_watcher_multi(
         _ = watch(_expr, _callback, sync=True)
 
     # ASSERTS pt I
+    # since we're building a watcher, and immediate=False
+    # we don't expect anything to happen yet
+    # for immediate=True, see the multi test for watch_effect
+    # which is equivalent
     assert (called, completed) == (0, 0)
     flush(loop)
     assert (called, completed) == (0, 0)
@@ -289,37 +303,55 @@ def test_asyncio_watcher_multi(
         a.append(3)
 
     # ASSERTS pt II
-    if (
-        create_loop is create_plain_loop
-        and not expr_async
-        and callback_async
-        and write_async
-    ):
+    if not expr_async and callback_async and write_async:
+        # dependency tracking works because expr_async,
+        # and the callback only executed partially since the loop
+        # was running when it was triggered. that makes sense.
         assert (called, completed) == (1, 0)
+    elif expr_async and callback_async and not create_async and write_async:
+        # when the loop is running, and our expression is async, the watcher cannot
+        # access the return value, since the expression is not executed until completion
+        # HOWEVER, in this specific scenario, we were able to get it during creation
+        # since the loop wasn't running then. so the value goes from 2 to None
+        # and the callback is triggered
+        assert (called, completed) == (1, 0)
+    elif create_loop is create_plain_loop and expr_async and create_async:
+        # in this case, dependency tracking did not work, and it makes
+        # sense; the async expression did not start execution
+        # until after Watcher.get(), so no dependencies were recorded
+        # this is the unsupported scenario that will never work
+        # use py>=3.12 and asyncio.eager_task_factory
+        assert (called, completed) == (0, 0)
+    elif (
+        create_loop is create_eager_loop and expr_async and create_async and write_async
+    ):
+        # when the loop is running, and our expression is async, the watcher cannot
+        # access the return value, since the expression is not executed until completion
+        # so it cannot check if the value changed (it was None, and it will always
+        # be None), so the callback does not trigger
+        assert (called, completed) == (0, 0)
+    else:
+        # in all other cases the callback runs to completion
+        assert (called, completed) == (1, 1)
+    flush(loop)
+    if expr_async and create_async and write_async:
+        # when the loop is running, and our expression is async, the watcher cannot
+        # access the return value, since the expression is not executed until completion
+        # so it cannot check if the value changed (it was None, and it will always
+        # be None), so the callback does not trigger
+        assert (called, completed) == (0, 0)
     elif (
         create_loop is create_plain_loop
         and expr_async
-        and callback_async
-        and not create_async
-        and write_async
+        and create_async
+        and not write_async
     ):
-        assert (called, completed) == (1, 0)
-    elif create_loop is create_plain_loop and expr_async and create_async:
-        assert (called, completed) == (0, 0)
-    elif (
-        create_loop is create_eager_loop and expr_async and create_async and write_async
-    ):
+        # we don't expect this to work because dependency tracking
+        # didn't work
+        # use py>=3.12 and asyncio.eager_task_factory
         assert (called, completed) == (0, 0)
     else:
-        assert (called, completed) == (1, 1)
-    flush(loop)
-    if create_loop is create_plain_loop and expr_async and create_async:
-        assert (called, completed) == (0, 0)
-    elif (
-        create_loop is create_eager_loop and expr_async and create_async and write_async
-    ):
-        assert (called, completed) == (0, 0)
-    else:
+        # in all other cases the callback runs to completion
         assert (called, completed) == (1, 1)
 
 
@@ -360,6 +392,10 @@ def test_asyncio_watcheffect_multi(create_loop, expr_async, create_async, write_
             nonlocal called, completed
             called += 1
             _ = len(a)
+            # we need more than one await statement here
+            # because of the way loop.run_until_complete works
+            # see explanation below
+            await asyncio.sleep(0)
             await asyncio.sleep(0)
             completed += 1
 
@@ -381,11 +417,35 @@ def test_asyncio_watcheffect_multi(create_loop, expr_async, create_async, write_
         _ = watch_effect(_expr, sync=True)
 
     # ASSERTS pt I
-    if create_loop is create_plain_loop and expr_async and create_async:
+    if expr_async and create_async:
+        # in this case, the loop was running during creation
+        # and the expression was async, so it's scheduled using
+        # loop.create_task(...)
+        # therefore we only expect it to immediately execute
+        # if we're using an EAGER event loop task factory, and in this
+        # case, we're not (plain_loop)
+        # HOWEVER, the way `run_until_complete` works is (pseudo):
+        # future.add_done_callback(loop.stop)
+        # so loop.stop is _scheduled_ to be called after we've
+        # already scheduled our async expression, which means
+        # it does get to run until it's first await statement
+        # that's sort of accidental though, what we really care about
+        # is if the dependencies were tracked, and we'll find out in
+        # second phase of this test
         assert (called, completed) == (1, 0)
     else:
+        # in all other cases, the expression completes. if the
+        # loop is eager, it will immediately run upon scheduling
+        # until its first await statement, and then get one
+        # more chance to run before loop.stop is called
+        # so NOTE if we were to add another await statement
+        # to the expression, it would not reach the part
+        # of the code after that until the loop continues
+        # to run (flush)
         assert (called, completed) == (1, 1)
     flush(loop)
+    # once the loop is exhausted, the expression should always have
+    # completely run
     assert (called, completed) == (1, 1)
 
     if write_async:
@@ -399,18 +459,30 @@ def test_asyncio_watcheffect_multi(create_loop, expr_async, create_async, write_
 
     # ASSERTS pt II
     if create_loop is create_plain_loop and expr_async and create_async:
+        # in this case, dependency tracking did not work, and it makes
+        # sense; the async expression did not start execution
+        # until after Watcher.get(), so no dependencies were recorded
+        # this is the unsupported scenario that will never work
+        # use py>=3.12 and asyncio.eager_task_factory
         assert (called, completed) == (1, 1)
-    elif (
-        create_loop is create_plain_loop
-        and expr_async
-        and not create_async
-        and write_async
-    ):
+    elif expr_async and write_async:
+        # when the state is modified while the loop is running,
+        # (the common case!)
+        # we expect the expression to have retriggered
+        # by the write operation, but not until completion
+        # until the loop continues to run (flush)
         assert (called, completed) == (2, 1)
     else:
+        # in all other cases, we expected the expression to
+        # run completely
         assert (called, completed) == (2, 2)
     flush(loop)
     if create_loop is create_plain_loop and expr_async and create_async:
+        # as explained before,
+        # this is the unsupported scenario that will never work
+        # use py>=3.12 and asyncio.eager_task_factory
         assert (called, completed) == (1, 1)
     else:
+        # in all other cases, we expected the expression to
+        # run completely
         assert (called, completed) == (2, 2)
