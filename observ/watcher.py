@@ -25,7 +25,6 @@ Watchable = Union[
     Callable[[], T],
     Callable[[], Awaitable[T]],
     T,
-    list[T],
 ]
 WatchCallback = Union[Callable[[], Any], Callable[[T], Any], Callable[[T, T], Any]]
 
