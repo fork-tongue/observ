@@ -6,7 +6,7 @@ a change is detected.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Container
+from collections.abc import Awaitable, Container
 from functools import partial, wraps
 import inspect
 from itertools import count
@@ -21,7 +21,12 @@ from .set_proxy import SetProxyBase
 
 
 T = TypeVar("T")
-Watchable = Union[Callable[[], T], T]
+Watchable = Union[
+    Callable[[], T],
+    Callable[[], Awaitable[T]],
+    T,
+    list[T],
+]
 WatchCallback = Union[Callable[[], Any], Callable[[T], Any], Callable[[T, T], Any]]
 
 
