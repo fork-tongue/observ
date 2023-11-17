@@ -130,8 +130,8 @@ class Watcher(Generic[T]):
         "_number_of_callback_args",
         "__weakref__",
     )
-    on_created: Optional[Callable[[Watcher], None]] = None
-    on_destroyed: Optional[Callable[[Watcher], None]] = None
+    on_created: Optional[Callable[[Watcher[T]], None]] = None
+    on_destroyed: Optional[Callable[[Watcher[T]], None]] = None
 
     def __init__(
         self,
