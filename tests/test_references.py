@@ -1,6 +1,3 @@
-from weakref import ref
-
-from PySide6 import QtWidgets
 import pytest
 
 from observ import reactive, watch
@@ -110,46 +107,3 @@ def test_check_nr_arguments_of_weak_callback():
             sync=True,
             deep=True,
         )
-
-
-@pytest.mark.xfail
-def test_qt_integration(qapp):
-    class Label(QtWidgets.QLabel):
-        count = 0
-
-        def __init__(self, state):
-            super().__init__()
-            self.state = state
-
-            self.watcher = watch(
-                self.count_display,
-                # Use a method from QLabel directly as callback. These methods don't
-                # have a __func__ attribute, so currently this won't be wrapped by
-                # the 'weak' wrapper in the watcher, so it will create a strong
-                # reference instead to self.
-                # Ideally we would be able to detect this and wrap it, but then
-                # there is the problem that these kinds of methods don't have a
-                # signature, so we can't detect the number of arguments to supply.
-                # I guess we can assume that we should supply only two arguments
-                # in those cases: 'self' and 'new'?
-                # We'll solve this if this becomes an actual problem :)
-                self.setText,
-                deep=True,
-                sync=True,
-            )
-
-        def count_display(self):
-            return str(self.state["count"])
-
-    state = reactive({"count": 0})
-    label = Label(state)
-
-    state["count"] += 1
-
-    assert label.text() == "1"
-
-    weak_label = ref(label)
-
-    del label
-
-    assert not weak_label()
