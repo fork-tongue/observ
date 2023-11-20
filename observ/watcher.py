@@ -5,7 +5,8 @@ a change is detected.
 """
 from __future__ import annotations
 
-from collections.abc import Container
+import asyncio
+from collections.abc import Awaitable, Container
 from functools import partial, wraps
 import inspect
 from itertools import count
@@ -20,7 +21,11 @@ from .set_proxy import SetProxyBase
 
 
 T = TypeVar("T")
-Watchable = Union[Callable[[], T], T]
+Watchable = Union[
+    Callable[[], T],
+    Callable[[], Awaitable[T]],
+    T,
+]
 WatchCallback = Union[Callable[[], Any], Callable[[T], Any], Callable[[T, T], Any]]
 
 
@@ -118,10 +123,12 @@ class Watcher(Generic[T]):
     __slots__ = (
         "id",
         "fn",
+        "fn_async",
         "_deps",
         "_new_deps",
         "sync",
         "callback",
+        "callback_async",
         "no_recurse",
         "deep",
         "lazy",
@@ -153,8 +160,10 @@ class Watcher(Generic[T]):
                 self.fn = weak(fn.__self__, fn.__func__)
             else:
                 self.fn = fn
+            self.fn_async = inspect.iscoroutinefunction(fn)
         else:
             self.fn = lambda: fn
+            self.fn_async = False
             # Default to deep watching when watching a proxy
             # or a list of proxies
             if deep is None:
@@ -162,10 +171,15 @@ class Watcher(Generic[T]):
         self._deps, self._new_deps = WeakSet(), WeakSet()
 
         self.sync = sync
-        if is_bound_method(callback):
-            self.callback = weak(callback.__self__, callback.__func__)
+        if callable(callback):
+            if is_bound_method(callback):
+                self.callback = weak(callback.__self__, callback.__func__)
+            else:
+                self.callback = callback
+            self.callback_async = inspect.iscoroutinefunction(callback)
         else:
             self.callback = callback
+            self.callback_async = False
         self.no_recurse = callback is None
         self.deep = bool(deep)
         self.lazy = lazy
@@ -214,32 +228,32 @@ class Watcher(Generic[T]):
         is known and the callback can be called with the correct
         amount of arguments.
         """
-        if self._number_of_callback_args == 1:
-            self.callback(new)
-            return
-        if self._number_of_callback_args == 2:
-            self.callback(new, old)
-            return
-        if self._number_of_callback_args == 0:
-            self.callback()
-            return
+        if self._number_of_callback_args is not None:
+            if self._number_of_callback_args == 1:
+                maybe_coro = self.callback(new)
+            elif self._number_of_callback_args == 2:
+                maybe_coro = self.callback(new, old)
+            elif self._number_of_callback_args == 0:
+                maybe_coro = self.callback()
 
-        try:
-            self._run_callback(new)
-            self._number_of_callback_args = 1
-            return
-        except WrongNumberOfArgumentsError:
-            pass
+        else:
+            try:
+                maybe_coro = self._run_callback(new)
+                self._number_of_callback_args = 1
+            except WrongNumberOfArgumentsError:
+                try:
+                    maybe_coro = self._run_callback()
+                    self._number_of_callback_args = 0
+                except WrongNumberOfArgumentsError:
+                    maybe_coro = self._run_callback(new, old)
+                    self._number_of_callback_args = 2
 
-        try:
-            self._run_callback()
-            self._number_of_callback_args = 0
-            return
-        except WrongNumberOfArgumentsError:
-            pass
-
-        self._run_callback(new, old)
-        self._number_of_callback_args = 2
+        if self.callback_async and maybe_coro:
+            loop = asyncio.get_event_loop_policy().get_event_loop()
+            if not loop.is_running():
+                loop.run_until_complete(maybe_coro)
+            else:
+                loop.create_task(maybe_coro)
 
     def _run_callback(self, *args) -> None:
         """
@@ -251,7 +265,7 @@ class Watcher(Generic[T]):
         with the wrong number of arguments.
         """
         try:
-            self.callback(*args)
+            return self.callback(*args)
         except TypeError as e:
             frames = inspect.trace()
             try:
@@ -264,13 +278,20 @@ class Watcher(Generic[T]):
     def get(self) -> Any:
         Dep.stack.append(self)
         try:
-            value = self.fn()
+            value_or_coro = self.fn()
+            if self.fn_async and value_or_coro:
+                loop = asyncio.get_event_loop_policy().get_event_loop()
+                if not loop.is_running():
+                    value_or_coro = loop.run_until_complete(value_or_coro)
+                else:
+                    loop.create_task(value_or_coro)
+                    return
             if self.deep:
-                traverse(value)
+                traverse(value_or_coro)
         finally:
             Dep.stack.pop()
             self.cleanup_deps()
-        return value
+        return value_or_coro
 
     def add_dep(self, dep: Dep) -> None:
         if dep not in self._new_deps:
@@ -307,30 +328,55 @@ def weak(obj: Any, method: Callable):
     weak_obj = ref(obj)
 
     sig = inspect.signature(method)
+    iscoro = inspect.iscoroutinefunction(method)
     nr_arguments = len(sig.parameters)
 
     if nr_arguments == 1:
+        if iscoro:
 
-        @wraps(method)
-        def wrapped():
-            if this := weak_obj():
-                return method(this)
+            @wraps(method)
+            async def wrapped():
+                if this := weak_obj():
+                    return await method(this)
+
+        else:
+
+            @wraps(method)
+            def wrapped():
+                if this := weak_obj():
+                    return method(this)
 
         return wrapped
     elif nr_arguments == 2:
+        if iscoro:
 
-        @wraps(method)
-        def wrapped(new):
-            if this := weak_obj():
-                return method(this, new)
+            @wraps(method)
+            async def wrapped(new):
+                if this := weak_obj():
+                    return await method(this, new)
+
+        else:
+
+            @wraps(method)
+            def wrapped(new):
+                if this := weak_obj():
+                    return method(this, new)
 
         return wrapped
     elif nr_arguments == 3:
+        if iscoro:
 
-        @wraps(method)
-        def wrapped(new, old):
-            if this := weak_obj():
-                return method(this, new, old)
+            @wraps(method)
+            async def wrapped(new, old):
+                if this := weak_obj():
+                    return await method(this, new, old)
+
+        else:
+
+            @wraps(method)
+            def wrapped(new, old):
+                if this := weak_obj():
+                    return method(this, new, old)
 
         return wrapped
     else:

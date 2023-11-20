@@ -1,21 +1,29 @@
 import asyncio
 
 from PySide6 import QtAsyncio
+import pytest
 
 from observ import reactive, scheduler, watch
 
 
-def test_scheduler_pyside_asyncio(qapp):
+@pytest.fixture
+def qtasyncio():
+    old_policy = asyncio.get_event_loop_policy()
+    qt_policy = QtAsyncio.QAsyncioEventLoopPolicy()
+    asyncio.set_event_loop_policy(qt_policy)
+    old_callback = scheduler.request_flush
+    scheduler.register_asyncio()
+    try:
+        yield
+    finally:
+        asyncio.set_event_loop_policy(old_policy)
+        scheduler.register_request_flush(old_callback)
+
+
+def test_scheduler_pyside_asyncio(qtasyncio, qapp):
     """
     Test integration between PySide6 and asyncio
     """
-    asyncio.set_event_loop_policy(QtAsyncio.QAsyncioEventLoopPolicy())
-    scheduler.register_asyncio()
-
-    assert isinstance(
-        asyncio.get_event_loop_policy(), QtAsyncio.events.QAsyncioEventLoopPolicy
-    )
-
     state = reactive({"foo": 5, "bar": 6})
     calls = 0
 
