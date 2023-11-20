@@ -10,7 +10,7 @@ from collections.abc import Awaitable, Container
 from functools import partial, wraps
 import inspect
 from itertools import count
-from typing import Any, Callable, Generic, TypeVar, Union
+from typing import Any, Callable, Generic, Optional, TypeVar, Union
 from weakref import ref, WeakSet
 
 from .dep import Dep
@@ -137,6 +137,8 @@ class Watcher(Generic[T]):
         "_number_of_callback_args",
         "__weakref__",
     )
+    on_created: Optional[Callable[[Watcher[T]], None]] = None
+    on_destroyed: Optional[Callable[[Watcher[T]], None]] = None
 
     def __init__(
         self,
@@ -148,7 +150,7 @@ class Watcher(Generic[T]):
     ) -> None:
         """
         sync: Ignore the scheduler
-        lazy: Only reevalutate when value is requested
+        lazy: Only reevaluate when value is requested
         deep: Deep watch the watched value
         callback: Method to call when value has changed
         """
@@ -184,6 +186,13 @@ class Watcher(Generic[T]):
         self.dirty = self.lazy
         self.value = None if self.lazy else self.get()
         self._number_of_callback_args = None
+
+        if Watcher.on_created:
+            Watcher.on_created(self)
+
+    def __del__(self):
+        if Watcher.on_destroyed:
+            Watcher.on_destroyed(self)
 
     def update(self) -> None:
         if self.lazy:
