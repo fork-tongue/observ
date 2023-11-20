@@ -55,7 +55,7 @@ jobs:
       - name: Install poetry
         run: pip install "poetry>=1.4.2,<1.5"
       - name: Install dependencies
-        run: poetry install
+        run: poetry install --with=qt
       - name: Test
         run: poetry run pytest -v --cov=observ --cov-report=term-missing tests
         env:

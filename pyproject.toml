@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "observ"
-version = "0.13.1"
+version = "0.14.0"
 description = "Reactive state management for Python"
 authors = ["Korijn van Golen <korijn@gmail.com>", "Berend Klein Haneveld <berendkleinhaneveld@gmail.com>"]
 license = "MIT"
@@ -18,15 +18,20 @@ flake8-black = "*"
 flake8-import-order = "*"
 flake8-print = "*"
 pre-commit = "*"
-PySide6 = { version = ">=6.6", python = "<3.13"}
 pytest = "*"
 pytest-benchmark = "*"
 pytest-cov = "*"
-pytest-qt = "*"
 pytest-timeout = "*"
-pytest-xvfb = "*"
 twine = "*"
 urllib3 = { version = "*", python = "<4"}
+
+[tool.poetry.group.qt]
+optional = true
+
+[tool.poetry.group.qt.dependencies]
+PySide6 = { version = ">=6.6", python = "<3.13"}
+pytest-qt = "*"
+pytest-xvfb = "*"
 
 [build-system]
 requires = ["poetry-core"]
