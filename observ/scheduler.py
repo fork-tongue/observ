@@ -2,6 +2,7 @@
 The scheduler queues up and deduplicates re-evaluation of lazy Watchers
 and should be integrated in the event loop of your choosing.
 """
+import asyncio
 from bisect import bisect
 from collections import defaultdict
 import importlib
@@ -44,17 +45,15 @@ class Scheduler:
         """
         self.request_flush = callback
 
+    def request_flush_asyncio(self):
+        loop = asyncio.get_event_loop_policy().get_event_loop()
+        loop.call_soon(self.flush)
+
     def register_asyncio(self):
         """
         Utility function for integration with asyncio
         """
-        import asyncio
-
-        def request_flush():
-            loop = asyncio.get_event_loop_policy().get_event_loop()
-            loop.call_soon(scheduler.flush)
-
-        scheduler.register_request_flush(request_flush)
+        self.register_request_flush(self.request_flush_asyncio)
 
     def register_qt(self):
         """
@@ -79,7 +78,7 @@ class Scheduler:
             warnings.warn(
                 "QtAsyncio module available: please consider using `register_asyncio` "
                 "and call the following code:\n"
-                f"    from {qt} import QtAsyncio\n"
+                f"    from {qt} import QtAsyncio\n"  # noqa: E272
                 "    asyncio.set_event_loop_policy(QtAsyncio.QAsyncioEventLoopPolicy())"
                 ""
             )
