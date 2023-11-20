@@ -24,6 +24,11 @@ def test_loop_factory():
         else:
             return asyncio.get_running_loop()
 
-    loop = asyncio.run(_coroutine(), loop_factory=loop_factory)
+    if sys.version_info >= (3, 12):
+        actual_loop = asyncio.run(_coroutine(), loop_factory=loop_factory)
+    else:
+        loop = loop_factory()
+        actual_loop = loop.run_until_complete(_coroutine())
+
     if hasattr(asyncio, "eager_task_factory"):
-        assert loop.get_task_factory() is asyncio.eager_task_factory
+        assert actual_loop.get_task_factory() is asyncio.eager_task_factory
