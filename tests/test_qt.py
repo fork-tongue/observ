@@ -7,7 +7,7 @@ from observ import reactive, scheduler, watch
 
 
 try:
-    from PySide6 import QtAsyncio
+    from PySide6 import QtAsyncio, QtWidgets
 
     has_qt = True
 except ImportError:
@@ -59,8 +59,6 @@ def test_scheduler_pyside_asyncio(qtasyncio, qapp):
 @pytest.mark.xfail
 @pytest.mark.skipif(not has_qt, reason=qt_missing_reason)
 def test_qt_integration(qapp):
-    from PySide6 import QtWidgets
-
     class Label(QtWidgets.QLabel):
         count = 0
 

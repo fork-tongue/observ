@@ -22,13 +22,16 @@ pytest = "*"
 pytest-benchmark = "*"
 pytest-cov = "*"
 pytest-timeout = "*"
-pytest-xvfb = "*"
 twine = "*"
 urllib3 = { version = "*", python = "<4"}
+
+[tool.poetry.group.qt]
+optional = true
 
 [tool.poetry.group.qt.dependencies]
 PySide6 = { version = ">=6.6", python = "<3.13"}
 pytest-qt = "*"
+pytest-xvfb = "*"
 
 [build-system]
 requires = ["poetry-core"]
