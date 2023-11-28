@@ -5,6 +5,7 @@ from typing import cast, Generic, Literal, TypedDict, TypeVar
 
 from .proxy_db import proxy_db
 
+
 T = TypeVar("T")
 
 
