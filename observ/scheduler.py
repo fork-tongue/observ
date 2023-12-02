@@ -3,10 +3,10 @@ The scheduler queues up and deduplicates re-evaluation of lazy Watchers
 and should be integrated in the event loop of your choosing.
 """
 import asyncio
-from bisect import bisect
-from collections import defaultdict
 import importlib
 import warnings
+from bisect import bisect
+from collections import defaultdict
 
 
 class Scheduler:

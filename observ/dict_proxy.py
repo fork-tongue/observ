@@ -1,7 +1,6 @@
-from .proxy import Proxy, TYPE_LOOKUP
+from .proxy import TYPE_LOOKUP, Proxy
 from .proxy_db import proxy_db
 from .traps import construct_methods_traps_dict, trap_map, trap_map_readonly
-
 
 dict_traps = {
     "READERS": {

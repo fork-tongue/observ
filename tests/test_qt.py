@@ -5,7 +5,6 @@ import pytest
 
 from observ import reactive, scheduler, watch
 
-
 try:
     from PySide6 import QtAsyncio, QtWidgets
 

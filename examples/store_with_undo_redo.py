@@ -3,7 +3,7 @@ Example that shows how to use the store module
 for undo/redo functionality
 """
 from observ import watch
-from observ.store import computed, mutation, Store
+from observ.store import Store, computed, mutation
 
 
 class CounterStore(Store):

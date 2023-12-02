@@ -6,19 +6,18 @@ a change is detected.
 from __future__ import annotations
 
 import asyncio
+import inspect
 from collections.abc import Awaitable, Container
 from functools import partial, wraps
-import inspect
 from itertools import count
 from typing import Any, Callable, Generic, Optional, TypeVar, Union
-from weakref import ref, WeakSet
+from weakref import WeakSet, ref
 
 from .dep import Dep
 from .dict_proxy import DictProxyBase
 from .list_proxy import ListProxyBase
 from .scheduler import scheduler
 from .set_proxy import SetProxyBase
-
 
 T = TypeVar("T")
 Watchable = Union[

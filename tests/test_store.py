@@ -3,7 +3,7 @@ from unittest.mock import Mock
 import pytest
 
 from observ import watch
-from observ.store import computed, mutation, Store
+from observ.store import Store, computed, mutation
 
 
 class CustomStore(Store):

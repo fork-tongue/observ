@@ -11,7 +11,6 @@ from .proxy import (
 )
 from .watcher import computed as computed_expression
 
-
 T = TypeVar("T", bound=Callable)
 
 

@@ -51,9 +51,9 @@ select = [
 "bench/*" = ["F821"]
 
 [tool.ruff.isort]
-force-sort-within-sections = true
-order-by-type = false
-lines-after-imports = 2
+# force-sort-within-sections = true
+# order-by-type = false
+# lines-after-imports = 2
 
 [build-system]
 requires = ["poetry-core"]

@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import cast, Generic, Literal, TypedDict, TypeVar
+from typing import Generic, Literal, TypedDict, TypeVar, cast
 
 from .proxy_db import proxy_db
-
 
 T = TypeVar("T")
 
