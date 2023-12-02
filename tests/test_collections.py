@@ -1,11 +1,10 @@
 from unittest.mock import Mock
 
 from observ.dep import Dep
-from observ.dict_proxy import dict_traps, DictProxy
-from observ.list_proxy import list_traps, ListProxy
+from observ.dict_proxy import DictProxy, dict_traps
+from observ.list_proxy import ListProxy, list_traps
 from observ.proxy_db import proxy_db
-from observ.set_proxy import set_traps, SetProxy
-
+from observ.set_proxy import SetProxy, set_traps
 
 COLLECTIONS = {
     ListProxy: list_traps,

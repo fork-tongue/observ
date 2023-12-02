@@ -2,13 +2,15 @@
 Deps implement the classic observable pattern, and
 are attached to observable datastructures.
 """
-from typing import List
+from __future__ import annotations
+
+from typing import ClassVar
 from weakref import WeakSet
 
 
 class Dep:
     __slots__ = ("_subs", "__weakref__")
-    stack: List["Watcher"] = []  # noqa: F821
+    stack: ClassVar[list["Watcher"]] = []  # noqa: F821
 
     def __init__(self) -> None:
         self._subs: WeakSet["Watcher"] = None  # noqa: F821

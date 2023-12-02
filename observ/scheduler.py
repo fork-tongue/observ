@@ -3,10 +3,10 @@ The scheduler queues up and deduplicates re-evaluation of lazy Watchers
 and should be integrated in the event loop of your choosing.
 """
 import asyncio
-from bisect import bisect
-from collections import defaultdict
 import importlib
 import warnings
+from bisect import bisect
+from collections import defaultdict
 
 
 class Scheduler:
@@ -65,7 +65,7 @@ class Scheduler:
         """
         for qt in ("PySide6", "PyQt6", "PySide2", "PyQt5", "PySide", "PyQt4"):
             try:
-                QtCore = importlib.import_module(f"{qt}.QtCore")
+                QtCore = importlib.import_module(f"{qt}.QtCore")  # noqa: N806
                 break
             except ImportError:
                 continue
@@ -78,7 +78,7 @@ class Scheduler:
             warnings.warn(
                 "QtAsyncio module available: please consider using `register_asyncio` "
                 "and call the following code:\n"
-                f"    from {qt} import QtAsyncio\n"  # noqa: E272
+                f"    from {qt} import QtAsyncio\n"
                 "    asyncio.set_event_loop_policy(QtAsyncio.QAsyncioEventLoopPolicy())"
                 ""
             )
