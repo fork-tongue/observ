@@ -20,6 +20,8 @@ class Scheduler:
         "waiting",
         "request_flush",
         "detect_cycles",
+        "timer",
+        "__weakref__",
     )
 
     def __init__(self):
