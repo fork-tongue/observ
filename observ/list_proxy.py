@@ -69,4 +69,8 @@ ReadonlyListProxy = type(
 )
 
 
-TYPE_LOOKUP[list] = (ListProxy, ReadonlyListProxy)
+def type_test(target):
+    return isinstance(target, list)
+
+
+TYPE_LOOKUP[type_test] = (ListProxy, ReadonlyListProxy)

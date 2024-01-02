@@ -66,8 +66,8 @@ def proxy(target: T, readonly=False, shallow=False) -> T:
         return existing_proxy
 
     # Create a new proxy
-    for target_type, (writable_proxy_type, readonly_proxy_type) in TYPE_LOOKUP.items():
-        if isinstance(target, target_type):
+    for type_test, (writable_proxy_type, readonly_proxy_type) in TYPE_LOOKUP.items():
+        if type_test(target):
             proxy_type = readonly_proxy_type if readonly else writable_proxy_type
             return proxy_type(target, readonly=readonly, shallow=shallow)
 

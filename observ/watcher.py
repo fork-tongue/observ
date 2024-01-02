@@ -16,6 +16,7 @@ from weakref import WeakSet, ref
 from .dep import Dep
 from .dict_proxy import DictProxyBase
 from .list_proxy import ListProxyBase
+from .object_proxy import ObjectProxyBase
 from .scheduler import scheduler
 from .set_proxy import SetProxyBase
 
@@ -83,6 +84,8 @@ def traverse(obj, seen=None):
         val_iter = iter(obj.values())
     elif isinstance(obj, (list, ListProxyBase, set, SetProxyBase, tuple)):
         val_iter = iter(obj)
+    elif isinstance(obj, (ObjectProxyBase)):
+        val_iter = iter(vars(obj).values())
     else:
         return
     # track which objects we have already seen to support(!) full traversal

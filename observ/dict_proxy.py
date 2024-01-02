@@ -75,4 +75,9 @@ ReadonlyDictProxy = type(
     },
 )
 
-TYPE_LOOKUP[dict] = (DictProxy, ReadonlyDictProxy)
+
+def type_test(target):
+    return isinstance(target, dict)
+
+
+TYPE_LOOKUP[type_test] = (DictProxy, ReadonlyDictProxy)

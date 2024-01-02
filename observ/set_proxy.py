@@ -75,4 +75,9 @@ ReadonlySetProxy = type(
     },
 )
 
-TYPE_LOOKUP[set] = (SetProxy, ReadonlySetProxy)
+
+def type_test(target):
+    return isinstance(target, set)
+
+
+TYPE_LOOKUP[type_test] = (SetProxy, ReadonlySetProxy)
