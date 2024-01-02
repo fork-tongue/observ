@@ -84,10 +84,14 @@ def traverse(obj, seen=None):
         val_iter = iter(obj.values())
     elif isinstance(obj, (list, ListProxyBase, set, SetProxyBase, tuple)):
         val_iter = iter(obj)
-    elif isinstance(obj, (ObjectProxyBase)):
-        val_iter = iter(vars(obj).values())
+    elif isinstance(obj, (object, ObjectProxyBase)):
+        try:
+            val_iter = iter(vars(obj).values())
+        except TypeError:
+            return
     else:
         return
+
     # track which objects we have already seen to support(!) full traversal
     # of datastructures with cycles
     # NOTE: a set would provide faster containment checks

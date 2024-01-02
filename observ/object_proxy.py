@@ -35,6 +35,8 @@ from .traps import construct_methods_traps_dict, trap_map, trap_map_readonly
 # There are many _optional_ magic methods, such as __iter__
 # How do we support those without overcomplicating the traps?
 
+
+
 object_traps = {
     "READERS": {
         '__class__',
