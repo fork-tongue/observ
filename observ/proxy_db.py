@@ -54,6 +54,8 @@ class ProxyDb:
             }
             if isinstance(proxy.target, dict):
                 attrs["keydep"] = {key: Dep() for key in proxy.target.keys()}
+            else:
+                attrs["keydep"] = {}
             self.db[obj_id] = {
                 "target": proxy.target,
                 "attrs": attrs,  # dep, keydep

@@ -1,16 +1,17 @@
-from dataclasses import dataclass
-
 from observ.object_proxy import ObjectProxy
-from observ.proxy import proxy
-from observ.traps import ReadonlyError
 
 
-@dataclass
 class Foo:
-    bar: int
+    __slots__ = ("bar",)
+
+    def __init__(self, bar=5):
+        self.bar = bar
 
 
-def test_dataclass_proxy():
-    data = Foo(bar=5)
-    proxied = proxy(data)
-    assert isinstance(proxied, ObjectProxy)
+def test_object_proxying():
+    obj = Foo(bar=5)
+    proxy = ObjectProxy(obj)
+    assert proxy.bar == 5
+    proxy.bar = 6
+    assert proxy.bar == 6
+
