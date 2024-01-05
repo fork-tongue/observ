@@ -51,7 +51,7 @@ class ObjectProxyBase(Proxy):
                 # the set attr is not stateful (e.g. someone
                 # is attaching a bound method)
                 # so no need to track this modification
-                # TODO: we could cache this maybe?
+                # TODO: we could cache this
                 return retval
 
         new_value = getattr(target, name, None)
@@ -90,6 +90,8 @@ def passthrough(method):
     def trap(self, *args, **kwargs):
         fn = getattr(self.__target__, method, None)
         if fn is None:
+            # TODO: we could cache this
+            # but it is possibly a class is dynamically modified later
             raise TypeError(f"object of type '{type(self)}' has no {method}")
         return fn(*args, **kwargs)
 
