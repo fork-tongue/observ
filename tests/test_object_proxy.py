@@ -75,3 +75,11 @@ def test_readonly_proxy():
 
     another_proxied.bar = 25
     assert proxied.bar == 25
+
+    with pytest.raises(ReadonlyError):
+        delattr(readonly_proxy, "baz")
+    delattr(another_proxied, "baz")
+
+    assert not hasattr(proxied, "baz")
+
+

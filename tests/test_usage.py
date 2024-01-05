@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Iterable
 from unittest.mock import Mock
 
@@ -596,6 +597,9 @@ def test_usage_class_instances():
     class Foo:
         def __init__(self):
             self.foo = 5
+        
+        def __len__(self):
+            return self.foo
 
     a = reactive([1, 2, Foo()])
     called = 0
@@ -620,6 +624,35 @@ def test_usage_class_instances():
     # write to a class attribute
     a[2].foo = 10
     assert called == 3
+
+    # magic methods are supported
+    foo_len = computed(lambda: len(a[2]))
+    assert foo_len() == 10
+
+
+def test_usage_dataclass():
+    @dataclass
+    class Foo:
+        bar: int
+
+    a = reactive(Foo(bar=5))
+    called = 0
+
+    def _callback():
+        nonlocal called
+        called += 1
+
+    watcher = watch(lambda: a, _callback, sync=True, deep=True)
+    assert not watcher.dirty
+    assert called == 0
+
+    # write something
+    a.bar = 10
+    assert called == 1
+
+    # magic methods are supported
+    str_foo = computed(lambda: repr(a))
+    assert str_foo() == "test_usage_dataclass.<locals>.Foo(bar=10)"
 
 
 def test_watch_get_non_existing():
