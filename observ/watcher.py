@@ -81,11 +81,17 @@ def traverse(obj, seen=None):
     # we are only interested in traversing a fixed set of types
     # otherwise we can just exit
     if isinstance(obj, (dict, DictProxyBase)):
+        if not obj:
+            return
         val_iter = iter(obj.values())
     elif isinstance(obj, (list, ListProxyBase, set, SetProxyBase, tuple)):
+        if not obj:
+            return
         val_iter = iter(obj)
     else:
-        val_iter = (getattr(obj, attr) for attr in get_object_attrs(obj))
+        val_iter = [getattr(obj, attr) for attr in get_object_attrs(obj)]
+        if not val_iter:
+            return
 
     # track which objects we have already seen to support(!) full traversal
     # of datastructures with cycles
