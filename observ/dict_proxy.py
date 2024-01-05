@@ -52,7 +52,7 @@ dict_traps = {
 
 class DictProxyBase(Proxy[dict]):
     def _orphaned_keydeps(self):
-        return set(proxy_db.attrs(self)["keydep"].keys()) - set(self.target.keys())
+        return set(proxy_db.attrs(self)["keydep"].keys()) - set(self.__target__.keys())
 
 
 def readonly_dict_proxy_init(self, target, shallow=False, **kwargs):

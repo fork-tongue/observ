@@ -19,13 +19,13 @@ def test_proxy_lifecycle():
 
     assert isinstance(wrapped_data, Proxy)
     assert obj_id in proxy_db.db
-    assert wrapped_data.target is data
+    assert wrapped_data.__target__ is data
 
     # Retrieve the proxy from the proxy_db
     referenced_proxy = proxy_db.get_proxy(data)
 
     assert referenced_proxy is wrapped_data
-    assert referenced_proxy.target is wrapped_data.target
+    assert referenced_proxy.__target__ is wrapped_data.__target__
 
     # Destroy the second proxy
     del referenced_proxy
@@ -49,23 +49,23 @@ def test_proxy_lifecycle():
 def test_proxy_lifecycle_auto():
     # Call proxy to wrap the data object
     wrapped_data = proxy({"foo": "bar"})
-    obj_id = id(wrapped_data.target)
+    obj_id = id(wrapped_data.__target__)
 
     assert isinstance(wrapped_data, Proxy)
     assert obj_id in proxy_db.db
-    # assert wrapped_data.target is data
+    # assert wrapped_data.__target__ is data
 
     # Retrieve the proxy from the proxy_db
-    referenced_proxy = proxy_db.get_proxy(wrapped_data.target)
+    referenced_proxy = proxy_db.get_proxy(wrapped_data.__target__)
 
     assert referenced_proxy is wrapped_data
-    assert referenced_proxy.target is wrapped_data.target
+    assert referenced_proxy.__target__ is wrapped_data.__target__
 
     # Destroy the second proxy
     del referenced_proxy
 
     assert obj_id in proxy_db.db
-    assert proxy_db.get_proxy(wrapped_data.target) is not None
+    assert proxy_db.get_proxy(wrapped_data.__target__) is not None
 
     # Destroy the original proxy
     del wrapped_data
@@ -193,10 +193,10 @@ def test_embedded_tuple():
 def test_shallow_proxy():
     shallow_proxy = proxy({"foo": "bar", "baz": {"lorem": "ipsum"}}, shallow=True)
     assert isinstance(shallow_proxy, DictProxy)
-    assert shallow_proxy.shallow
+    assert shallow_proxy.__shallow__
 
     deep_proxy = proxy(shallow_proxy)
-    assert not deep_proxy.shallow
+    assert not deep_proxy.__shallow__
 
 
 def test_non_hashable():

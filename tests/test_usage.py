@@ -541,7 +541,7 @@ def test_watch_real_deep():
     watcher.callback.assert_called_once()
 
     assert isinstance(a["scene"]["objects"]["camera"]["position"], ListProxy)
-    assert not a["scene"]["objects"]["camera"]["position"].shallow
+    assert not a["scene"]["objects"]["camera"]["position"].__shallow__
 
     watcher.callback = Mock()
     a["scene"]["objects"]["camera"]["position"][1] = 2
@@ -581,7 +581,7 @@ def test_deeply_nested_to_raw():
 
     # this assertion confirms that the problematic case has been created
     # in other words, that the test was setup properly
-    assert obj_contains_proxy(a.target)
+    assert obj_contains_proxy(a.__target__)
 
     # check if we can still get a reference to the raw object using to_raw
     raw_pos = to_raw(a["scene"]["objects"]["mesh"]["position"])
@@ -593,9 +593,6 @@ def test_deeply_nested_to_raw():
 
 
 def test_usage_class_instances():
-    """This test documents that class instances are not reactive,
-    but they can still be part of reactive state if you want."""
-
     class Foo:
         def __init__(self):
             self.foo = 5
@@ -622,7 +619,7 @@ def test_usage_class_instances():
 
     # write to a class attribute
     a[2].foo = 10
-    assert called == 2  # class instances are NOT reactive
+    assert called == 3
 
 
 def test_watch_get_non_existing():

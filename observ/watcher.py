@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-from itertools import chain
 from collections.abc import Awaitable, Container
 from functools import partial, wraps
 from itertools import count
@@ -17,7 +16,7 @@ from weakref import WeakSet, ref
 from .dep import Dep
 from .dict_proxy import DictProxyBase
 from .list_proxy import ListProxyBase
-from .object_proxy import ObjectProxy
+from .object_utils import get_object_attrs
 from .scheduler import scheduler
 from .set_proxy import SetProxyBase
 
@@ -85,13 +84,8 @@ def traverse(obj, seen=None):
         val_iter = iter(obj.values())
     elif isinstance(obj, (list, ListProxyBase, set, SetProxyBase, tuple)):
         val_iter = iter(obj)
-    elif isinstance(obj, (object, ObjectProxy)):
-        try:
-            val_iter = iter(vars(obj).values())
-        except TypeError:
-            val_iter = (getattr(obj, slot) for slot in chain.from_iterable(getattr(cls, '__slots__', []) for cls in type(obj).__mro__))
     else:
-        return
+        val_iter = (getattr(obj, attr) for attr in get_object_attrs(obj))
 
     # track which objects we have already seen to support(!) full traversal
     # of datastructures with cycles
@@ -103,11 +97,7 @@ def traverse(obj, seen=None):
         seen = []
     seen.append(obj)
     for v in val_iter:
-        if (
-            isinstance(
-                v, (dict, DictProxyBase, list, ListProxyBase, set, SetProxyBase, tuple, object, ObjectProxy)
-            )
-        ) and v not in seen:
+        if v not in seen:
             traverse(v, seen=seen)
 
 

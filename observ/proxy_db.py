@@ -3,6 +3,7 @@ import sys
 from weakref import WeakValueDictionary
 
 from .dep import Dep
+from .object_utils import get_object_attrs
 
 
 class ProxyDb:
@@ -46,18 +47,19 @@ class ProxyDb:
         """
         Adds a reference to the collection for the wrapped object's id
         """
-        obj_id = id(proxy.target)
+        target = proxy.__target__
+        obj_id = id(target)
 
         if obj_id not in self.db:
             attrs = {
                 "dep": Dep(),
             }
-            if isinstance(proxy.target, dict):
-                attrs["keydep"] = {key: Dep() for key in proxy.target.keys()}
-            else:
-                attrs["keydep"] = {}
+            if isinstance(target, dict):
+                attrs["keydep"] = {key: Dep() for key in target.keys()}
+            elif not isinstance(target, (list, set)):
+                attrs["keydep"] = {key: Dep() for key in get_object_attrs(target)}
             self.db[obj_id] = {
-                "target": proxy.target,
+                "target": target,
                 "attrs": attrs,  # dep, keydep
                 # keyed on tuple(readonly, shallow)
                 "proxies": WeakValueDictionary(),
@@ -70,7 +72,7 @@ class ProxyDb:
         # Seems to be a tiny bit faster than checking beforehand if
         # there is already an existing value in the proxies dict
         result = self.db[obj_id]["proxies"].setdefault(
-            (proxy.readonly, proxy.shallow), proxy
+            (proxy.__readonly__, proxy.__shallow__), proxy
         )
         if result is not proxy:
             raise RuntimeError("Proxy with existing configuration already in db")
@@ -79,7 +81,7 @@ class ProxyDb:
         """
         Removes a reference from the database for the given proxy
         """
-        obj_id = id(proxy.target)
+        obj_id = id(proxy.__target__)
         if obj_id not in self.db:
             # When there are failing tests, it might happen that proxies
             # are garbage collected at a point where the proxy_db is already
@@ -93,13 +95,14 @@ class ProxyDb:
         # for the target object
         if len(self.db[obj_id]["proxies"]) == 1:
             ref_count = sys.getrefcount(self.db[obj_id]["target"])
-            # Ref count is still 3 here because of the reference through proxy.target
+            # Ref count is still 3 here because of the reference
+            # through proxy.__target__
             if ref_count <= 3:
                 # We are the last to hold a reference!
                 del self.db[obj_id]
 
     def attrs(self, proxy):
-        return self.db[id(proxy.target)]["attrs"]
+        return self.db[id(proxy.__target__)]["attrs"]
 
     def get_proxy(self, target, readonly=False, shallow=False):
         """
