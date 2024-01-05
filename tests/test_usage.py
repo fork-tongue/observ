@@ -597,7 +597,7 @@ def test_usage_class_instances():
     class Foo:
         def __init__(self):
             self.foo = 5
-        
+
         def __len__(self):
             return self.foo
 

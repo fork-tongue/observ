@@ -33,19 +33,19 @@ class D:
 
 
 def test_get_class_slots():
-    assert get_class_slots(C) == {'bar', 'quux'}
+    assert get_class_slots(C) == {"bar", "quux"}
     assert get_class_slots(D) == set()
 
 
 def test_get_object_attrs():
-    assert set(get_object_attrs(A())) == {'bar'}
-    assert set(get_object_attrs(B())) == {'baz', 'bar'}
-    assert set(get_object_attrs(C())) == {'baz', 'bar', 'quux'}
-    assert set(get_object_attrs(D())) == {'bar'}
+    assert set(get_object_attrs(A())) == {"bar"}
+    assert set(get_object_attrs(B())) == {"baz", "bar"}
+    assert set(get_object_attrs(C())) == {"baz", "bar", "quux"}
+    assert set(get_object_attrs(D())) == {"bar"}
 
     d = D()
     d.quuz = 20
-    assert set(get_object_attrs(d)) == {'bar', 'quuz'}
+    assert set(get_object_attrs(d)) == {"bar", "quuz"}
 
 
 def test_object_proxying():
@@ -81,5 +81,3 @@ def test_readonly_proxy():
     delattr(another_proxied, "baz")
 
     assert not hasattr(proxied, "baz")
-
-
