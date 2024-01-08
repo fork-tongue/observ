@@ -1,6 +1,6 @@
 import pytest
 
-from observ import reactive
+from observ import reactive, to_raw
 from observ.object_proxy import ObjectProxy, ReadonlyObjectProxy
 from observ.object_utils import get_class_slots, get_object_attrs
 from observ.proxy import proxy
@@ -98,3 +98,27 @@ def test_usage_numpy():
     proxy = reactive(arr)
     # not supported
     assert not isinstance(proxy, ObjectProxy)
+
+
+def test_toraw():
+    """Demonstrate the supported and unsupported to_raw code paths"""
+    obj = B(bar=5)
+    proxy = ObjectProxy(obj)
+    also_obj = to_raw(proxy)
+    assert obj is also_obj and obj is not proxy
+
+    tree = B(bar=obj)
+    tree_proxy = ObjectProxy(tree)
+    also_tree = to_raw(tree_proxy)
+    assert tree is also_tree and tree is not tree_proxy
+    assert also_tree.bar is obj
+
+    tree = B(bar=proxy)
+    tree_proxy = ObjectProxy(tree)
+    also_tree = to_raw(tree_proxy)
+    assert tree is also_tree and tree is not tree_proxy
+
+    # since to_raw cannot copy/instantiate custom objects
+    # any proxies assigned to object attributes will
+    # not be processed recursively by to_raw
+    assert also_tree.bar is not obj

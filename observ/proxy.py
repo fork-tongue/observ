@@ -122,6 +122,4 @@ def to_raw(target: Proxy[T] | T) -> T:
     if isinstance(target, set):
         return cast(T, {to_raw(t) for t in target})
 
-    # TODO: I don't think we can implement to_raw for objects
-
     return target
