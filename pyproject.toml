@@ -32,6 +32,13 @@ PySide6 = { version = ">=6.6", python = "<3.13" }
 pytest-qt = "*"
 pytest-xvfb = "*"
 
+[tool.poetry.group.numpy]
+optional = true
+
+[tool.poetry.group.numpy.dependencies]
+numpy = "*"
+
+
 [tool.ruff.lint]
 select = [
     "E4",

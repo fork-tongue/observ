@@ -7,6 +7,7 @@ from observ import reactive, scheduler, watch
 
 try:
     from PySide6 import QtAsyncio, QtWidgets
+    from pytestqt.qt_compat import qt_api
 
     has_qt = True
 except ImportError:
@@ -31,8 +32,6 @@ def qtasyncio():
 @pytest.fixture
 def qapp(qapp_args, qapp_cls, pytestconfig):
     # workaround for https://bugreports.qt.io/browse/PYSIDE-2575
-    from pytestqt.qt_compat import qt_api
-
     app = qt_api.QtWidgets.QApplication.instance()
     if app is None:
         _qapp_instance = qapp_cls(qapp_args)

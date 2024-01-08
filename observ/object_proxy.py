@@ -97,6 +97,8 @@ def passthrough(method):
 
 
 # TODO: how to verify this is the correct and complete set of magic methods?
+# scraped from https://docs.python.org/3/reference/datamodel.html
+# as of py3.12
 magic_methods = [
     "__abs__",
     "__add__",
@@ -243,11 +245,12 @@ class ReadonlyObjectProxy(ObjectProxy):
 
 
 def type_test(target):
-    # exclude builtin objects and objects for which we have better proxies available
-    return (
-        not isinstance(target, (list, set, dict, tuple))
-        and type(target).__module__ != object.__module__
-    )
+    # exclude builtin objects
+    # exclude objects for which we have better proxies available
+    # exclude ndarrays
+    return not isinstance(target, (list, set, dict, tuple)) and type(
+        target
+    ).__module__ not in (object.__module__, "numpy")
 
 
 TYPE_LOOKUP[type_test] = (ObjectProxy, ReadonlyObjectProxy)

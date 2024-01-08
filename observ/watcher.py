@@ -89,9 +89,10 @@ def traverse(obj, seen=None):
             return
         val_iter = iter(obj)
     else:
-        val_iter = [getattr(obj, attr) for attr in get_object_attrs(obj)]
-        if not val_iter:
+        obj_attrs = get_object_attrs(obj)
+        if not obj_attrs:
             return
+        val_iter = (getattr(obj, attr) for attr in obj_attrs)
 
     # track which objects we have already seen to support(!) full traversal
     # of datastructures with cycles

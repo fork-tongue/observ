@@ -1,9 +1,18 @@
 import pytest
 
+from observ import reactive
 from observ.object_proxy import ObjectProxy, ReadonlyObjectProxy
 from observ.object_utils import get_class_slots, get_object_attrs
 from observ.proxy import proxy
 from observ.traps import ReadonlyError
+
+try:
+    import numpy as np
+
+    has_numpy = True
+except ImportError:
+    has_numpy = False
+numpy_missing_reason = "Numpy is not installed"
 
 
 class A:
@@ -81,3 +90,11 @@ def test_readonly_proxy():
     delattr(another_proxied, "baz")
 
     assert not hasattr(proxied, "baz")
+
+
+@pytest.mark.skipif(not has_numpy, reason=numpy_missing_reason)
+def test_usage_numpy():
+    arr = np.eye(4)
+    proxy = reactive(arr)
+    # not supported
+    assert not isinstance(proxy, ObjectProxy)
