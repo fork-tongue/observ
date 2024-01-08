@@ -51,7 +51,7 @@ class ObjectProxyBase(Proxy):
                 # the set attr is not stateful (e.g. someone
                 # is attaching a bound method)
                 # so no need to track this modification
-                # TODO: we could cache this
+                # TODO: we could cache this?
                 return retval
 
         new_value = getattr(target, name, None)
@@ -59,7 +59,6 @@ class ObjectProxyBase(Proxy):
             attrs["keydep"][name] = Dep()
         if xor(old_value is None, new_value is None) or old_value != new_value:
             attrs["keydep"][name].notify()
-            attrs["dep"].notify()
         return retval
 
     def __delattr__(self, name):
@@ -77,11 +76,9 @@ class ObjectProxyBase(Proxy):
 
         retval = delattr(target, name)
 
-        if is_target_attr:
-            attrs["dep"].notify()
-            if is_keydep:
-                attrs["keydep"][name].notify()
-                del attrs["keydep"][name]
+        if is_target_attr and is_keydep:
+            attrs["keydep"][name].notify()
+            del attrs["keydep"][name]
 
         return retval
 
@@ -91,13 +88,15 @@ def passthrough(method):
         fn = getattr(self.__target__, method, None)
         if fn is None:
             # TODO: we could cache this
-            # but it is possibly a class is dynamically modified later
+            # but it is possible a class is dynamically modified later
+            # invalidating the cached result...
             raise TypeError(f"object of type '{type(self)}' has no {method}")
         return fn(*args, **kwargs)
 
     return trap
 
 
+# TODO: how to verify this is the correct and complete set of magic methods?
 magic_methods = [
     "__abs__",
     "__add__",

@@ -15,10 +15,13 @@ def get_class_slots(cls):
 def get_object_attrs(obj):
     """utility to collect all stateful attributes of an object"""
     # __slots__ from full class ancestry
-    attrs = list(get_class_slots(type(obj)))
+    attrs = get_class_slots(type(obj))
     try:
         # all __dict__ entries
-        attrs.extend(vars(obj).keys())
+        obj_keys = vars(obj).keys()
+        if obj_keys:
+            attrs = attrs.copy()
+            attrs.update(obj_keys)
     except TypeError:
         pass
     return attrs

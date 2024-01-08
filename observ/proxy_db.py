@@ -51,12 +51,13 @@ class ProxyDb:
         obj_id = id(target)
 
         if obj_id not in self.db:
-            attrs = {
-                "dep": Dep(),
-            }
+            attrs = {}
             if isinstance(target, dict):
+                attrs["dep"] = Dep()
                 attrs["keydep"] = {key: Dep() for key in target.keys()}
-            elif not isinstance(target, (list, set)):
+            elif isinstance(target, (list, set)):
+                attrs["dep"] = Dep()
+            else:
                 attrs["keydep"] = {key: Dep() for key in get_object_attrs(target)}
             self.db[obj_id] = {
                 "target": target,
