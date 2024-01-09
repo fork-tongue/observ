@@ -40,6 +40,8 @@ class D:
     def __init__(self, bar=5):
         self.bar = bar
 
+    i_am_none = None
+
 
 def test_get_class_slots():
     assert get_class_slots(C) == {"bar", "quux"}
@@ -122,3 +124,24 @@ def test_toraw():
     # any proxies assigned to object attributes will
     # not be processed recursively by to_raw
     assert also_tree.bar is not obj
+
+
+def test_typeerror():
+    obj = D()
+    proxy = reactive(obj)
+    assert isinstance(proxy, ObjectProxy)
+
+    assert obj.i_am_none is None
+    assert proxy.i_am_none is None
+
+    with pytest.raises(AttributeError):
+        obj.doesnt_exist()
+
+    with pytest.raises(AttributeError):
+        proxy.doesnt_exist()
+
+    with pytest.raises(TypeError):
+        iter(obj)
+
+    with pytest.raises(TypeError):
+        iter(proxy)
