@@ -16,6 +16,7 @@ from weakref import WeakSet, ref
 from .dep import Dep
 from .dict_proxy import DictProxyBase
 from .list_proxy import ListProxyBase
+from .object_utils import get_object_attrs
 from .scheduler import scheduler
 from .set_proxy import SetProxyBase
 
@@ -80,11 +81,19 @@ def traverse(obj, seen=None):
     # we are only interested in traversing a fixed set of types
     # otherwise we can just exit
     if isinstance(obj, (dict, DictProxyBase)):
+        if not obj:
+            return
         val_iter = iter(obj.values())
     elif isinstance(obj, (list, ListProxyBase, set, SetProxyBase, tuple)):
+        if not obj:
+            return
         val_iter = iter(obj)
     else:
-        return
+        obj_attrs = get_object_attrs(obj)
+        if not obj_attrs:
+            return
+        val_iter = (getattr(obj, attr) for attr in obj_attrs)
+
     # track which objects we have already seen to support(!) full traversal
     # of datastructures with cycles
     # NOTE: a set would provide faster containment checks
@@ -95,11 +104,7 @@ def traverse(obj, seen=None):
         seen = []
     seen.append(obj)
     for v in val_iter:
-        if (
-            isinstance(
-                v, (dict, DictProxyBase, list, ListProxyBase, set, SetProxyBase, tuple)
-            )
-        ) and v not in seen:
+        if v not in seen:
             traverse(v, seen=seen)
 
 

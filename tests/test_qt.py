@@ -7,6 +7,7 @@ from observ import reactive, scheduler, watch
 
 try:
     from PySide6 import QtAsyncio, QtWidgets
+    from pytestqt.qt_compat import qt_api
 
     has_qt = True
 except ImportError:
@@ -26,6 +27,18 @@ def qtasyncio():
     finally:
         asyncio.set_event_loop_policy(old_policy)
         scheduler.register_request_flush(old_callback)
+
+
+@pytest.fixture
+def qapp(qapp_args, qapp_cls, pytestconfig):
+    # workaround for https://bugreports.qt.io/browse/PYSIDE-2575
+    app = qt_api.QtWidgets.QApplication.instance()
+    if app is None:
+        _qapp_instance = qapp_cls(qapp_args)
+        name = pytestconfig.getini("qt_qapp_name")
+        _qapp_instance.setApplicationName(name)
+        return _qapp_instance
+    return app
 
 
 @pytest.mark.skipif(not has_qt, reason=qt_missing_reason)

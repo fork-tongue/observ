@@ -21,12 +21,14 @@ class Proxy(Generic[T]):
     """
 
     __hash__ = None
-    __slots__ = ("target", "readonly", "shallow", "__weakref__")
+    # the slots have to be very unique since we also proxy objects
+    # which may define the attributes with the same names
+    __slots__ = ("__target__", "__readonly__", "__shallow__", "__weakref__")
 
     def __init__(self, target: T, readonly=False, shallow=False):
-        self.target = target
-        self.readonly = readonly
-        self.shallow = shallow
+        self.__target__ = target
+        self.__readonly__ = readonly
+        self.__shallow__ = shallow
         proxy_db.reference(self)
 
     def __del__(self):
@@ -50,14 +52,14 @@ def proxy(target: T, readonly=False, shallow=False) -> T:
     # The object may be a proxy already, so check if it matches the
     # given configuration (readonly and shallow)
     if isinstance(target, Proxy):
-        if readonly == target.readonly and shallow == target.shallow:
+        if readonly == target.__readonly__ and shallow == target.__shallow__:
             return target
         else:
             # If the configuration does not match,
             # unwrap the target from the proxy so that the right
             # kind of proxy can be returned in the next part of
             # this function
-            target = target.target
+            target = target.__target__
 
     # Note that at this point, target is always a non-proxy object
     # Check the proxy_db to see if there's already a proxy for the target object
@@ -66,8 +68,8 @@ def proxy(target: T, readonly=False, shallow=False) -> T:
         return existing_proxy
 
     # Create a new proxy
-    for target_type, (writable_proxy_type, readonly_proxy_type) in TYPE_LOOKUP.items():
-        if isinstance(target, target_type):
+    for type_test, (writable_proxy_type, readonly_proxy_type) in TYPE_LOOKUP.items():
+        if type_test(target):
             proxy_type = readonly_proxy_type if readonly else writable_proxy_type
             return proxy_type(target, readonly=readonly, shallow=shallow)
 
@@ -106,7 +108,7 @@ def to_raw(target: Proxy[T] | T) -> T:
     with its wrapped target value.
     """
     if isinstance(target, Proxy):
-        return to_raw(target.target)
+        return to_raw(target.__target__)
 
     if isinstance(target, list):
         return cast(T, [to_raw(t) for t in target])

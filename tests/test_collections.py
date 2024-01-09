@@ -50,9 +50,9 @@ EXCLUDED = {
     "_orphaned_keydeps",
     # Following attributes are part of Proxy.__slots__
     "__slots__",
-    "target",
-    "readonly",
-    "shallow",
+    "__target__",
+    "__readonly__",
+    "__shallow__",
     "__weakref__",
     # exclude attributes added by typing.Generic
     "_is_protocol",

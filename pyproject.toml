@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "observ"
-version = "0.14.1"
+version = "0.15.0"
 description = "Reactive state management for Python"
 authors = [
     "Korijn van Golen <korijn@gmail.com>",
@@ -31,6 +31,13 @@ optional = true
 PySide6 = { version = ">=6.6", python = "<3.13" }
 pytest-qt = "*"
 pytest-xvfb = "*"
+
+[tool.poetry.group.numpy]
+optional = true
+
+[tool.poetry.group.numpy.dependencies]
+numpy = "*"
+
 
 [tool.ruff.lint]
 select = [
