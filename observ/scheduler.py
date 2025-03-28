@@ -2,6 +2,7 @@
 The scheduler queues up and deduplicates re-evaluation of lazy Watchers
 and should be integrated in the event loop of your choosing.
 """
+
 import asyncio
 import importlib
 import warnings
@@ -11,17 +12,17 @@ from collections import defaultdict
 
 class Scheduler:
     __slots__ = (
+        "__weakref__",
         "_queue",
         "_queue_indices",
+        "circular",
+        "detect_cycles",
         "flushing",
         "has",
-        "circular",
         "index",
-        "waiting",
         "request_flush",
-        "detect_cycles",
         "timer",
-        "__weakref__",
+        "waiting",
     )
 
     def __init__(self):

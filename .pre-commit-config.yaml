@@ -9,7 +9,7 @@ repos:
         require_serial: true
       - id: ruff (lint)
         name: Lint
-        entry: uv run ruff --fix
+        entry: uv run ruff check --fix
         language: system
         types: [python]
         require_serial: true

@@ -78,7 +78,7 @@ def write_trap(method, obj_cls):
         old = self.__target__.copy()
         retval = fn(self.__target__, *args, **kwargs)
         attrs = proxy_db.attrs(self)
-        if obj_cls == dict:
+        if obj_cls is dict:
             change_detected = False
             keydeps = attrs["keydep"]
             for key, val in self.__target__.items():

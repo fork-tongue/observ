@@ -2,6 +2,7 @@
 Deps implement the classic observable pattern, and
 are attached to observable datastructures.
 """
+
 from __future__ import annotations
 
 from typing import ClassVar
@@ -9,7 +10,7 @@ from weakref import WeakSet
 
 
 class Dep:
-    __slots__ = ("_subs", "__weakref__")
+    __slots__ = ("__weakref__", "_subs")
     stack: ClassVar[list["Watcher"]] = []  # noqa: F821
 
     def __init__(self) -> None:

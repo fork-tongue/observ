@@ -7,7 +7,6 @@ from observ import reactive, scheduler, watch
 
 try:
     from PySide6 import QtAsyncio, QtWidgets
-    from pytestqt.qt_compat import qt_api
 
     has_qt = True
 except ImportError:
