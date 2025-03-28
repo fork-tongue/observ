@@ -1,43 +1,40 @@
-[tool.poetry]
+[project]
 name = "observ"
 version = "0.15.0"
 description = "Reactive state management for Python"
 authors = [
-    "Korijn van Golen <korijn@gmail.com>",
-    "Berend Klein Haneveld <berendkleinhaneveld@gmail.com>",
+    { name = "Korijn van Golen", email = "korijn@gmail.com" },
+    { name = "Berend Klein Haneveld", email = "berendkleinhaneveld@gmail.com" },
 ]
-license = "MIT"
-homepage = "https://github.com/fork-tongue/observ"
+requires-python = ">=3.9"
 readme = "README.md"
+license = "MIT"
+dependencies = ["patchdiff~=0.3.4"]
 
-[tool.poetry.dependencies]
-python = ">=3.9"
-patchdiff = "~0.3.4"
+[project.urls]
+Homepage = "https://github.com/fork-tongue/observ"
 
-[tool.poetry.group.dev.dependencies]
-ruff = "*"
-pre-commit = "*"
-pytest = "*"
-pytest-benchmark = "*"
-pytest-cov = "*"
-pytest-timeout = "*"
-twine = "*"
-urllib3 = { version = "*", python = "<4" }
+[dependency-groups]
+dev = [
+    "ruff",
+    "pre-commit",
+    "pytest",
+    "pytest-benchmark",
+    "pytest-cov",
+    "pytest-timeout",
+    "twine",
+    "urllib3 ; python_version < '4'",
+]
+ruff = ["ruff"]
+qt = ["PySide6>=6.6 ; python_version <= '3.13'", "pytest-qt", "pytest-xvfb"]
+numpy = ["numpy"]
 
-[tool.poetry.group.qt]
-optional = true
+[tool.uv]
+default-groups = ["dev"]
 
-[tool.poetry.group.qt.dependencies]
-PySide6 = { version = ">=6.6", python = "<3.13" }
-pytest-qt = "*"
-pytest-xvfb = "*"
-
-[tool.poetry.group.numpy]
-optional = true
-
-[tool.poetry.group.numpy.dependencies]
-numpy = "*"
-
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.ruff.lint]
 select = [
@@ -56,10 +53,6 @@ select = [
 [tool.ruff.per-file-ignores]
 "__init__.py" = ["F401"]
 "bench/*" = ["F821"]
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 addopts = "--benchmark-columns='mean, stddev, rounds'"

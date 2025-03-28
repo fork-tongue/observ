@@ -35,7 +35,7 @@ Define computed state based on observable state with `func` and recompute lazily
 
 ## Quick start and examples
 
-Install observ with pip/pipenv/poetry:
+Install observ with pip/pipenv/poetry/uv:
 
 `pip install observ`
 
