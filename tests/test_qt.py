@@ -18,7 +18,7 @@ qt_missing_reason = "Qt is not installed"
 @pytest.fixture
 def qtasyncio():
     old_policy = asyncio.get_event_loop_policy()
-    qt_policy = QtAsyncio.QAsyncioEventLoopPolicy()
+    qt_policy = QtAsyncio.QAsyncioEventLoopPolicy(quit_qapp=False)
     asyncio.set_event_loop_policy(qt_policy)
     old_callback = scheduler.request_flush
     scheduler.register_asyncio()
@@ -27,18 +27,6 @@ def qtasyncio():
     finally:
         asyncio.set_event_loop_policy(old_policy)
         scheduler.register_request_flush(old_callback)
-
-
-@pytest.fixture
-def qapp(qapp_args, qapp_cls, pytestconfig):
-    # workaround for https://bugreports.qt.io/browse/PYSIDE-2575
-    app = qt_api.QtWidgets.QApplication.instance()
-    if app is None:
-        _qapp_instance = qapp_cls(qapp_args)
-        name = pytestconfig.getini("qt_qapp_name")
-        _qapp_instance.setApplicationName(name)
-        return _qapp_instance
-    return app
 
 
 @pytest.mark.skipif(not has_qt, reason=qt_missing_reason)
@@ -68,7 +56,6 @@ def test_scheduler_pyside_asyncio(qtasyncio, qapp):
     assert calls == 1
 
 
-@pytest.mark.xfail
 @pytest.mark.skipif(not has_qt, reason=qt_missing_reason)
 def test_qt_integration(qapp):
     class Label(QtWidgets.QLabel):
@@ -109,4 +96,6 @@ def test_qt_integration(qapp):
 
     del label
 
+    if weak_label() is not None:
+        pytest.xfail("The weak wrapper in watcher doesn't work for QObject methods")
     assert not weak_label()
