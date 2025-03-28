@@ -58,6 +58,9 @@ EXCLUDED = {
     "_is_protocol",
     "__orig_bases__",
     "__parameters__",
+    # New in Python 3.13
+    "__firstlineno__",
+    "__static_attributes__",
 }
 
 
