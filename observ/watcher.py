@@ -14,6 +14,13 @@ from itertools import count
 from typing import Any, Callable, Generic, Optional, TypeVar, Union
 from weakref import WeakSet, ref
 
+try:
+    import numpy as np
+
+    has_numpy = True
+except ImportError:
+    has_numpy = False
+
 from .dep import Dep
 from .dict_proxy import DictProxyBase
 from .list_proxy import ListProxyBase
@@ -107,6 +114,8 @@ def traverse(obj, seen=None):
         seen = []
     seen.append(obj)
     for v in val_iter:
+        if has_numpy and isinstance(v, np.ndarray):
+            continue
         if v not in seen:
             traverse(v, seen=seen)
 
