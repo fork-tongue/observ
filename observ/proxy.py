@@ -23,7 +23,7 @@ class Proxy(Generic[T]):
     __hash__ = None
     # the slots have to be very unique since we also proxy objects
     # which may define the attributes with the same names
-    __slots__ = ("__target__", "__readonly__", "__shallow__", "__weakref__")
+    __slots__ = ("__readonly__", "__shallow__", "__target__", "__weakref__")
 
     def __init__(self, target: T, readonly=False, shallow=False):
         self.__target__ = target

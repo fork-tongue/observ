@@ -1,21 +1,21 @@
 repos:
-- repo: local
-  hooks:
-  - id: ruff (format)
-    name: Format
-    entry: poetry run ruff format
-    language: system
-    types: [python]
-    require_serial: true
-  - id: ruff (lint)
-    name: Lint
-    entry: poetry run ruff --fix
-    language: system
-    types: [python]
-    require_serial: true
-  - id: pytest
-    name: Test
-    entry: poetry run pytest tests
-    language: system
-    types: [python]
-    pass_filenames: false
+  - repo: local
+    hooks:
+      - id: ruff (format)
+        name: Format
+        entry: uv run ruff format
+        language: system
+        types: [python]
+        require_serial: true
+      - id: ruff (lint)
+        name: Lint
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+        require_serial: true
+      - id: pytest
+        name: Test
+        entry: uv run pytest tests
+        language: system
+        types: [python]
+        pass_filenames: false

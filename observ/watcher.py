@@ -3,6 +3,7 @@ watchers perform dependency tracking via functions acting on
 observable datastructures, and optionally trigger callback when
 a change is detected.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -125,21 +126,21 @@ class WrongNumberOfArgumentsError(TypeError):
 
 class Watcher(Generic[T]):
     __slots__ = (
-        "id",
-        "fn",
-        "fn_async",
+        "__weakref__",
         "_deps",
         "_new_deps",
-        "sync",
+        "_number_of_callback_args",
         "callback",
         "callback_async",
-        "no_recurse",
         "deep",
-        "lazy",
         "dirty",
+        "fn",
+        "fn_async",
+        "id",
+        "lazy",
+        "no_recurse",
+        "sync",
         "value",
-        "_number_of_callback_args",
-        "__weakref__",
     )
     on_created: Optional[Callable[[Watcher[T]], None]] = None
     on_destroyed: Optional[Callable[[Watcher[T]], None]] = None
