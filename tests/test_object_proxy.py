@@ -1,6 +1,6 @@
 import pytest
 
-from observ import reactive, to_raw
+from observ import reactive, to_raw, watch
 from observ.object_proxy import ObjectProxy, ReadonlyObjectProxy
 from observ.object_utils import get_class_slots, get_object_attrs
 from observ.proxy import proxy
@@ -100,6 +100,13 @@ def test_usage_numpy():
     proxy = reactive(arr)
     # not supported
     assert not isinstance(proxy, ObjectProxy)
+
+
+@pytest.mark.skipif(not has_numpy, reason=numpy_missing_reason)
+def test_usage_watcher_with_numpy_values():
+    proxy = reactive({"key": np.eye(4)})
+
+    _ = watch(lambda: proxy, lambda: (), deep=True)
 
 
 def test_toraw():

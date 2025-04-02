@@ -741,6 +741,20 @@ def test_watch_setdefault_existing_key():
     assert cb.call_count == 1
 
 
+def test_watch_module_does_not_raise():
+    """Check that having modules and classes in the reactive state
+    doesn't fail the deep traversal"""
+    a = reactive({"foo": pytest, "bar": WrongNumberOfArgumentsError})
+    cb = Mock()
+
+    watcher = watch(lambda: a, cb, sync=True, deep=True)  # noqa: F841
+
+    assert cb.call_count == 0
+
+    a["baz"] = "foo"
+    assert cb.call_count == 1
+
+
 def test_use_weird_types_as_value():
     # TypeError: bad argument type for built-in operation
     # Might happen with types that can't be compare to None
