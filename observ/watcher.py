@@ -90,6 +90,8 @@ def traverse(obj, seen=None):
             return
         val_iter = iter(obj)
     else:
+        if inspect.ismodule(obj) or inspect.isclass(obj):
+            return
         obj_attrs = get_object_attrs(obj)
         if not obj_attrs:
             return
