@@ -6,3 +6,4 @@ dist
 .benchmarks
 .venv
 .pytest_cache
+uv.lock
