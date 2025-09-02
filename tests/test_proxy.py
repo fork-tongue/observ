@@ -256,3 +256,14 @@ def test_tuple_equality():
     assert isinstance(raw, tuple)
     assert p is not raw
     assert p == raw
+
+
+def test_dict_subclass_not_wrapped():
+    class Custom(dict):
+        pass
+
+    raw = Custom(foo="bar")
+    p = proxy(raw)
+    assert not isinstance(p, Proxy)
+    assert isinstance(raw, dict)
+    assert p is raw

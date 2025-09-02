@@ -77,7 +77,7 @@ ReadonlyDictProxy = type(
 
 
 def type_test(target):
-    return isinstance(target, dict)
+    return type(target) is dict
 
 
 TYPE_LOOKUP[type_test] = (DictProxy, ReadonlyDictProxy)
