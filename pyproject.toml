@@ -31,6 +31,7 @@ qt = [
     "pytest-qt",
     "pytest-xvfb",
 ]
+pygfx = ["pygfx"]
 numpy = ["numpy"]
 
 [tool.uv]
