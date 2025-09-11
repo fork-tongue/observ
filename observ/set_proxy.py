@@ -54,7 +54,7 @@ set_traps = {
 
 
 class SetProxyBase(Proxy[set]):
-    pass
+    __slots__ = ()
 
 
 def readonly_set_proxy_init(self, target, shallow=False, **kwargs):
@@ -64,12 +64,15 @@ def readonly_set_proxy_init(self, target, shallow=False, **kwargs):
 
 
 SetProxy = type(
-    "SetProxy", (SetProxyBase,), construct_methods_traps_dict(set, set_traps, trap_map)
+    "SetProxy",
+    (SetProxyBase,),
+    {"__slots__": (), **construct_methods_traps_dict(set, set_traps, trap_map)},
 )
 ReadonlySetProxy = type(
     "ReadonlysetProxy",
     (SetProxyBase,),
     {
+        "__slots__": (),
         "__init__": readonly_set_proxy_init,
         **construct_methods_traps_dict(set, set_traps, trap_map_readonly),
     },

@@ -51,6 +51,8 @@ dict_traps = {
 
 
 class DictProxyBase(Proxy[dict]):
+    __slots__ = ()
+
     def _orphaned_keydeps(self):
         return set(proxy_db.attrs(self)["keydep"].keys()) - set(self.__target__.keys())
 
@@ -64,12 +66,16 @@ def readonly_dict_proxy_init(self, target, shallow=False, **kwargs):
 DictProxy = type(
     "DictProxy",
     (DictProxyBase,),
-    construct_methods_traps_dict(dict, dict_traps, trap_map),
+    {
+        "__slots__": (),
+        **construct_methods_traps_dict(dict, dict_traps, trap_map),
+    },
 )
 ReadonlyDictProxy = type(
     "ReadonlyDictProxy",
     (DictProxyBase,),
     {
+        "__slots__": (),
         "__init__": readonly_dict_proxy_init,
         **construct_methods_traps_dict(dict, dict_traps, trap_map_readonly),
     },

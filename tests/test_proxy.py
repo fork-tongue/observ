@@ -267,3 +267,27 @@ def test_dict_subclass_not_wrapped():
     assert not isinstance(p, Proxy)
     assert isinstance(raw, dict)
     assert p is raw
+
+
+def test_proxy_is_slotted():
+    some_dict = proxy({1: 1, 2: 2, 3: 3})
+    assert isinstance(some_dict, DictProxy)
+    some_list = proxy([1, 2, 3])
+    assert isinstance(some_list, ListProxy)
+    some_set = proxy({1, 2, 3})
+    assert isinstance(some_set, SetProxy)
+
+    with pytest.raises(
+        AttributeError, match="'DictProxy' object has no attribute 'foo'"
+    ):
+        some_dict.foo = "foo"
+
+    with pytest.raises(
+        AttributeError, match="'ListProxy' object has no attribute 'foo'"
+    ):
+        some_list.foo = "foo"
+
+    with pytest.raises(
+        AttributeError, match="'SetProxy' object has no attribute 'foo'"
+    ):
+        some_set.foo = "foo"

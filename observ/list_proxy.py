@@ -45,7 +45,7 @@ list_traps = {
 
 
 class ListProxyBase(Proxy[list]):
-    pass
+    __slots__ = ()
 
 
 def readonly_list_proxy_init(self, target, shallow=False, **kwargs):
@@ -57,12 +57,16 @@ def readonly_list_proxy_init(self, target, shallow=False, **kwargs):
 ListProxy = type(
     "ListProxy",
     (ListProxyBase,),
-    construct_methods_traps_dict(list, list_traps, trap_map),
+    {
+        "__slots__": (),
+        **construct_methods_traps_dict(list, list_traps, trap_map),
+    },
 )
 ReadonlyListProxy = type(
     "ReadonlyListProxy",
     (ListProxyBase,),
     {
+        "__slots__": (),
         "__init__": readonly_list_proxy_init,
         **construct_methods_traps_dict(list, list_traps, trap_map_readonly),
     },
