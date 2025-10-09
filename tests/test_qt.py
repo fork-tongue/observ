@@ -10,7 +10,7 @@ try:
     with warnings.catch_warnings():
         # Filter deprecation warnings of event loop policies
         # in Python 3.14, which will be removed in 3.16
-        warnings.filterwarnings('ignore', category=DeprecationWarning)
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
         from PySide6 import QtAsyncio, QtWidgets
 
     has_qt = True
@@ -24,7 +24,7 @@ def qtasyncio():
     with warnings.catch_warnings():
         # Filter deprecation warnings of event loop policies
         # in Python 3.14, which will be removed in 3.16
-        warnings.filterwarnings('ignore', category=DeprecationWarning)
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
         old_policy = asyncio.get_event_loop_policy()
         qt_policy = QtAsyncio.QAsyncioEventLoopPolicy(quit_qapp=False)
         asyncio.set_event_loop_policy(qt_policy)

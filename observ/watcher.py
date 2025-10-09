@@ -275,7 +275,6 @@ class Watcher(Generic[T]):
                 self._tasks.add(task)
                 task.add_done_callback(self._tasks.discard)
 
-
     def _run_callback(self, *args) -> None:
         """
         Run the callback with the given arguments. When the callback
