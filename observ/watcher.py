@@ -265,7 +265,7 @@ class Watcher(Generic[T]):
                     self._number_of_callback_args = 2
 
         if self.callback_async and maybe_coro:
-            loop = asyncio.get_event_loop_policy().get_event_loop()
+            loop = asyncio.get_event_loop()
             if not loop.is_running():
                 loop.run_until_complete(maybe_coro)
             else:
@@ -296,7 +296,7 @@ class Watcher(Generic[T]):
         try:
             value_or_coro = self.fn()
             if self.fn_async and value_or_coro:
-                loop = asyncio.get_event_loop_policy().get_event_loop()
+                loop = asyncio.get_event_loop()
                 if not loop.is_running():
                     value_or_coro = loop.run_until_complete(value_or_coro)
                 else:
