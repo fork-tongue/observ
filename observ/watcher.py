@@ -141,6 +141,7 @@ class Watcher(Generic[T]):
         "_deps",
         "_new_deps",
         "_number_of_callback_args",
+        "_tasks",
         "callback",
         "callback_async",
         "deep",
@@ -185,6 +186,7 @@ class Watcher(Generic[T]):
             if deep is None:
                 deep = True
         self._deps, self._new_deps = WeakSet(), WeakSet()
+        self._tasks = set()
 
         self.sync = sync
         if callable(callback):
@@ -269,7 +271,10 @@ class Watcher(Generic[T]):
             if not loop.is_running():
                 loop.run_until_complete(maybe_coro)
             else:
-                loop.create_task(maybe_coro)
+                task = loop.create_task(maybe_coro)
+                self._tasks.add(task)
+                task.add_done_callback(self._tasks.discard)
+
 
     def _run_callback(self, *args) -> None:
         """
@@ -300,7 +305,9 @@ class Watcher(Generic[T]):
                 if not loop.is_running():
                     value_or_coro = loop.run_until_complete(value_or_coro)
                 else:
-                    loop.create_task(value_or_coro)
+                    task = loop.create_task(value_or_coro)
+                    self._tasks.add(task)
+                    task.add_done_callback(self._tasks.discard)
                     return
             if self.deep:
                 traverse(value_or_coro)
