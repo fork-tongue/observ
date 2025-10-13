@@ -49,7 +49,7 @@ class Scheduler:
         self.request_flush = callback
 
     def request_flush_asyncio(self):
-        loop = asyncio.get_event_loop_policy().get_event_loop()
+        loop = asyncio.get_event_loop()
         loop.call_soon(self.flush)
 
     def register_asyncio(self):

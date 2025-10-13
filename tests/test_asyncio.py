@@ -12,7 +12,7 @@ def flush(loop):
 
 def create_plain_loop():
     loop = asyncio.new_event_loop()
-    asyncio.get_event_loop_policy().set_event_loop(loop)
+    asyncio.set_event_loop(loop)
     return loop
 
 

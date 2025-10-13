@@ -141,6 +141,7 @@ class Watcher(Generic[T]):
         "_deps",
         "_new_deps",
         "_number_of_callback_args",
+        "_tasks",
         "callback",
         "callback_async",
         "deep",
@@ -185,6 +186,7 @@ class Watcher(Generic[T]):
             if deep is None:
                 deep = True
         self._deps, self._new_deps = WeakSet(), WeakSet()
+        self._tasks = set()
 
         self.sync = sync
         if callable(callback):
@@ -265,11 +267,13 @@ class Watcher(Generic[T]):
                     self._number_of_callback_args = 2
 
         if self.callback_async and maybe_coro:
-            loop = asyncio.get_event_loop_policy().get_event_loop()
+            loop = asyncio.get_event_loop()
             if not loop.is_running():
                 loop.run_until_complete(maybe_coro)
             else:
-                loop.create_task(maybe_coro)
+                task = loop.create_task(maybe_coro)
+                self._tasks.add(task)
+                task.add_done_callback(self._tasks.discard)
 
     def _run_callback(self, *args) -> None:
         """
@@ -296,11 +300,13 @@ class Watcher(Generic[T]):
         try:
             value_or_coro = self.fn()
             if self.fn_async and value_or_coro:
-                loop = asyncio.get_event_loop_policy().get_event_loop()
+                loop = asyncio.get_event_loop()
                 if not loop.is_running():
                     value_or_coro = loop.run_until_complete(value_or_coro)
                 else:
-                    loop.create_task(value_or_coro)
+                    task = loop.create_task(value_or_coro)
+                    self._tasks.add(task)
+                    task.add_done_callback(self._tasks.discard)
                     return
             if self.deep:
                 traverse(value_or_coro)

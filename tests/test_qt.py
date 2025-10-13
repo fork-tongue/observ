@@ -1,4 +1,5 @@
 import asyncio
+import warnings
 from weakref import ref
 
 import pytest
@@ -6,7 +7,11 @@ import pytest
 from observ import reactive, scheduler, watch
 
 try:
-    from PySide6 import QtAsyncio, QtWidgets
+    with warnings.catch_warnings():
+        # Filter deprecation warnings of event loop policies
+        # in Python 3.14, which will be removed in 3.16
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        from PySide6 import QtAsyncio, QtWidgets
 
     has_qt = True
 except ImportError:
@@ -16,16 +21,20 @@ qt_missing_reason = "Qt is not installed"
 
 @pytest.fixture
 def qtasyncio():
-    old_policy = asyncio.get_event_loop_policy()
-    qt_policy = QtAsyncio.QAsyncioEventLoopPolicy(quit_qapp=False)
-    asyncio.set_event_loop_policy(qt_policy)
-    old_callback = scheduler.request_flush
-    scheduler.register_asyncio()
-    try:
-        yield
-    finally:
-        asyncio.set_event_loop_policy(old_policy)
-        scheduler.register_request_flush(old_callback)
+    with warnings.catch_warnings():
+        # Filter deprecation warnings of event loop policies
+        # in Python 3.14, which will be removed in 3.16
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        old_policy = asyncio.get_event_loop_policy()
+        qt_policy = QtAsyncio.QAsyncioEventLoopPolicy(quit_qapp=False)
+        asyncio.set_event_loop_policy(qt_policy)
+        old_callback = scheduler.request_flush
+        scheduler.register_asyncio()
+        try:
+            yield
+        finally:
+            asyncio.set_event_loop_policy(old_policy)
+            scheduler.register_request_flush(old_callback)
 
 
 @pytest.mark.skipif(not has_qt, reason=qt_missing_reason)
