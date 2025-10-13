@@ -22,8 +22,6 @@ dev = [
     "pytest-benchmark",
     "pytest-cov",
     "pytest-timeout",
-    "twine",
-    "urllib3 ; python_version < '4'",
 ]
 ruff = ["ruff"]
 qt = [
