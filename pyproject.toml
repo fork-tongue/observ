@@ -1,6 +1,6 @@
 [project]
 name = "observ"
-version = "0.15.0"
+version = "0.15.1"
 description = "Reactive state management for Python"
 authors = [
     { name = "Korijn van Golen", email = "korijn@gmail.com" },
@@ -22,8 +22,6 @@ dev = [
     "pytest-benchmark",
     "pytest-cov",
     "pytest-timeout",
-    "twine",
-    "urllib3 ; python_version < '4'",
 ]
 ruff = ["ruff"]
 qt = [
