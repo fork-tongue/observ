@@ -104,7 +104,13 @@ def test_usage_numpy():
 
 @pytest.mark.skipif(not has_numpy, reason=numpy_missing_reason)
 def test_usage_watcher_with_numpy_values():
-    proxy = reactive({"key": np.eye(4)})
+    proxy = reactive(
+        {
+            "key": np.eye(4),
+            "float": np.float64(1.2),
+            "int": np.short(2),
+        }
+    )
 
     _ = watch(lambda: proxy, lambda: (), deep=True)
 

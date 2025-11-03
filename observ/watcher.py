@@ -114,7 +114,7 @@ def traverse(obj, seen=None):
         seen = []
     seen.append(obj)
     for v in val_iter:
-        if has_numpy and isinstance(v, np.ndarray):
+        if has_numpy and isinstance(v, (np.ndarray, np.generic)):
             continue
         if v not in seen:
             traverse(v, seen=seen)
