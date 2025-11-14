@@ -1,0 +1,78 @@
+name: Performance Benchmarks
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  benchmark:
+    name: Run performance benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # Need full history for comparisons
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: uv sync --all-groups
+
+      # Cache benchmark results
+      - name: Cache benchmark results
+        uses: actions/cache@v4
+        with:
+          path: .benchmarks
+          key: benchmark-results-${{ runner.os }}-${{ github.ref_name }}
+          restore-keys: |
+            benchmark-results-${{ runner.os }}-master
+            benchmark-results-${{ runner.os }}-
+
+      # On master branch: save baseline results
+      - name: Run benchmarks and save baseline
+        if: github.ref == 'refs/heads/master'
+        run: |
+          uv run --no-sync pytest bench \
+            --benchmark-only \
+            --benchmark-autosave \
+            --benchmark-sort=name
+
+      # On PRs: compare against baseline and fail if degraded
+      - name: Run benchmarks and compare
+        if: github.event_name == 'pull_request'
+        run: |
+          # Get the latest baseline ID
+          BASELINE=$(ls -1 .benchmarks/*/0*.json 2>/dev/null | tail -1 | grep -oP '\d{4}(?=_)')
+
+          if [ -z "$BASELINE" ]; then
+            echo "No baseline found, running benchmarks without comparison"
+            uv run --no-sync pytest bench \
+              --benchmark-only \
+              --benchmark-autosave \
+              --benchmark-sort=name
+          else
+            echo "Comparing against baseline: $BASELINE"
+            uv run --no-sync pytest bench \
+              --benchmark-only \
+              --benchmark-compare=$BASELINE \
+              --benchmark-compare-fail=mean:5% \
+              --benchmark-sort=name
+          fi
+
+      # Save benchmark results as artifact for PRs
+      - name: Upload benchmark results
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: .benchmarks/
