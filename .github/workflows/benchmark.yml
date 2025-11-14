@@ -26,17 +26,16 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      # Cache benchmark results
-      - name: Cache benchmark results
-        uses: actions/cache@v4
+      # Restore benchmark baseline (read-only for PRs)
+      - name: Restore benchmark baseline
+        uses: actions/cache/restore@v4
         with:
           path: .benchmarks
-          key: benchmark-results-${{ runner.os }}-${{ github.ref_name }}
+          key: benchmark-baseline-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
-            benchmark-results-${{ runner.os }}-master
-            benchmark-results-${{ runner.os }}-
+            benchmark-baseline-${{ runner.os }}-
 
-      # On master branch: save baseline results
+      # On master: save baseline results
       - name: Run benchmarks and save baseline
         if: github.ref == 'refs/heads/master'
         run: |
@@ -44,6 +43,14 @@ jobs:
             --benchmark-only \
             --benchmark-autosave \
             --benchmark-sort=name
+
+      # On master: cache the new baseline results
+      - name: Save benchmark baseline
+        if: github.ref == 'refs/heads/master'
+        uses: actions/cache/save@v4
+        with:
+          path: .benchmarks
+          key: benchmark-baseline-${{ runner.os }}-${{ github.sha }}
 
       # On PRs: compare against baseline and fail if degraded
       - name: Run benchmarks and compare
