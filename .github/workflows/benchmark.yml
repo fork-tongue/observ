@@ -1,0 +1,67 @@
+name: Benchmarks
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  benchmark:
+    name: Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install dependencies
+        run: uv sync
+
+      # Restore benchmark baseline (read-only for PRs)
+      - name: Restore benchmark baseline
+        uses: actions/cache/restore@v4
+        with:
+          path: .benchmarks
+          key: benchmark-baseline-3.14-${{ runner.os }}
+
+      # On master: save baseline results
+      - name: Run benchmarks and save baseline
+        if: github.ref == 'refs/heads/master'
+        run: |
+          uv run --no-sync pytest bench \
+            --benchmark-only \
+            --benchmark-autosave \
+            --benchmark-sort=name
+
+      # On master: cache the new baseline results
+      - name: Save benchmark baseline
+        if: github.ref == 'refs/heads/master'
+        uses: actions/cache/save@v4
+        with:
+          path: .benchmarks
+          key: benchmark-baseline-3.14-${{ runner.os }}
+
+      # On PRs: compare against baseline and fail if degraded
+      - name: Run benchmarks and compare
+        if: github.event_name == 'pull_request'
+        run: |
+          if [ -z "$(uv run --no-sync pytest-benchmark list)" ]; then
+            echo "No baseline found, skip the benchmark"
+            exit
+          fi
+
+          uv run --no-sync pytest bench \
+              --benchmark-only \
+              --benchmark-compare \
+              --benchmark-compare-fail=mean:5% \
+              --benchmark-sort=name
+
