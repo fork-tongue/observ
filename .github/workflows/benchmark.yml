@@ -31,9 +31,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .benchmarks
-          key: benchmark-baseline-${{ runner.os }}-${{ github.sha }}
-          restore-keys: |
-            benchmark-baseline-${{ runner.os }}-
+          key: benchmark-baseline-3.14-${{ runner.os }}
 
       # On master: save baseline results
       - name: Run benchmarks and save baseline
@@ -50,7 +48,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: .benchmarks
-          key: benchmark-baseline-${{ runner.os }}-${{ github.sha }}
+          key: benchmark-baseline-3.14-${{ runner.os }}
 
       # On PRs: compare against baseline and fail if degraded
       - name: Run benchmarks and compare
