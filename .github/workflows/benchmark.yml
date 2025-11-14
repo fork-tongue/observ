@@ -14,8 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0  # Need full history for comparisons
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6
