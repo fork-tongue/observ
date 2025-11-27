@@ -269,6 +269,28 @@ def test_dict_subclass_not_wrapped():
     assert p is raw
 
 
+def test_list_subclass_not_wrapped():
+    class Custom(list):
+        pass
+
+    raw = Custom([0, 1, 2])
+    p = proxy(raw)
+    assert not isinstance(p, Proxy)
+    assert isinstance(raw, list)
+    assert p is raw
+
+
+def test_set_subclass_not_wrapped():
+    class Custom(set):
+        pass
+
+    raw = Custom([1, 2, 3])
+    p = proxy(raw)
+    assert not isinstance(p, Proxy)
+    assert isinstance(raw, set)
+    assert p is raw
+
+
 def test_proxy_is_slotted():
     some_dict = proxy({1: 1, 2: 2, 3: 3})
     assert isinstance(some_dict, DictProxy)
