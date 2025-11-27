@@ -623,13 +623,10 @@ def test_usage_class_instances():
 
     # write to a class attribute
     a[2].foo = 10
-    assert called == 3
-
-    # magic methods are supported
-    foo_len = computed(lambda: len(a[2]))
-    assert foo_len() == 10
+    assert called == 2  # class instances are NOT reactive
 
 
+@pytest.mark.xfail(reason="Object proxy is disabled")
 def test_usage_dataclass():
     @dataclass
     class Foo:

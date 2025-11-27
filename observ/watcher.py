@@ -24,7 +24,6 @@ except ImportError:
 from .dep import Dep
 from .dict_proxy import DictProxyBase
 from .list_proxy import ListProxyBase
-from .object_utils import get_object_attrs
 from .scheduler import scheduler
 from .set_proxy import SetProxyBase
 
@@ -97,12 +96,7 @@ def traverse(obj, seen=None):
             return
         val_iter = iter(obj)
     else:
-        if inspect.ismodule(obj) or inspect.isclass(obj):
-            return
-        obj_attrs = get_object_attrs(obj)
-        if not obj_attrs:
-            return
-        val_iter = (getattr(obj, attr) for attr in obj_attrs)
+        return
 
     # track which objects we have already seen to support(!) full traversal
     # of datastructures with cycles
