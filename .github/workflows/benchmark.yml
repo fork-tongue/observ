@@ -31,16 +31,26 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .benchmarks
-          key: benchmark-baseline-3.14-${{ runner.os }}
+          key: benchmark-baseline-3.14-${{ runner.os }}-${{ github.run_number }}
+          restore-keys: |
+            benchmark-baseline-3.14-${{ runner.os }}-
 
       # On master: save baseline results
-      - name: Run benchmarks and save baseline
+      - name: Run benchmarks and save new baseline
         if: github.ref == 'refs/heads/master'
+        continue-on-error: true
         run: |
           uv run --no-sync pytest bench \
             --benchmark-only \
             --benchmark-autosave \
-            --benchmark-sort=name
+            --benchmark-sort=mean
+
+          LAST_BENCHMARK=$(uv run pytest-benchmark list | tail -1)
+          cp $LAST_BENCHMARK benchmark.json
+          # Clear out all benchmarks
+          rm -f .benchmarks/*/*.json
+          # Restore just the last benchmark
+          cp benchmark.json $LAST_BENCHMARK
 
       # On master: cache the new baseline results
       - name: Save benchmark baseline
@@ -48,14 +58,15 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: .benchmarks
-          key: benchmark-baseline-3.14-${{ runner.os }}
+          key: benchmark-baseline-3.14-${{ runner.os }}-${{ github.run_number }}
 
       # On PRs: compare against baseline and fail if degraded
       - name: Run benchmarks and compare
         if: github.event_name == 'pull_request'
         run: |
           if [ -z "$(uv run --no-sync pytest-benchmark list)" ]; then
-            echo "No baseline found, skip the benchmark"
+            echo "No baseline found, not comparing"
+            uv run --no-sync pytest -v bench
             exit
           fi
 
@@ -63,5 +74,5 @@ jobs:
               --benchmark-only \
               --benchmark-compare \
               --benchmark-compare-fail=mean:5% \
-              --benchmark-sort=name
+              --benchmark-sort=mean
 
