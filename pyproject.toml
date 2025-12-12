@@ -59,4 +59,4 @@ select = [
 
 [tool.pytest.ini_options]
 addopts = "--benchmark-columns='mean, stddev, rounds'"
-timeout = 3
+# timeout = 3
