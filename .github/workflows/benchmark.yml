@@ -26,42 +26,37 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      # Restore benchmark baseline (read-only for PRs)
-      - name: Restore benchmark baseline
-        uses: actions/cache/restore@v4
-        with:
-          path: .benchmarks
-          key: benchmark-baseline-3.14-${{ runner.os }}
-
-      # On master: save baseline results
-      - name: Run benchmarks and save baseline
+      # On master: just run benchmarks
+      - name: Run benchmarks
         if: github.ref == 'refs/heads/master'
         run: |
           uv run --no-sync pytest bench \
             --benchmark-only \
-            --benchmark-autosave \
             --benchmark-sort=name
 
-      # On master: cache the new baseline results
-      - name: Save benchmark baseline
-        if: github.ref == 'refs/heads/master'
-        uses: actions/cache/save@v4
-        with:
-          path: .benchmarks
-          key: benchmark-baseline-3.14-${{ runner.os }}
-
-      # On PRs: compare against baseline and fail if degraded
-      - name: Run benchmarks and compare
+      # On PRs: run benchmarks twice (PR code vs master code) and compare
+      - name: Run benchmarks on master code (baseline)
         if: github.event_name == 'pull_request'
         run: |
-          if [ -z "$(uv run --no-sync pytest-benchmark list)" ]; then
-            echo "No baseline found, skip the benchmark"
-            exit
-          fi
+          # Checkout master version of observ directory
+          git fetch origin master
+          git checkout origin/master -- observ/
 
+          # Run benchmarks with master code as baseline
+          uv run --no-sync pytest bench \
+              --benchmark-only \
+              --benchmark-save=master \
+              --benchmark-sort=mean
+
+          # Restore PR code
+          git checkout HEAD -- observ/
+
+      - name: Run benchmarks on PR code and compare
+        if: github.event_name == 'pull_request'
+        run: |
           uv run --no-sync pytest bench \
               --benchmark-only \
               --benchmark-compare \
               --benchmark-compare-fail=mean:5% \
-              --benchmark-sort=name
+              --benchmark-sort=mean
 
