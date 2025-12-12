@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+from collections import deque
 from collections.abc import Awaitable, Container
 from functools import partial, wraps
 from itertools import count
@@ -73,44 +74,49 @@ def computed(_fn: Callable[[], T] | None = None, *, deep=True) -> Callable[[], T
     return decorator_computed(_fn)
 
 
-def traverse(obj, seen=None, seen_ids=None):
+def traverse(obj):
     """
-    Recursively traverse the whole tree to make sure
-    that all values have been 'get'
+    Non-recursively traverse the whole tree to make sure that all values have been 'get'
+
+    Track which objects we have already seen to support(!) full traversal of data
+    structures with cycles.
+    A set is used to provide faster containment checks and a list is used to make
+    sure that ids are not being reused for the duration of this method.
+    The traversed objects are not hashable (except for tuple) because they are mutable.
+    Converting everything to a hashable thing (because nothing is mutated during
+    traversal) is an option but way more expensive than just using a list + set.
     """
-    # we are only interested in traversing a fixed set of types
-    # otherwise we can just exit
-    if isinstance(obj, (dict, DictProxyBase)):
-        if not obj:
-            return
-        val_iter = iter(obj.values())
-    elif isinstance(obj, (list, ListProxyBase, set, SetProxyBase, tuple)):
-        if not obj:
-            return
-        val_iter = iter(obj)
-    else:
-        return
+    seen = []
+    seen_ids = set()
+    stack = deque([obj])
 
-    if seen is None or seen_ids is None:
-        seen = []
-        seen_ids = set()
+    while stack:
+        current = stack.pop()
 
-    obj_id = id(obj)
-    if obj_id in seen_ids:
-        return
+        # We are only interested in traversing a fixed set of types
+        # otherwise we can just continue with the next branch
+        if isinstance(current, (dict, DictProxyBase)):
+            if not current:
+                continue
+            val_iter = current.values()
+        elif isinstance(current, (list, ListProxyBase, set, SetProxyBase, tuple)):
+            if not current:
+                continue
+            val_iter = current
+        else:
+            continue
 
-    # track which objects we have already seen to support(!) full traversal
-    # of datastructures with cycles
-    # NOTE: the set is used to provide faster containment checks
-    # and the list is used to make sure that ids are not being reused
-    seen.append(obj)
-    seen_ids.add(obj_id)
+        # Check if we've seen this object before
+        obj_id = id(current)
+        if obj_id in seen_ids:
+            continue
 
-    # but these objects are not hashable (except for tuple) because they are mutable
-    # converting everything to a hashable thing (because nothing is mutated during
-    # traversal) is an option but way more expensive than just using a list
-    for v in val_iter:
-        traverse(v, seen=seen, seen_ids=seen_ids)
+        # Mark as seen
+        seen.append(current)
+        seen_ids.add(obj_id)
+
+        # Add children to stack
+        stack.extend(val_iter)
 
 
 # Every Watcher gets a unique ID which is used to
