@@ -24,7 +24,7 @@ jobs:
         run: uv sync
 
       # On PRs: run benchmarks twice (PR code vs master code) and compare
-      - name: Run benchmarks on master code (baseline)
+      - name: Run benchmarks
         run: |
           # Checkout master version of observ directory
           git fetch origin master
