@@ -1,9 +1,6 @@
 name: Benchmarks
 
 on:
-  push:
-    branches:
-      - master
   pull_request:
     branches:
       - master
@@ -21,22 +18,14 @@ jobs:
       - name: Set up Python 3.14
         uses: actions/setup-python@v5
         with:
-          python-version: '3.14'
+          python-version: "3.14"
 
       - name: Install dependencies
         run: uv sync
 
-      # On master: just run benchmarks
-      - name: Run benchmarks
-        if: github.ref == 'refs/heads/master'
-        run: |
-          uv run --no-sync pytest bench \
-            --benchmark-only \
-            --benchmark-sort=name
-
       # On PRs: run benchmarks twice (PR code vs master code) and compare
       - name: Run benchmarks on master code (baseline)
-        if: github.event_name == 'pull_request'
+        continue-on-error: true
         run: |
           # Checkout master version of observ directory
           git fetch origin master
@@ -52,11 +41,17 @@ jobs:
           git checkout HEAD -- observ/
 
       - name: Run benchmarks on PR code and compare
-        if: github.event_name == 'pull_request'
         run: |
           uv run --no-sync pytest bench \
               --benchmark-only \
               --benchmark-compare \
               --benchmark-compare-fail=mean:5% \
+              --benchmark-save=branch \
               --benchmark-sort=mean
 
+      - name: Upload benchmarks
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Benchmarks
+          path: .benchmarks
