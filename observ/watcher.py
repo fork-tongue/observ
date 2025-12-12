@@ -14,13 +14,6 @@ from itertools import count
 from typing import Any, Callable, Generic, Optional, TypeVar, Union
 from weakref import WeakSet, ref
 
-try:
-    import numpy as np
-
-    has_numpy = True
-except ImportError:
-    has_numpy = False
-
 from .dep import Dep
 from .dict_proxy import DictProxyBase
 from .list_proxy import ListProxyBase
@@ -80,7 +73,7 @@ def computed(_fn: Callable[[], T] | None = None, *, deep=True) -> Callable[[], T
     return decorator_computed(_fn)
 
 
-def traverse(obj, seen=None):
+def traverse(obj, seen=None, seen_ids=None):
     """
     Recursively traverse the whole tree to make sure
     that all values have been 'get'
@@ -98,20 +91,26 @@ def traverse(obj, seen=None):
     else:
         return
 
+    if seen is None or seen_ids is None:
+        seen = []
+        seen_ids = set()
+
+    obj_id = id(obj)
+    if obj_id in seen_ids:
+        return
+
     # track which objects we have already seen to support(!) full traversal
     # of datastructures with cycles
-    # NOTE: a set would provide faster containment checks
+    # NOTE: the set is used to provide faster containment checks
+    # and the list is used to make sure that ids are not being reused
+    seen.append(obj)
+    seen_ids.add(obj_id)
+
     # but these objects are not hashable (except for tuple) because they are mutable
     # converting everything to a hashable thing (because nothing is mutated during
     # traversal) is an option but way more expensive than just using a list
-    if seen is None:
-        seen = []
-    seen.append(obj)
     for v in val_iter:
-        if has_numpy and isinstance(v, (np.ndarray, np.generic)):
-            continue
-        if v not in seen:
-            traverse(v, seen=seen)
+        traverse(v, seen=seen, seen_ids=seen_ids)
 
 
 # Every Watcher gets a unique ID which is used to

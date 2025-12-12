@@ -8,6 +8,13 @@ from observ.list_proxy import ListProxy
 from observ.proxy import Proxy
 from observ.watcher import WrongNumberOfArgumentsError
 
+try:
+    import numpy as np
+
+    has_numpy = True
+except ImportError:
+    has_numpy = False
+
 
 def test_usage_dict():
     a = reactive({"foo": "bar"})
@@ -751,6 +758,20 @@ def test_use_weird_types_as_value():
 
     a = reactive(dict())
     a["foo"] = Foo(3)
+
+
+@pytest.mark.skipif(not has_numpy, reason="numpy is not installed")
+def test_use_skips_numpy():
+    cb = Mock()
+    a = reactive({"foo": np.array([1, 0, 0])})
+
+    # Check that watching a structure with numpy arrays
+    # doesn't raise a ValueError
+    watcher = watch(a, cb, deep=True, sync=True)  # noqa: F841
+
+    a["foo"][1] = 1
+
+    assert cb.call_count == 0
 
 
 def test_watch_reactive_object():
