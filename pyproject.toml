@@ -9,7 +9,7 @@ authors = [
 requires-python = ">=3.9"
 readme = "README.md"
 license = "MIT"
-dependencies = ["patchdiff~=0.3.4"]
+dependencies = []
 
 [project.urls]
 Homepage = "https://github.com/fork-tongue/observ"

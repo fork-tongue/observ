@@ -3,7 +3,9 @@
 
 # Observ 👁
 
-Observ is a Python port of [Vue.js](https://vuejs.org/)' [computed properties and watchers](https://v3.vuejs.org/api/basic-reactivity.html). It is event loop/framework agnostic and has only one pure-python dependency ([patchdiff](https://github.com/Korijn/patchdiff)) so it can be used in any project targeting Python >= 3.9.
+Observ is a Python port of [Vue.js](https://vuejs.org/)' [computed properties and watchers](https://v3.vuejs.org/api/basic-reactivity.html). It is event loop/framework agnostic and has no dependencies so it can be used in any project targeting Python >= 3.9.
+
+The store that used to be part of observ is now available as [reliev](https://github.com/fork-tongue/reliev).
 
 Observ provides the following two benefits for stateful applications:
 
@@ -39,9 +41,7 @@ Install observ with pip/pipenv/poetry/uv:
 
 `pip install observ`
 
-Check out [`examples/observe_qt.py`](https://github.com/Korijn/observ/blob/master/examples/observe_qt.py) for a simple example using observ.
-
-Check out [`examples/store_with_undo_redo.py`](https://github.com/Korijn/observ/blob/master/examples/store_with_undo_redo.py) for a simple example using the included undo/redo-capable Store abstraction.
+Check out [`examples/observe_qt.py`](https://github.com/fork-tongue/observ/blob/master/examples/observe_qt.py) for a simple example using observ.
 
 ## Caveat
 
