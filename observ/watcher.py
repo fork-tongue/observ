@@ -141,6 +141,7 @@ class Watcher(Generic[T]):
         "_new_deps",
         "_number_of_callback_args",
         "_tasks",
+        "active",
         "callback",
         "callback_async",
         "deep",
@@ -171,6 +172,7 @@ class Watcher(Generic[T]):
         callback: Method to call when value has changed
         """
         self.id = next(_ids)
+        self.active = True
         if callable(fn):
             if is_bound_method(fn):
                 self.fn = weak(fn.__self__, fn.__func__)
@@ -229,6 +231,8 @@ class Watcher(Generic[T]):
 
     def run(self) -> None:
         """Called by scheduler"""
+        if not self.active:
+            return
         value = self.get()
         if self.deep or isinstance(value, Container) or value != self.value:
             old_value = self.value
