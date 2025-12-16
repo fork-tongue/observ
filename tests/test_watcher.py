@@ -7,8 +7,9 @@ def test_watcher_active(noop_request_flush):
     a = reactive({"foo": "bar"})
     callback = Mock()
 
-    watcher = watch(lambda: a["foo"], callback, immediate=False)
-    assert watcher.active
+    unwatch = watch(lambda: a["foo"], callback, immediate=False)
+
+    assert callable(unwatch)
 
     callback.assert_not_called()
 
@@ -20,7 +21,8 @@ def test_watcher_active(noop_request_flush):
     callback.reset_mock()
 
     a["foo"] = "qux"
-    watcher.active = False
+    # Call the watcher to stop the watcher
+    unwatch()
 
     scheduler.flush()
     callback.assert_not_called()
@@ -53,11 +55,11 @@ def test_watcher_removed_icw_active(noop_request_flush):
             )
 
         while len(watchers) > new:
-            watcher = watchers.pop()
-            # Here the watcher is deactivated to make sure it won't
+            unwatch = watchers.pop()
+            # Here the watcher is stopped to make sure it won't
             # trigger and tries to get a non-existing value from the
             # watched array
-            watcher.active = False
+            unwatch()
 
     _length_watcher = watch(
         lambda: len(a["foo"]),

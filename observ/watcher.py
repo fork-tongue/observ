@@ -137,11 +137,11 @@ class WrongNumberOfArgumentsError(TypeError):
 class Watcher(Generic[T]):
     __slots__ = (
         "__weakref__",
+        "_active",
         "_deps",
         "_new_deps",
         "_number_of_callback_args",
         "_tasks",
-        "active",
         "callback",
         "callback_async",
         "deep",
@@ -172,7 +172,7 @@ class Watcher(Generic[T]):
         callback: Method to call when value has changed
         """
         self.id = next(_ids)
-        self.active = True
+        self._active = True
         if callable(fn):
             if is_bound_method(fn):
                 self.fn = weak(fn.__self__, fn.__func__)
@@ -209,9 +209,34 @@ class Watcher(Generic[T]):
         if Watcher.on_created:
             Watcher.on_created(self)
 
+    def __call__(self):
+        """
+        Calling a watcher will stop the watcher and clean up
+        any used resource. This can be used when special
+        life-cycle management is needed for watchers.
+        """
+        self._active = False
+
+        # Clear resources
+        self.fn = lambda: ()
+        self.fn_async = False
+        self.callback = None
+        self.callback_async = False
+        self.value = None
+        self._deps.clear()
+        self._new_deps.clear()
+
     def __del__(self):
         if Watcher.on_destroyed:
             Watcher.on_destroyed(self)
+
+    @property
+    def active(self):
+        """
+        Returns whether this watcher is still active.
+        To manually deactivate simply call the watcher object.
+        """
+        return self._active
 
     def update(self) -> None:
         if self.lazy:
@@ -231,7 +256,8 @@ class Watcher(Generic[T]):
 
     def run(self) -> None:
         """Called by scheduler"""
-        if not self.active:
+        # Early return for when the watcher has been deactivated
+        if not self._active:
             return
         value = self.get()
         if self.deep or isinstance(value, Container) or value != self.value:
