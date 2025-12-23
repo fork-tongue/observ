@@ -316,11 +316,22 @@ class Watcher(Generic[T]):
         try:
             return self.callback(*args)
         except TypeError as e:
-            _run_callback_is_top_frame = (
-                e.__traceback__.tb_frame.f_code == self._run_callback.__code__
-            )
-            _no_lower_frames = e.__traceback__.tb_next is None
-            if _run_callback_is_top_frame and _no_lower_frames:
+            # figure out if the TypeError was caused by wrong number of arguments
+            # by checking the exception's traceback
+            wrong_number_of_arguments = False
+            try:
+                _run_callback_is_top_frame = (
+                    e.__traceback__.tb_frame.f_code == self._run_callback.__code__
+                )
+                _no_lower_frames = e.__traceback__.tb_next is None
+                wrong_number_of_arguments = (
+                    _run_callback_is_top_frame and _no_lower_frames
+                )
+            except AttributeError:
+                # if there's no traceback we can't figure this out
+                pass
+
+            if wrong_number_of_arguments:
                 raise WrongNumberOfArgumentsError(str(e)) from e
             else:
                 raise
