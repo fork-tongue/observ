@@ -316,13 +316,14 @@ class Watcher(Generic[T]):
         try:
             return self.callback(*args)
         except TypeError as e:
-            frames = inspect.trace()
-            try:
-                if len(frames) != 1:
-                    raise
+            _run_callback_is_top_frame = (
+                e.__traceback__.tb_frame.f_code == self._run_callback.__code__
+            )
+            _no_lower_frames = e.__traceback__.tb_next is None
+            if _run_callback_is_top_frame and _no_lower_frames:
                 raise WrongNumberOfArgumentsError(str(e)) from e
-            finally:
-                del frames
+            else:
+                raise
 
     def get(self) -> Any:
         Dep.stack.append(self)
