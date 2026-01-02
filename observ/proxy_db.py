@@ -27,21 +27,47 @@ class ProxyDb:
         Callback for garbage collector to cleanup the db for targets
         that have no other references outside of the db
         """
-        # TODO: maybe also run on start? Check performance
         if phase != "stop":
+            # Ref counts are only stable after collection
             return
 
-        keys_to_delete = []
-        for key, value in self.db.items():
+        if info["generation"] != 2:
+            # Only cleanup on full collection. Python GC runs in C mostly,
+            # and this callback runs in Python land, so we want to minimize
+            # the overhead as much as possible. The full collection happens
+            # rarely compared to the other generations:
+            # - gen 0 triggers constantly
+            # - gen 1 is less frequent but still too often
+            # - gen 2 is the full collection which happens rarely
+            return
+
+        if not (db := self.db):
+            # Early exit: Nothing to cleanup
+            # This happens when observ is imported but not used
+            # For example via transient dependencies or unused codepaths
+            # This if statement avoids creating an iterator just to find out
+            # it is empty
+            return
+
+        getrefcount = sys.getrefcount  # Local lookup is faster
+
+        # First collect keys to delete so we don't have to modify db while iterating
+        # Use a list comprehension so we don't have to call .append in a loop
+        keys_to_delete = [
+            key
+            for key, value in db.items()
             # Refs:
             # - sys.getrefcount
             # - ref in db item
-            if sys.getrefcount(value["target"]) <= 2:
-                # We are the last to hold a reference!
-                keys_to_delete.append(key)
+            # If 2: We are the last to hold a reference!
+            if getrefcount(value["target"]) <= 2
+        ]
 
-        for keys in keys_to_delete:
-            del self.db[keys]
+        # Only enter this for loop if there is something to delete, this avoids
+        # creating an iterator only to find out there is nothing to delete.
+        if keys_to_delete:
+            for key in keys_to_delete:
+                del db[key]
 
     def reference(self, proxy):
         """
@@ -116,5 +142,4 @@ class ProxyDb:
             return None
 
 
-# Create a global proxy collection
 proxy_db = ProxyDb()
