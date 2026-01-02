@@ -142,4 +142,5 @@ class ProxyDb:
             return None
 
 
+# Create a global proxy collection
 proxy_db = ProxyDb()
