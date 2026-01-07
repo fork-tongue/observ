@@ -359,4 +359,26 @@ def test_dict_delete_keynotify():
         getattr(coll, name)(*args[name])
         mocks[None].update.assert_called_once()
         mocks[key].update.assert_called_once()
-        assert len(proxy_db.attrs(coll)["keydep"]) == 0
+        # keydep entries are preserved so watchers can be notified when the key is re-added
+        assert key in proxy_db.attrs(coll)["keydep"]
+
+
+def test_dict_pop_with_default():
+    """Test that dict.pop with a default value works for missing keys."""
+    coll = DictProxy({2: 3})
+    mock = Mock()
+    proxy_db.attrs(coll)["dep"].add_sub(mock)
+
+    # Pop existing key - should notify and return value
+    result = coll.pop(2, "default")
+    assert result == 3
+    mock.update.assert_called_once()
+    # keydep is cleaned up when there are no subscribers
+    assert 2 not in proxy_db.attrs(coll)["keydep"]
+
+    # Pop missing key with default - should return default without error
+    mock.reset_mock()
+    result = coll.pop(999, "default")
+    assert result == "default"
+    # Should not notify since nothing changed
+    mock.update.assert_not_called()
