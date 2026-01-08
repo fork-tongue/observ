@@ -359,7 +359,8 @@ def test_dict_delete_keynotify():
         getattr(coll, name)(*args[name])
         mocks[None].update.assert_called_once()
         mocks[key].update.assert_called_once()
-        # keydep entries are preserved so watchers can be notified when the key is re-added
+        # keydep entries are preserved so watchers
+        # can be notified when the key is re-added
         assert key in proxy_db.attrs(coll)["keydep"]
 
 

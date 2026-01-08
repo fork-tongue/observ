@@ -734,7 +734,7 @@ def test_dict_pop_with_default():
     mock = Mock()
 
     state = reactive({"a": "a"})
-    watcher = watch(
+    watcher = watch(  # noqa: F841
         lambda: state.get("b"),
         mock,
         sync=True,
