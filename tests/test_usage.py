@@ -646,6 +646,16 @@ def test_watch_get_non_existing():
 
     assert watcher.value is True
 
+    # Delete the key
+    del a["foo"]
+
+    assert watcher.value is False
+
+    # Then re-add the key, which should trigger the watcher again
+    a["foo"] = True
+
+    assert watcher.value is True
+
 
 def test_watch_get_non_existing_dict():
     a = reactive(dict())
