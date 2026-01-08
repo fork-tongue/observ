@@ -146,12 +146,18 @@ def delete_key_trap(method, obj_cls):
 
     @wraps(fn)
     def trap(self, *args, **kwargs):
-        retval = fn(self.__target__, *args, **kwargs)
         key = args[0]
         attrs = proxy_db.attrs(self)
-        attrs["dep"].notify()
-        attrs["keydep"][key].notify()
-        del attrs["keydep"][key]
+        key_existed = key in self.__target__
+        retval = fn(self.__target__, *args, **kwargs)
+        if key_existed:
+            attrs["dep"].notify()
+            if key in attrs["keydep"]:
+                keydep = attrs["keydep"][key]
+                keydep.notify()
+                # Only delete keydep if no subscribers are interested in this key
+                if not keydep._subs:
+                    del attrs["keydep"][key]
         return retval
 
     return trap

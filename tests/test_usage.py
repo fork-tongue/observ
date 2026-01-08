@@ -646,6 +646,16 @@ def test_watch_get_non_existing():
 
     assert watcher.value is True
 
+    # Delete the key
+    del a["foo"]
+
+    assert watcher.value is False
+
+    # Then re-add the key, which should trigger the watcher again
+    a["foo"] = True
+
+    assert watcher.value is True
+
 
 def test_watch_get_non_existing_dict():
     a = reactive(dict())
@@ -716,6 +726,43 @@ def test_watch_setdefault_existing_key():
 
     some_list.append("bar")
     assert cb.call_count == 1
+
+
+def test_dict_pop_with_default():
+    from observ import reactive, watch
+
+    mock = Mock()
+
+    state = reactive({"a": "a"})
+    watcher = watch(  # noqa: F841
+        lambda: state.get("b"),
+        mock,
+        sync=True,
+    )
+
+    mock.assert_not_called()
+    state.pop("b", "c")
+    mock.assert_not_called()
+
+    # Set a value for 'b'
+    state["b"] = "b"
+    mock.assert_called_once_with("b")
+    mock.reset_mock()
+
+    # pop 'b'
+    result = state.pop("b", "c")
+    assert result == "b"
+    mock.assert_called_once_with(None)
+    mock.reset_mock()
+
+    # pop 'b' again, should now return default
+    result = state.pop("b", "c")
+    assert result == "c"
+    mock.assert_not_called()
+
+    # Setting a value for 'b' again should trigger the watcher
+    state["b"] = "b"
+    mock.assert_called_once_with("b")
 
 
 def test_watch_module_does_not_raise():
