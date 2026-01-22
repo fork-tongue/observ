@@ -288,12 +288,18 @@ class Watcher(Generic[T]):
                 maybe_coro = self._run_callback(new)
                 self._number_of_callback_args = 1
             except WrongNumberOfArgumentsError:
+                pass
+
+            if self._number_of_callback_args is None:
                 try:
                     maybe_coro = self._run_callback()
                     self._number_of_callback_args = 0
                 except WrongNumberOfArgumentsError:
-                    maybe_coro = self._run_callback(new, old)
-                    self._number_of_callback_args = 2
+                    pass
+
+            if self._number_of_callback_args is None:
+                maybe_coro = self._run_callback(new, old)
+                self._number_of_callback_args = 2
 
         if self.callback_async and maybe_coro:
             loop = asyncio.get_event_loop()
