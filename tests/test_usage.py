@@ -16,6 +16,20 @@ except ImportError:
     has_numpy = False
 
 
+def exception_chain(exc: Exception):
+    """
+    Return a unwrapped list of exceptions in a chain.
+
+    When an exception is raised within another exception,
+    then it will be stored in the `__context__` attribute.
+    """
+    result = []
+    while exc is not None:
+        result.append(exc)
+        exc = exc.__context__
+    return result
+
+
 def test_usage_dict():
     a = reactive({"foo": "bar"})
     called = 0
@@ -247,6 +261,54 @@ def test_callback_signatures():
         )
     assert called == 4
     assert not isinstance(e, WrongNumberOfArgumentsError)
+
+
+def test_number_of_arguments_error_is_not_nested():
+    def cb(new, old, too_much):
+        pass
+
+    state = reactive({"foo": "bar"})
+
+    _watcher = watch(
+        lambda: state.get("foo"),
+        cb,
+        sync=True,
+        deep=True,
+    )
+
+    with pytest.raises(WrongNumberOfArgumentsError) as exc:
+        state["foo"] = "baz"
+
+    chain = exception_chain(exc.value)
+
+    # Before, the exceptions used to be nested into each other,
+    # leading to really messy stack traces
+    assert len(chain) == 2
+    assert isinstance(chain[0], WrongNumberOfArgumentsError)
+    assert isinstance(chain[1], TypeError)
+
+
+def test_number_of_arguments_error_not_in_chain_on_actual_exception():
+    def cb(new, old):
+        raise RuntimeError("Oops")
+
+    state = reactive({"foo": "bar"})
+
+    _watcher = watch(
+        lambda: state.get("foo"),
+        cb,
+        sync=True,
+        deep=True,
+    )
+    with pytest.raises(RuntimeError) as exc:
+        state["foo"] = "baz"
+
+    # Before, when an actual exception was raised from within the
+    # callback, the exceptions used to be nested into 2 or 3
+    # WrongNumberOfArgumentsErrors, which was very annoying to read
+    chain = exception_chain(exc.value)
+    assert len(chain) == 1
+    assert isinstance(chain[0], RuntimeError)
 
 
 def test_dict_keys():
