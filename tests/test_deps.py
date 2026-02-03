@@ -30,17 +30,17 @@ def test_deps_copy():
 
 
 def test_deps_delete():
-    # test that dep objects are removed on delete
+    # test that dep objects are _not_ removed on delete
     state = reactive({"foo": 5, "bar": 6})
 
     state["baz"] = 5
     assert len(proxy_db.attrs(state)["keydep"]) == 3
 
     del state["baz"]
-    assert len(proxy_db.attrs(state)["keydep"]) == 2
+    assert len(proxy_db.attrs(state)["keydep"]) == 3
 
     state.popitem()
-    assert len(proxy_db.attrs(state)["keydep"]) == 1
+    assert len(proxy_db.attrs(state)["keydep"]) == 3
 
     state.clear()
-    assert len(proxy_db.attrs(state)["keydep"]) == 0
+    assert len(proxy_db.attrs(state)["keydep"]) == 3

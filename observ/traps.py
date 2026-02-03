@@ -135,7 +135,6 @@ def delete_trap(method, obj_cls):
         attrs["dep"].notify()
         for key in self._orphaned_keydeps():
             attrs["keydep"][key].notify()
-            del attrs["keydep"][key]
         return retval
 
     return trap
@@ -152,12 +151,7 @@ def delete_key_trap(method, obj_cls):
         retval = fn(self.__target__, *args, **kwargs)
         if key_existed:
             attrs["dep"].notify()
-            if key in attrs["keydep"]:
-                keydep = attrs["keydep"][key]
-                keydep.notify()
-                # Only delete keydep if no subscribers are interested in this key
-                if not keydep._subs:
-                    del attrs["keydep"][key]
+            attrs["keydep"][key].notify()
         return retval
 
     return trap
