@@ -3,7 +3,6 @@ import sys
 from weakref import WeakValueDictionary
 
 from .dep import Dep
-from .object_utils import get_object_attrs
 
 
 class ProxyDb:
@@ -83,8 +82,6 @@ class ProxyDb:
                 attrs["keydep"] = {key: Dep() for key in target.keys()}
             elif isinstance(target, (list, set)):
                 attrs["dep"] = Dep()
-            else:
-                attrs["keydep"] = {key: Dep() for key in get_object_attrs(target)}
             self.db[obj_id] = {
                 "target": target,
                 "attrs": attrs,  # dep, keydep
