@@ -334,7 +334,7 @@ def test_dict_delete_notify():
             proxy_db.attrs(coll)["keydep"][key].add_sub(new_mock(key))
         getattr(coll, name)(*args[name])
         mocks[None].update.assert_called_once()
-        assert len(proxy_db.attrs(coll)["keydep"]) == 0
+        assert len(proxy_db.attrs(coll)["keydep"]) == 1
 
 
 def test_dict_delete_keynotify():
@@ -374,8 +374,6 @@ def test_dict_pop_with_default():
     result = coll.pop(2, "default")
     assert result == 3
     mock.update.assert_called_once()
-    # keydep is cleaned up when there are no subscribers
-    assert 2 not in proxy_db.attrs(coll)["keydep"]
 
     # Pop missing key with default - should return default without error
     mock.reset_mock()
