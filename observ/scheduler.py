@@ -96,6 +96,14 @@ class Scheduler:
         self.timer.setInterval(0)
         self.register_request_flush(self.timer.start)
 
+    def register_rendercanvas(self, loop):
+        """
+        Utility function for integration with rendercanvas loop objects
+        """
+        if not hasattr(loop, "call_soon"):
+            raise TypeError("Given loop object does not have a call_soon method.")
+        self.register_request_flush(lambda: loop.call_soon(self.flush))
+
     def flush(self):
         """
         Flush the queue to evaluate all queued watchers.
