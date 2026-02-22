@@ -3,12 +3,15 @@ import asyncio
 from .scheduler import scheduler
 
 
-def init(mode="asyncio"):
+def init(mode="asyncio", loop=None):
     if mode == "qt":
-        scheduler.register_qt()
+        scheduler.register_qt(loop)
 
-    if mode == "asyncio":
-        scheduler.register_asyncio()
+    elif mode == "asyncio":
+        scheduler.register_asyncio(loop)
+
+    elif mode == "rendercanvas":
+        scheduler.register_rendercanvas(loop)
 
 
 def loop_factory():
