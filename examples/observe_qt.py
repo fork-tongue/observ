@@ -8,11 +8,10 @@ and updates the label whenever a computed property
 based on the state changes.
 """
 
-import asyncio
 from time import sleep
 
 from PySide6 import QtAsyncio
-from PySide6.QtCore import QObject, QThread, Signal
+from PySide6.QtCore import QObject, QThread, Signal, Slot
 from PySide6.QtWidgets import (
     QApplication,
     QLabel,
@@ -22,7 +21,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from observ import reactive, scheduler, watch
+from observ import init, reactive, watch
 
 
 class Display(QWidget):
@@ -108,16 +107,18 @@ class Controls(QWidget):
 
         self.thread.start()
 
-        def progress(x):
-            self.state["progress"] = x
-
-        def bump(x):
-            self.state["clicked"] += x * 0.5
-
         self.button.setEnabled(False)
         self.thread.finished.connect(lambda: self.button.setEnabled(True))
-        self.worker.result.connect(bump)
-        self.worker.progress.connect(progress)
+        self.worker.result.connect(self.on_result)
+        self.worker.progress.connect(self.on_progress)
+
+    @Slot(int)
+    def on_progress(self, x):
+        self.state["progress"] = x
+
+    @Slot(int)
+    def on_result(self, x):
+        self.state["clicked"] += x * 0.5
 
     def on_reset_clicked(self):
         self.state["clicked"] = 0
@@ -129,9 +130,6 @@ if __name__ == "__main__":
 
     app = QApplication([])
 
-    asyncio.set_event_loop_policy(QtAsyncio.QAsyncioEventLoopPolicy())
-    scheduler.register_asyncio()
-
     # Create layout and pass state to widgets
     layout = QVBoxLayout()
     layout.addWidget(Display(state))
@@ -142,4 +140,9 @@ if __name__ == "__main__":
     widget.show()
     widget.setWindowTitle("Clicked?")
 
-    app.exec()
+    init("asyncio")
+
+    # QtAsyncio.run() runs both the Qt and asyncio event loops together.
+    # The asyncio scheduler's flush handler calls get_event_loop() at
+    # flush time, so it will pick up QtAsyncio's loop.
+    QtAsyncio.run(keep_running=True, handle_sigint=True)
