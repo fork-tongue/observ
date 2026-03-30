@@ -11,7 +11,7 @@ based on the state changes.
 from time import sleep
 
 from PySide6 import QtAsyncio
-from PySide6.QtCore import QObject, QThread, Signal, Slot
+from PySide6.QtCore import QObject, QThread, Signal
 from PySide6.QtWidgets import (
     QApplication,
     QLabel,
@@ -112,11 +112,9 @@ class Controls(QWidget):
         self.worker.result.connect(self.on_result)
         self.worker.progress.connect(self.on_progress)
 
-    @Slot(int)
     def on_progress(self, x):
         self.state["progress"] = x
 
-    @Slot(int)
     def on_result(self, x):
         self.state["clicked"] += x * 0.5
 
