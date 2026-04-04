@@ -50,7 +50,7 @@ class Scheduler:
 
     def request_flush_asyncio(self):
         loop = asyncio.get_event_loop()
-        loop.call_soon(self.flush)
+        loop.call_soon_threadsafe(self.flush)
 
     def register_asyncio(self):
         """

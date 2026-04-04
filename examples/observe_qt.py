@@ -107,16 +107,16 @@ class Controls(QWidget):
 
         self.thread.start()
 
+        def progress(x):
+            self.state["progress"] = x
+
+        def bump(x):
+            self.state["clicked"] += x * 0.5
+
         self.button.setEnabled(False)
         self.thread.finished.connect(lambda: self.button.setEnabled(True))
-        self.worker.result.connect(self.on_result)
-        self.worker.progress.connect(self.on_progress)
-
-    def on_progress(self, x):
-        self.state["progress"] = x
-
-    def on_result(self, x):
-        self.state["clicked"] += x * 0.5
+        self.worker.result.connect(bump)
+        self.worker.progress.connect(progress)
 
     def on_reset_clicked(self):
         self.state["clicked"] = 0
