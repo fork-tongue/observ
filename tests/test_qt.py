@@ -1,5 +1,3 @@
-import asyncio
-import warnings
 from weakref import ref
 
 import pytest
@@ -7,11 +5,7 @@ import pytest
 from observ import reactive, scheduler, watch
 
 try:
-    with warnings.catch_warnings():
-        # Filter deprecation warnings of event loop policies
-        # in Python 3.14, which will be removed in 3.16
-        warnings.filterwarnings("ignore", category=DeprecationWarning)
-        from PySide6 import QtAsyncio, QtWidgets
+    from PySide6 import QtAsyncio, QtWidgets
 
     has_qt = True
 except ImportError:
@@ -21,20 +15,22 @@ qt_missing_reason = "Qt is not installed"
 
 @pytest.fixture
 def qtasyncio():
-    with warnings.catch_warnings():
-        # Filter deprecation warnings of event loop policies
-        # in Python 3.14, which will be removed in 3.16
-        warnings.filterwarnings("ignore", category=DeprecationWarning)
-        old_policy = asyncio.get_event_loop_policy()
-        qt_policy = QtAsyncio.QAsyncioEventLoopPolicy(quit_qapp=False)
-        asyncio.set_event_loop_policy(qt_policy)
-        old_callback = scheduler.request_flush
-        scheduler.register_asyncio()
-        try:
-            yield
-        finally:
-            asyncio.set_event_loop_policy(old_policy)
-            scheduler.register_request_flush(old_callback)
+    # Normally when using observ in a Qt context, there would
+    # be a place to call QtAsyncio.run(...) to start the main
+    # loop. And if the scheduler is configured to run with
+    # asyncio, then it will pick up on Qt's asyncio main loop
+    # automatically. However, within pytest context, we can't
+    # do that, so instead, we create a new event loop explicitly
+    def schedule_qtasyncio_loop():
+        loop = QtAsyncio.asyncio.new_event_loop()
+        loop.call_soon_threadsafe(scheduler.flush)
+
+    old_callback = scheduler.request_flush
+    scheduler.register_request_flush(schedule_qtasyncio_loop)
+    try:
+        yield
+    finally:
+        scheduler.register_request_flush(old_callback)
 
 
 @pytest.mark.skipif(not has_qt, reason=qt_missing_reason)
@@ -65,7 +61,7 @@ def test_scheduler_pyside_asyncio(qtasyncio, qapp):
 
 
 @pytest.mark.skipif(not has_qt, reason=qt_missing_reason)
-def test_qt_integration(qapp):
+def test_qt_integration(qapp, qtasyncio):
     class Label(QtWidgets.QLabel):
         count = 0
 
@@ -95,6 +91,8 @@ def test_qt_integration(qapp):
 
     state = reactive({"count": 0})
     label = Label(state)
+
+    watcher = watch(lambda: state['count'], lambda x: x)
 
     state["count"] += 1
 

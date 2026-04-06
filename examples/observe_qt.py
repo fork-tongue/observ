@@ -143,4 +143,4 @@ if __name__ == "__main__":
     # QtAsyncio.run() runs both the Qt and asyncio event loops together.
     # The asyncio scheduler's flush handler calls get_event_loop() at
     # flush time, so it will pick up QtAsyncio's loop.
-    QtAsyncio.run(keep_running=True, handle_sigint=True)
+    QtAsyncio.run(handle_sigint=True)
