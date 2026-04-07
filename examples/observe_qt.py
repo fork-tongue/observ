@@ -8,7 +8,6 @@ and updates the label whenever a computed property
 based on the state changes.
 """
 
-import asyncio
 from time import sleep
 
 from PySide6 import QtAsyncio
@@ -22,7 +21,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from observ import reactive, scheduler, watch
+from observ import init, reactive, watch
 
 
 class Display(QWidget):
@@ -129,9 +128,6 @@ if __name__ == "__main__":
 
     app = QApplication([])
 
-    asyncio.set_event_loop_policy(QtAsyncio.QAsyncioEventLoopPolicy())
-    scheduler.register_asyncio()
-
     # Create layout and pass state to widgets
     layout = QVBoxLayout()
     layout.addWidget(Display(state))
@@ -142,4 +138,9 @@ if __name__ == "__main__":
     widget.show()
     widget.setWindowTitle("Clicked?")
 
-    app.exec()
+    init("asyncio")
+
+    # QtAsyncio.run() runs both the Qt and asyncio event loops together.
+    # The asyncio scheduler's flush handler calls get_event_loop() at
+    # flush time, so it will pick up QtAsyncio's loop.
+    QtAsyncio.run(handle_sigint=True)
