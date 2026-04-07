@@ -50,7 +50,7 @@ class Scheduler:
 
     def request_flush_asyncio(self):
         loop = asyncio.get_event_loop()
-        loop.call_soon(self.flush)
+        loop.call_soon_threadsafe(self.flush)
 
     def register_asyncio(self):
         """
@@ -62,8 +62,8 @@ class Scheduler:
         """
         Legacy utility function for integration with Qt event loop. Note that using
         the `register_asyncio` method is preferred over this, together with
-        setting the asyncio event loop policy to `QtAsyncio.QAsyncioEventLoopPolicy`.
-        This is supported from Pyside 6.6.0. Note that the QtAsyncio submodule
+        running `QtAsyncio.run(...)` instead of app.exec().
+        This is supported from Pyside 6.7. Note that the QtAsyncio submodule
         is not included in the `pyside6_essentials` package.
         """
         for qt in ("PySide6", "PyQt6", "PySide2", "PyQt5", "PySide", "PyQt4"):
@@ -82,7 +82,7 @@ class Scheduler:
                 "QtAsyncio module available: please consider using `register_asyncio` "
                 "and call the following code:\n"
                 f"    from {qt} import QtAsyncio\n"
-                "    asyncio.set_event_loop_policy(QtAsyncio.QAsyncioEventLoopPolicy())"
+                "    QtAsyncio.run(handle_sigint=True)"
                 ""
             )
         except ImportError:
@@ -132,6 +132,7 @@ class Scheduler:
         self._queue_indices.clear()
         self.flushing = False
         self.has.clear()
+        self.waiting = False
         self.circular.clear()
         self.index = 0
 
