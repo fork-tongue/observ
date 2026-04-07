@@ -107,7 +107,9 @@ class Scheduler:
         Utility function for integration with rendercanvas loop objects
         """
         if not hasattr(loop, "call_soon"):
-            raise TypeError(f"Given loop object does not have a call_soon method: {loop!r}")
+            raise TypeError(
+                f"Given loop object does not have a call_soon method: {loop!r}"
+            )
         # Since rc loop objects look similar to asyncio, we can reuse the method
         self.register_asyncio(loop)
 
