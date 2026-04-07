@@ -54,14 +54,17 @@ class Scheduler:
 
     def register_asyncio(self, loop=None):
         """
-        Utility function for integration with asyncio
+        Utility function for integration with asyncio.
+
+        If no loop object is given, ``get_event_loop()`` is used on each flush
+        to determine the current loop.
         """
         if loop is not None:
             self.register_request_flush(lambda: loop.call_soon(self.flush))
         else:
             self.register_request_flush(self.request_flush_asyncio)
 
-    def register_qt(self, loop=None):
+    def register_qt(self):
         """
         Legacy utility function for integration with Qt event loop. Note that using
         the `register_asyncio` method is preferred over this, together with
@@ -69,8 +72,6 @@ class Scheduler:
         This is supported from Pyside 6.6.0. Note that the QtAsyncio submodule
         is not included in the `pyside6_essentials` package.
         """
-        if loop is not None:
-            raise TypeError("No loop object is expected for Qt.")
         for qt in ("PySide6", "PyQt6", "PySide2", "PyQt5", "PySide", "PyQt4"):
             try:
                 QtCore = importlib.import_module(f"{qt}.QtCore")  # noqa: N806
@@ -107,7 +108,8 @@ class Scheduler:
         """
         if not hasattr(loop, "call_soon"):
             raise TypeError(f"Given loop object does not have a call_soon method: {loop!r}")
-        self.register_request_flush(lambda: loop.call_soon(self.flush))
+        # Since rc loop objects look similar to asyncio, we can reuse the method
+        self.register_asyncio(loop)
 
     def flush(self):
         """
