@@ -92,7 +92,7 @@ def test_qt_integration(qapp, qtasyncio):
     state = reactive({"count": 0})
     label = Label(state)
 
-    watcher = watch(lambda: state['count'], lambda x: x)
+    _watcher = watch(lambda: state["count"], lambda x: x)
 
     state["count"] += 1
 
