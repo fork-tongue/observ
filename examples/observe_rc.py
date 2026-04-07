@@ -21,7 +21,7 @@ state = reactive(
 )
 
 # Hook observ to the rendercanvas loop
-scheduler.register_request_flush(lambda: loop.call_soon(scheduler.flush))
+scheduler.register_rendercanvas(loop)
 
 # Create a canvas and drawing context
 canvas = RenderCanvas(title="observ example", update_mode="continuous")
