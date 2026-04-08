@@ -5,7 +5,7 @@ from .scheduler import scheduler
 
 def init(mode="asyncio", loop=None):
     if mode == "qt":
-        scheduler.register_qt(loop)
+        scheduler.register_qt()
 
     elif mode == "asyncio":
         scheduler.register_asyncio(loop)
