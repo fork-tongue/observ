@@ -106,10 +106,10 @@ class Scheduler:
         """
         Utility function for integration with rendercanvas loop objects
         """
-        needed_methods = {"call_soon", "call_soon_threadsafe"}
-        if not all(hasattr(loop, m) for m in needed_methods):
+        need = {"call_soon", "call_soon_threadsafe"}
+        if not all(hasattr(loop, m) for m in need):
             raise TypeError(
-                f"Given loop object does not have all needed methods: {needed_methods!r}"
+                f"Given loop object does not have all needed methods: {need!r}"
             )
         # Since rc loop objects look similar to asyncio, we can reuse the method
         self.register_asyncio(loop)
