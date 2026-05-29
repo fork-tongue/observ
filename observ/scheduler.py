@@ -52,11 +52,17 @@ class Scheduler:
         loop = asyncio.get_event_loop()
         loop.call_soon_threadsafe(self.flush)
 
-    def register_asyncio(self):
+    def register_asyncio(self, loop=None):
         """
-        Utility function for integration with asyncio
+        Utility function for integration with asyncio.
+
+        If no loop object is given, ``get_event_loop()`` is used on each flush
+        to determine the current loop.
         """
-        self.register_request_flush(self.request_flush_asyncio)
+        if loop is not None:
+            self.register_request_flush(lambda: loop.call_soon(self.flush))
+        else:
+            self.register_request_flush(self.request_flush_asyncio)
 
     def register_qt(self):
         """
@@ -95,6 +101,18 @@ class Scheduler:
         # as possible (when Qt is done processing events)
         self.timer.setInterval(0)
         self.register_request_flush(self.timer.start)
+
+    def register_rendercanvas(self, loop):
+        """
+        Utility function for integration with rendercanvas loop objects
+        """
+        need = {"call_soon", "call_soon_threadsafe"}
+        if not all(hasattr(loop, m) for m in need):
+            raise TypeError(
+                f"Given loop object does not have all needed methods: {need!r}"
+            )
+        # Since rc loop objects look similar to asyncio, we can reuse the method
+        self.register_asyncio(loop)
 
     def flush(self):
         """
