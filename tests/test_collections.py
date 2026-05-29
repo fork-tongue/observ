@@ -43,8 +43,10 @@ EXCLUDED = {
     "__reduce_ex__",
     "__hash__",
     "__class_getitem__",
-    # __del__ is custom method on Proxy
+    # __del__, __copy__, __deepcopy__ are custom methods on Proxy
     "__del__",
+    "__copy__",
+    "__deepcopy__",
     "__getstate__",
     # custom method on DictProxyBase
     "_orphaned_keydeps",
