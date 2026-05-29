@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import copy, deepcopy
 from functools import partial
 from typing import Generic, Literal, TypedDict, TypeVar, cast
 
@@ -30,6 +31,12 @@ class Proxy(Generic[T]):
         self.__readonly__ = readonly
         self.__shallow__ = shallow
         proxy_db.reference(self)
+
+    def __copy__(self) -> T:
+        return copy(self.__target__)
+
+    def __deepcopy__(self, memo: dict) -> T:
+        return deepcopy(self.__target__, memo)
 
     def __del__(self):
         proxy_db.dereference(self)
