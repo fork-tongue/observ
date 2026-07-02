@@ -3,6 +3,8 @@ from importlib.metadata import version
 __version__ = version("observ")
 
 
+# Importing the proxy modules registers their types in TYPE_LOOKUP
+from . import dict_proxy, list_proxy, set_proxy
 from .init import init, loop_factory
 from .proxy import (
     reactive,
