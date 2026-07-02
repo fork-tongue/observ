@@ -422,11 +422,47 @@ def test_dict_update_new_keys():
     assert state["baz"] == "fool"
     assert called == 3
 
+
+def test_dict_update_new_key_with_none_value():
+    state = reactive({})
+    called = 0
+
+    def _expr():
+        nonlocal called
+        called += 1
+
+    _ = watch(lambda: len(state), _expr, sync=True, deep=True)
+
+    state.update({"foo": None})
+
+    assert state["foo"] is None
+    assert called == 1
+
+
+def test_dict_update_with_iterable_of_pairs():
+    state = reactive({"foo": "bar"})
+    called = 0
+
+    def _expr():
+        nonlocal called
+        called += 1
+
+    _ = watch(lambda: len(state), _expr, sync=True, deep=True)
+
+    state.update((key, value) for key, value in [("fizz", "buzz"), ("baz", "fool")])
+
+    assert state["fizz"] == "buzz"
+    assert state["baz"] == "fool"
+    assert state["foo"] == "bar"
+    assert called == 1
+
     state.update([("foo", "bas"), ("bat", "flat")])
 
     assert state["foo"] == "bas"
     assert state["bat"] == "flat"
-    assert called == 4
+    # The dict's dep is notified once per update() call
+    # (the per-key deps are notified separately)
+    assert called == 2
 
 
 def test_list_iter():
