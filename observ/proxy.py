@@ -42,8 +42,9 @@ class Proxy(Generic[T]):
         proxy_db.dereference(self)
 
 
-# Lookup dict for mapping a type (dict, list, set) to a method
-# that will convert an object of that type to a proxied version
+# Lookup dict for mapping a type (dict, list, set) to a tuple
+# of proxy types (writable, readonly) for that type. Keyed on the
+# exact type, so subclasses are (deliberately) not proxied
 TYPE_LOOKUP = {}
 
 # Types of values that can't be proxied. Note the exact type is
@@ -86,10 +87,10 @@ def proxy(target: T, readonly=False, shallow=False) -> T:
         return existing_proxy
 
     # Create a new proxy
-    for type_test, (writable_proxy_type, readonly_proxy_type) in TYPE_LOOKUP.items():
-        if type_test(target):
-            proxy_type = readonly_proxy_type if readonly else writable_proxy_type
-            return proxy_type(target, readonly=readonly, shallow=shallow)
+    proxy_types = TYPE_LOOKUP.get(type(target))
+    if proxy_types is not None:
+        proxy_type = proxy_types[1] if readonly else proxy_types[0]
+        return proxy_type(target, readonly=readonly, shallow=shallow)
 
     if isinstance(target, tuple):
         return cast(
