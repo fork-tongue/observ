@@ -46,6 +46,11 @@ class Proxy(Generic[T]):
 # that will convert an object of that type to a proxied version
 TYPE_LOOKUP = {}
 
+# Types of values that can't be proxied. Note the exact type is
+# checked (no subclasses) so that these can be ruled out with a
+# single set containment check
+PLAIN_TYPES = frozenset({type(None), bool, int, float, str, bytes})
+
 
 def proxy(target: T, readonly=False, shallow=False) -> T:
     """
@@ -56,6 +61,12 @@ def proxy(target: T, readonly=False, shallow=False) -> T:
     Please be aware: this only works on plain data types: dict, list,
     set and tuple!
     """
+    # Plain values can't be proxied, so return them as-is. This is the
+    # most common case since this function is called on the result of
+    # every read from a proxied container, so it is checked first
+    if type(target) in PLAIN_TYPES:
+        return target
+
     # The object may be a proxy already, so check if it matches the
     # given configuration (readonly and shallow)
     if isinstance(target, Proxy):
