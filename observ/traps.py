@@ -70,30 +70,121 @@ def read_key_trap(method, obj_cls):
     return trap
 
 
+# Sentinel to distinguish 'key not present' from 'value is None'
+_MISSING = object()
+
+
 def write_trap(method, obj_cls):
+    """
+    Returns a trap with the cheapest change detection strategy that
+    is correct for the given method, so that writes don't need a copy
+    of the whole container to detect changes.
+    """
+    if obj_cls is dict:
+        # update and __ior__: only the incoming keys can change
+        return write_dict_trap(method, obj_cls)
+    if method in ("sort", "reverse", "symmetric_difference_update"):
+        # These methods can change the container without changing its
+        # length, so fall back to copy-and-compare. The cost of the
+        # copy is proportional to the operation itself
+        return write_copy_compare_trap(method, obj_cls)
+    if method == "__setitem__":
+        # list only: compare just the affected index or slice
+        return write_setitem_trap(method, obj_cls)
+    # The remaining list and set methods can only change the container
+    # by changing its length
+    return write_len_compare_trap(method, obj_cls)
+
+
+def write_dict_trap(method, obj_cls):
     fn = getattr(obj_cls, method)
 
     @wraps(fn)
     def trap(self, *args, **kwargs):
-        old = self.__target__.copy()
-        retval = fn(self.__target__, *args, **kwargs)
+        target = self.__target__
+        # Normalize the arguments (an optional mapping or iterable of
+        # key/value pairs, plus optional keyword arguments) into a
+        # single dict, so that only the incoming keys have to be
+        # diffed for changes. This also makes sure that an iterable
+        # argument is not consumed twice
+        if args:
+            incoming = dict(args[0])
+            if kwargs:
+                incoming.update(kwargs)
+        else:
+            incoming = kwargs
+        old_values = {key: target.get(key, _MISSING) for key in incoming}
+        retval = fn(target, incoming)
         attrs = proxy_db.attrs(self)
-        if obj_cls is dict:
-            change_detected = False
-            keydeps = attrs["keydep"]
-            for key, val in self.__target__.items():
-                if old.get(key) is not val:
-                    if key in keydeps:
-                        keydeps[key].notify()
-                    else:
-                        keydeps[key] = Dep()
-                    change_detected = True
-            if change_detected:
-                attrs["dep"].notify()
-        else:  # list and set
-            if self.__target__ != old:
-                attrs["dep"].notify()
+        keydeps = attrs["keydep"]
+        change_detected = False
+        for key, old_value in old_values.items():
+            if old_value is not target.get(key, _MISSING):
+                if key in keydeps:
+                    keydeps[key].notify()
+                else:
+                    keydeps[key] = Dep()
+                change_detected = True
+        if change_detected:
+            attrs["dep"].notify()
+        return retval
 
+    return trap
+
+
+def write_len_compare_trap(method, obj_cls):
+    fn = getattr(obj_cls, method)
+
+    @wraps(fn)
+    def trap(self, *args, **kwargs):
+        target = self.__target__
+        old_len = len(target)
+        retval = fn(target, *args, **kwargs)
+        if len(target) != old_len:
+            proxy_db.attrs(self)["dep"].notify()
+        return retval
+
+    return trap
+
+
+def write_copy_compare_trap(method, obj_cls):
+    fn = getattr(obj_cls, method)
+
+    @wraps(fn)
+    def trap(self, *args, **kwargs):
+        target = self.__target__
+        old = target.copy()
+        retval = fn(target, *args, **kwargs)
+        if target != old:
+            proxy_db.attrs(self)["dep"].notify()
+        return retval
+
+    return trap
+
+
+def write_setitem_trap(method, obj_cls):
+    fn = getattr(obj_cls, method)
+
+    @wraps(fn)
+    def trap(self, key, value):
+        target = self.__target__
+        try:
+            old_value = target[key]
+        except (IndexError, TypeError):
+            # Let the actual operation raise the appropriate error
+            return fn(target, key, value)
+        if type(key) is slice:
+            # Slice assignment can change the length as well as
+            # replace a same-length stretch of items
+            old_len = len(target)
+            retval = fn(target, key, value)
+            changed = len(target) != old_len or target[key] != old_value
+        else:
+            retval = fn(target, key, value)
+            new_value = target[key]
+            changed = new_value is not old_value and new_value != old_value
+        if changed:
+            proxy_db.attrs(self)["dep"].notify()
         return retval
 
     return trap
