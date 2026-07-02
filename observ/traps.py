@@ -31,6 +31,8 @@ def read_trap(method, obj_cls):
 
 def iterate_trap(method, obj_cls):
     fn = getattr(obj_cls, method)
+    # Hoist the method check out of the trap
+    is_items = method == "items"
 
     @wraps(fn)
     def trap(self, *args, **kwargs):
@@ -39,7 +41,7 @@ def iterate_trap(method, obj_cls):
         iterator = fn(self.__target__, *args, **kwargs)
         if self.__shallow__:
             return iterator
-        if method == "items":
+        if is_items:
             return (
                 (key, proxy(value, readonly=self.__readonly__))
                 for key, value in iterator
@@ -102,23 +104,26 @@ def write_trap(method, obj_cls):
 def write_key_trap(method, obj_cls):
     fn = getattr(obj_cls, method)
     getitem_fn = getattr(obj_cls, "get")
+    # Hoist the method check out of the trap
+    is_setdefault = method == "setdefault"
 
     @wraps(fn)
     def trap(self, *args, **kwargs):
+        target = self.__target__
         key = args[0]
-        attrs = proxy_db.attrs(self)
-        is_new = key not in attrs["keydep"]
-        old_value = getitem_fn(self.__target__, key) if not is_new else None
-        retval = fn(self.__target__, *args, **kwargs)
-        if method == "setdefault" and not self.__shallow__:
+        is_new = key not in target
+        old_value = getitem_fn(target, key) if not is_new else None
+        retval = fn(target, *args, **kwargs)
+        if is_setdefault and not self.__shallow__:
             # This method is only available when readonly is false
             retval = proxy(retval)
 
-        new_value = getitem_fn(self.__target__, key)
-        if is_new:
-            attrs["keydep"][key] = Dep()
+        new_value = getitem_fn(target, key)
         if xor(old_value is None, new_value is None) or old_value != new_value:
-            attrs["keydep"][key].notify()
+            attrs = proxy_db.attrs(self)
+            keydep = attrs["keydep"].get(key)
+            if keydep is not None:
+                keydep.notify()
             attrs["dep"].notify()
         return retval
 
@@ -151,7 +156,9 @@ def delete_key_trap(method, obj_cls):
         retval = fn(self.__target__, *args, **kwargs)
         if key_existed:
             attrs["dep"].notify()
-            attrs["keydep"][key].notify()
+            keydep = attrs["keydep"].get(key)
+            if keydep is not None:
+                keydep.notify()
         return retval
 
     return trap

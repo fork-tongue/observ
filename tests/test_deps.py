@@ -33,7 +33,16 @@ def test_deps_delete():
     # test that dep objects are _not_ removed on delete
     state = reactive({"foo": 5, "bar": 6})
 
+    # keydeps are created lazily: writes don't create them...
     state["baz"] = 5
+    assert len(proxy_db.attrs(state)["keydep"]) == 0
+
+    # ...but reads with dependency tracking active do
+    @computed
+    def prop():
+        return state["foo"] + state["bar"] + state["baz"]
+
+    assert prop() == 16
     assert len(proxy_db.attrs(state)["keydep"]) == 3
 
     del state["baz"]

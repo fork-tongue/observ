@@ -5,8 +5,11 @@ are attached to observable datastructures.
 
 from __future__ import annotations
 
+from operator import attrgetter
 from typing import ClassVar
 from weakref import WeakSet
+
+sub_id = attrgetter("id")
 
 
 class Dep:
@@ -36,5 +39,5 @@ class Dep:
         # because a weakset must acquire a lock on its
         # weak references before iterating
         if self._subs:
-            for sub in sorted(self._subs, key=lambda s: s.id):
+            for sub in sorted(self._subs, key=sub_id):
                 sub.update()
