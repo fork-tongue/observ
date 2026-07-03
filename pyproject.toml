@@ -1,6 +1,6 @@
 [project]
 name = "observ"
-version = "0.18.0"
+version = "0.19.0"
 description = "Reactive state management for Python"
 authors = [
     { name = "Korijn van Golen", email = "korijn@gmail.com" },
