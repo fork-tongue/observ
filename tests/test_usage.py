@@ -439,6 +439,55 @@ def test_dict_update_new_key_with_none_value():
     assert called == 1
 
 
+def test_dict_setitem_new_key_with_none_value():
+    state = reactive({})
+    called = 0
+
+    def _expr():
+        nonlocal called
+        called += 1
+
+    _ = watch(lambda: len(state), _expr, sync=True, deep=True)
+
+    state["foo"] = None
+
+    assert state["foo"] is None
+    assert called == 1
+
+    # Assigning the same None value again should not notify
+    state["foo"] = None
+    assert called == 1
+
+
+def test_dict_setdefault_new_key_with_none_value():
+    state = reactive({})
+    called = 0
+
+    def _expr():
+        nonlocal called
+        called += 1
+
+    _ = watch(lambda: len(state), _expr, sync=True, deep=True)
+
+    assert state.setdefault("foo", None) is None
+    assert called == 1
+
+    # The key exists now, so setdefault should not notify
+    assert state.setdefault("foo", "bar") is None
+    assert called == 1
+
+
+def test_dict_setitem_new_key_with_none_value_keydep():
+    state = reactive({})
+    watcher = watch(lambda: "foo" in state, Mock(), sync=True)
+
+    assert watcher.value is False
+
+    state["foo"] = None
+
+    assert watcher.value is True
+
+
 def test_dict_update_with_iterable_of_pairs():
     state = reactive({"foo": "bar"})
     called = 0
@@ -902,6 +951,11 @@ def test_use_weird_types_as_value():
         foo != comparison
 
     a = reactive(dict())
+    a["foo"] = Foo(3)
+
+    # Transitions between None and such a type should not
+    # trigger a comparison with None either
+    a["foo"] = None
     a["foo"] = Foo(3)
 
 
