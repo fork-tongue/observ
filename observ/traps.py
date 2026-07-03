@@ -202,15 +202,21 @@ def write_key_trap(method, obj_cls):
     def trap(self, *args, **kwargs):
         target = self.__target__
         key = args[0]
-        is_new = key not in target
-        old_value = getitem_fn(target, key) if not is_new else None
+        old_value = getitem_fn(target, key, _MISSING)
         retval = fn(target, *args, **kwargs)
         if is_setdefault and not self.__shallow__:
             # This method is only available when readonly is false
             retval = proxy(retval)
 
         new_value = getitem_fn(target, key)
-        if xor(old_value is None, new_value is None) or old_value != new_value:
+        # The equality check runs only when neither value is _MISSING
+        # or None: some types raise TypeError when compared to None
+        # (e.g. PySide6's ItemFlags), see test_use_weird_types_as_value
+        if old_value is not new_value and (
+            old_value is _MISSING
+            or xor(old_value is None, new_value is None)
+            or old_value != new_value
+        ):
             attrs = proxy_db.attrs(self)
             keydep = attrs["keydep"].get(key)
             if keydep is not None:
