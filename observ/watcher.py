@@ -16,10 +16,9 @@ from typing import Any, Callable, Generic, Optional, TypeVar, Union
 from weakref import WeakSet, ref
 
 from .dep import Dep
-from .dict_proxy import DictProxyBase
-from .list_proxy import ListProxyBase
+from .proxy import Proxy, proxy
+from .proxy_db import proxy_db
 from .scheduler import scheduler
-from .set_proxy import SetProxyBase
 
 T = TypeVar("T")
 Watchable = Union[
@@ -76,32 +75,55 @@ def computed(_fn: Callable[[], T] | None = None, *, deep=True) -> Callable[[], T
 
 def traverse(obj):
     """
-    Non-recursively traverse the whole tree to make sure that all values have been 'get'
+    Non-recursively traverse the whole tree to make sure that the dep of
+    every (nested) container has been depended on.
 
-    Track which objects we have already seen to support(!) full traversal of data
-    structures with cycles.
-    A set is used to provide faster containment checks and a list is used to make
-    sure that ids are not being reused for the duration of this method.
-    The traversed objects are not hashable (except for tuple) because they are mutable.
-    Converting everything to a hashable thing (because nothing is mutated during
-    traversal) is an option but way more expensive than just using a list + set.
+    Instead of iterating through the proxies' trapped iterators (which
+    would create a proxy for every visited value), this walks the raw
+    targets and registers a dependency on the dep of each container
+    directly. That is equivalent: all mutation traps notify the dep of
+    the container that they mutate. Containers that don't have an entry
+    in the proxy_db yet (raw values nested inside a proxied target) are
+    registered along the way, so that mutations through (future) proxies
+    for those containers will be seen.
+
+    Every item on the stack is accompanied by a 'tracked' flag, which
+    marks containers that are reachable through non-shallow proxies.
+    Raw containers that are not reachable through a proxy are not
+    tracked (there is no proxy through which they can be mutated), and
+    neither are children of shallow proxies (matching the shallow
+    iterators, which yield raw values) — unless a child is itself a
+    proxy, which always tracks its own dep.
+
+    Track which objects we have already seen (by id) to support(!) full
+    traversal of data structures with cycles. Since only raw targets are
+    traversed, every seen object is kept alive through the (unchanging)
+    tree that is being traversed, so ids can't be reused for the
+    duration of this method.
     """
-    seen = []
     seen_ids = set()
-    stack = deque([obj])
+    stack = deque([(obj, False)])
+    db = proxy_db.db
+    track = bool(Dep.stack)
 
     while stack:
-        current = stack.pop()
+        current, tracked = stack.pop()
+
+        if isinstance(current, Proxy):
+            # A proxy always tracks its own dep; whether its children
+            # are tracked depends on the shallow flag
+            tracked = True
+            child_tracked = not current.__shallow__
+            current = current.__target__
+        else:
+            child_tracked = tracked
 
         # We are only interested in traversing a fixed set of types
         # otherwise we can just continue with the next branch
-        if isinstance(current, (dict, DictProxyBase)):
-            if not current:
-                continue
+        cls = type(current)
+        if cls is dict:
             val_iter = current.values()
-        elif isinstance(current, (list, ListProxyBase, set, SetProxyBase, tuple)):
-            if not current:
-                continue
+        elif cls is list or cls is set or cls is tuple:
             val_iter = current
         else:
             continue
@@ -112,11 +134,22 @@ def traverse(obj):
             continue
 
         # Mark as seen
-        seen.append(current)
         seen_ids.add(obj_id)
 
+        # Depend on the container's dep (tuples are immutable
+        # and have no dep)
+        if track and tracked and cls is not tuple:
+            entry = db.get(obj_id)
+            if entry is None:
+                # Materialize the container in the proxy_db
+                # so that it gets a dep to subscribe to
+                proxy(current)
+                entry = db[obj_id]
+            entry["attrs"]["dep"].depend()
+
         # Add children to stack
-        stack.extend(val_iter)
+        if current:
+            stack.extend((value, child_tracked) for value in val_iter)
 
 
 # Every Watcher gets a unique ID which is used to

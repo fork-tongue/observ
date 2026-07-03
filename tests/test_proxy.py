@@ -313,3 +313,24 @@ def test_proxy_is_slotted():
         AttributeError, match="'SetProxy' object has no attribute 'foo'"
     ):
         some_set.foo = "foo"
+
+
+def test_proxy_types_registered_without_extra_imports():
+    """
+    Importing just the top-level package must be enough to register
+    the proxy types in TYPE_LOOKUP. Run in a fresh interpreter, since
+    within the test suite the proxy modules are already imported
+    directly by (other) test modules, which would mask a missing
+    registration.
+    """
+    import subprocess
+    import sys
+
+    subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from observ import reactive; assert type(reactive({})) is not dict",
+        ],
+        check=True,
+    )
