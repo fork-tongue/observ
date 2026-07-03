@@ -226,8 +226,11 @@ def test_dict_notify():
         coll = DictProxy({2: 3})
         old_keys = set(coll.keys())
         proxy_db.attrs(coll)["dep"].add_sub(new_mock())
-        for key in proxy_db.attrs(coll)["keydep"].keys():
-            proxy_db.attrs(coll)["keydep"][key].add_sub(new_mock(key))
+        # Keydeps are created lazily, so seed them for the existing keys
+        keydeps = proxy_db.attrs(coll)["keydep"]
+        for key in old_keys:
+            keydeps[key] = Dep()
+            keydeps[key].add_sub(new_mock(key))
         getattr(coll, name)(*args[name])
         mocks[None].update.assert_called_once()
         for key in old_keys:
@@ -250,14 +253,18 @@ def test_dict_keynotify():
         mocks.clear()
         coll = DictProxy({2: 3})
         key = args[name][0]
-        is_new_key = key not in proxy_db.attrs(coll)["keydep"]
+        is_new_key = key not in coll.__target__
         proxy_db.attrs(coll)["dep"].add_sub(new_mock())
-        for k in proxy_db.attrs(coll)["keydep"].keys():
-            proxy_db.attrs(coll)["keydep"][k].add_sub(new_mock(k))
+        # Keydeps are created lazily, so seed them for the existing keys
+        keydeps = proxy_db.attrs(coll)["keydep"]
+        for k in coll.__target__.keys():
+            keydeps[k] = Dep()
+            keydeps[k].add_sub(new_mock(k))
         getattr(coll, name)(*args[name])
         mocks[None].update.assert_called_once()
         if is_new_key:
-            assert isinstance(proxy_db.attrs(coll)["keydep"][key], Dep)
+            # Keydeps are created lazily on read, not on write
+            assert key not in proxy_db.attrs(coll)["keydep"]
         else:
             mocks[key].update.assert_called_once()
 
@@ -332,8 +339,11 @@ def test_dict_delete_notify():
         mocks.clear()
         coll = DictProxy({2: 3})
         proxy_db.attrs(coll)["dep"].add_sub(new_mock())
-        for key in proxy_db.attrs(coll)["keydep"].keys():
-            proxy_db.attrs(coll)["keydep"][key].add_sub(new_mock(key))
+        # Keydeps are created lazily, so seed them for the existing keys
+        keydeps = proxy_db.attrs(coll)["keydep"]
+        for key in coll.__target__.keys():
+            keydeps[key] = Dep()
+            keydeps[key].add_sub(new_mock(key))
         getattr(coll, name)(*args[name])
         mocks[None].update.assert_called_once()
         assert len(proxy_db.attrs(coll)["keydep"]) == 1
@@ -356,8 +366,11 @@ def test_dict_delete_keynotify():
         coll = DictProxy({2: 3})
         key = args[name][0]
         proxy_db.attrs(coll)["dep"].add_sub(new_mock())
-        for k in proxy_db.attrs(coll)["keydep"].keys():
-            proxy_db.attrs(coll)["keydep"][k].add_sub(new_mock(k))
+        # Keydeps are created lazily, so seed them for the existing keys
+        keydeps = proxy_db.attrs(coll)["keydep"]
+        for k in coll.__target__.keys():
+            keydeps[k] = Dep()
+            keydeps[k].add_sub(new_mock(k))
         getattr(coll, name)(*args[name])
         mocks[None].update.assert_called_once()
         mocks[key].update.assert_called_once()

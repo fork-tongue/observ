@@ -75,19 +75,23 @@ class ProxyDb:
         target = proxy.__target__
         obj_id = id(target)
 
-        if obj_id not in self.db:
+        entry = self.db.get(obj_id)
+        if entry is None:
             attrs = {}
             if isinstance(target, dict):
                 attrs["dep"] = Dep()
-                attrs["keydep"] = {key: Dep() for key in target.keys()}
+                # keydeps are created lazily: when a key is read
+                # (with dependency tracking active) or written
+                attrs["keydep"] = {}
             elif isinstance(target, (list, set)):
                 attrs["dep"] = Dep()
-            self.db[obj_id] = {
+            entry = {
                 "target": target,
                 "attrs": attrs,  # dep, keydep
                 # keyed on tuple(readonly, shallow)
                 "proxies": WeakValueDictionary(),
             }
+            self.db[obj_id] = entry
 
         # Use setdefault to put the proxy in the proxies dict. If there
         # was an existing value, it will return that instead. There shouldn't
@@ -95,7 +99,7 @@ class ProxyDb:
         # should raise an exception.
         # Seems to be a tiny bit faster than checking beforehand if
         # there is already an existing value in the proxies dict
-        result = self.db[obj_id]["proxies"].setdefault(
+        result = entry["proxies"].setdefault(
             (proxy.__readonly__, proxy.__shallow__), proxy
         )
         if result is not proxy:
@@ -106,7 +110,8 @@ class ProxyDb:
         Removes a reference from the database for the given proxy
         """
         obj_id = id(proxy.__target__)
-        if obj_id not in self.db:
+        entry = self.db.get(obj_id)
+        if entry is None:
             # When there are failing tests, it might happen that proxies
             # are garbage collected at a point where the proxy_db is already
             # cleared. That's why we need this check here.
@@ -117,8 +122,8 @@ class ProxyDb:
         # The given proxy is the last proxy in the WeakValueDictionary,
         # so now is a good moment to see if can remove clean the deps
         # for the target object
-        if len(self.db[obj_id]["proxies"]) == 1:
-            ref_count = sys.getrefcount(self.db[obj_id]["target"])
+        if len(entry["proxies"]) == 1:
+            ref_count = sys.getrefcount(entry["target"])
             # Ref count is still 3 here because of the reference
             # through proxy.__target__
             if ref_count <= 3:

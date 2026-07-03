@@ -8,6 +8,9 @@ import importlib
 import warnings
 from bisect import bisect
 from collections import defaultdict
+from operator import attrgetter
+
+watcher_id = attrgetter("id")
 
 
 class Scheduler:
@@ -125,7 +128,7 @@ class Scheduler:
 
         self.flushing = True
         self.waiting = False
-        self._queue.sort(key=lambda s: s.id)
+        self._queue.sort(key=watcher_id)
         self._queue_indices.sort()
 
         while self.index < len(self._queue):
