@@ -27,7 +27,7 @@ Observe nested structures of dicts, lists, tuples and sets. Returns an observabl
 
 * `watcher = watch(func, callback, deep=False, immediate=False)`
 
-React to changes in the state accessed in `func` with `callback(old_value, new_value)`. Returns a watcher object. `del`elete it to disable the callback.
+React to changes in the state accessed in `func` with `callback(old_value, new_value)`. Returns a watcher object. `del`elete it to disable the callback. Use `watcher.pause()` and `watcher.resume()` to temporarily suspend the watcher: if a dependency changed while the watcher was paused, it triggers once upon resume. Call `watcher.stop()` (or the watcher object itself) to stop it permanently.
 
 * `wrapped_func = computed(func)`
 

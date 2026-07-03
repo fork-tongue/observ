@@ -174,6 +174,8 @@ class Watcher(Generic[T]):
         "_deps",
         "_new_deps",
         "_number_of_callback_args",
+        "_paused",
+        "_pending_update",
         "_tasks",
         "callback",
         "callback_async",
@@ -206,6 +208,8 @@ class Watcher(Generic[T]):
         """
         self.id = next(_ids)
         self._active = True
+        self._paused = False
+        self._pending_update = False
         if callable(fn):
             if is_bound_method(fn):
                 self.fn = weak(fn.__self__, fn.__func__)
@@ -254,7 +258,16 @@ class Watcher(Generic[T]):
         any used resource. This can be used when special
         life-cycle management is needed for watchers.
         """
+        self.stop()
+
+    def stop(self) -> None:
+        """
+        Stop the watcher and clean up any used resource.
+        Equivalent to calling the watcher object directly.
+        """
         self._active = False
+        self._paused = False
+        self._pending_update = False
 
         # Clear resources
         self.fn = lambda: ()
@@ -264,6 +277,27 @@ class Watcher(Generic[T]):
         self.value = None
         self._deps.clear()
         self._new_deps.clear()
+
+    def pause(self) -> None:
+        """
+        Temporarily pause the watcher: while paused, changes to
+        dependencies will not trigger a re-evaluation or callback.
+        Resume the watcher with `resume()`.
+        """
+        self._paused = True
+
+    def resume(self) -> None:
+        """
+        Resume the watcher after it was paused. If any of its
+        dependencies changed while the watcher was paused, it
+        will trigger once upon resume.
+        """
+        if not self._paused:
+            return
+        self._paused = False
+        if self._pending_update:
+            self._pending_update = False
+            self.update()
 
     def __del__(self):
         if Watcher.on_destroyed:
@@ -277,7 +311,19 @@ class Watcher(Generic[T]):
         """
         return self._active
 
+    @property
+    def paused(self):
+        """
+        Returns whether this watcher is currently paused.
+        Use `pause()` and `resume()` to control this state.
+        """
+        return self._paused
+
     def update(self) -> None:
+        if self._paused:
+            self._pending_update = True
+            return
+
         if self.lazy:
             self.dirty = True
             return
@@ -297,6 +343,11 @@ class Watcher(Generic[T]):
         """Called by scheduler"""
         # Early return for when the watcher has been deactivated
         if not self._active:
+            return
+        # A watcher that was queued before it was paused should
+        # not run until it is resumed
+        if self._paused:
+            self._pending_update = True
             return
         value = self.get()
         if self.deep or isinstance(value, Container) or value != self.value:

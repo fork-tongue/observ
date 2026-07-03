@@ -1,6 +1,6 @@
 from unittest.mock import Mock
 
-from observ import reactive, scheduler, watch
+from observ import computed, reactive, scheduler, watch
 
 
 def test_watcher_active(noop_request_flush):
@@ -85,3 +85,144 @@ def test_watcher_removed_icw_active(noop_request_flush):
     #     watcher.callback = None
 
     assert callback_args == [0]
+
+
+def test_watcher_stop(noop_request_flush):
+    a = reactive({"foo": "bar"})
+    callback = Mock()
+
+    watcher = watch(lambda: a["foo"], callback)
+
+    assert watcher.active
+
+    watcher.stop()
+
+    assert not watcher.active
+
+    a["foo"] = "baz"
+    scheduler.flush()
+
+    callback.assert_not_called()
+
+
+def test_watcher_pause_resume(noop_request_flush):
+    a = reactive({"foo": "bar"})
+    callback = Mock()
+
+    watcher = watch(lambda: a["foo"], callback)
+
+    assert not watcher.paused
+
+    watcher.pause()
+
+    assert watcher.paused
+
+    a["foo"] = "baz"
+    a["foo"] = "qux"
+    scheduler.flush()
+
+    # No callback while paused
+    callback.assert_not_called()
+
+    # Changes during the pause trigger the watcher once upon resume
+    watcher.resume()
+
+    assert not watcher.paused
+
+    scheduler.flush()
+    callback.assert_called_once_with("qux")
+
+
+def test_watcher_resume_without_changes(noop_request_flush):
+    a = reactive({"foo": "bar"})
+    callback = Mock()
+
+    watcher = watch(lambda: a["foo"], callback)
+
+    watcher.pause()
+    watcher.resume()
+    scheduler.flush()
+
+    callback.assert_not_called()
+
+    # Resuming a watcher that is not paused is a no-op
+    watcher.resume()
+    scheduler.flush()
+
+    callback.assert_not_called()
+
+
+def test_watcher_pause_resume_sync(noop_request_flush):
+    a = reactive({"foo": "bar"})
+    callback = Mock()
+
+    watcher = watch(lambda: a["foo"], callback, sync=True)
+
+    watcher.pause()
+
+    a["foo"] = "baz"
+
+    callback.assert_not_called()
+
+    # Sync watchers trigger immediately on resume
+    watcher.resume()
+
+    callback.assert_called_once_with("baz")
+
+
+def test_watcher_pause_while_queued(noop_request_flush):
+    a = reactive({"foo": "bar"})
+    callback = Mock()
+
+    watcher = watch(lambda: a["foo"], callback)
+
+    # Queue the watcher before pausing it
+    a["foo"] = "baz"
+    watcher.pause()
+    scheduler.flush()
+
+    callback.assert_not_called()
+
+    watcher.resume()
+    scheduler.flush()
+
+    callback.assert_called_once_with("baz")
+
+
+def test_watcher_stop_while_paused(noop_request_flush):
+    a = reactive({"foo": "bar"})
+    callback = Mock()
+
+    watcher = watch(lambda: a["foo"], callback)
+
+    watcher.pause()
+    a["foo"] = "baz"
+    watcher.stop()
+
+    assert not watcher.paused
+
+    watcher.resume()
+    scheduler.flush()
+
+    callback.assert_not_called()
+
+
+def test_computed_pause_resume(noop_request_flush):
+    a = reactive({"count": 1})
+
+    @computed
+    def double():
+        return a["count"] * 2
+
+    assert double() == 2
+
+    double.__watcher__.pause()
+
+    a["count"] = 2
+
+    # While paused, the computed expression is not invalidated
+    assert double() == 2
+
+    double.__watcher__.resume()
+
+    assert double() == 4
