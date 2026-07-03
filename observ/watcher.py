@@ -13,7 +13,7 @@ from collections.abc import Awaitable, Container
 from functools import partial, wraps
 from itertools import count
 from typing import Any, Callable, Generic, Optional, TypeVar, Union
-from weakref import WeakSet, ref
+from weakref import ref
 
 from .dep import Dep
 from .proxy import Proxy, proxy
@@ -219,7 +219,13 @@ class Watcher(Generic[T]):
             # or a list of proxies
             if deep is None:
                 deep = True
-        self._deps, self._new_deps = WeakSet(), WeakSet()
+        # Plain sets: WeakSet operations are implemented in Python and
+        # dominate the cost of re-collecting deps on every evaluation.
+        # Strong references are safe here: deps don't reference watchers
+        # strongly (Dep._subs is a WeakSet), and a dep whose container
+        # was garbage collected is dropped on the next cleanup_deps()
+        # or when the watcher is deactivated or collected.
+        self._deps, self._new_deps = set(), set()
         self._tasks = set()
 
         self.sync = sync

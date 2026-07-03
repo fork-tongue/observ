@@ -1,4 +1,6 @@
-from observ import computed, reactive
+from unittest.mock import Mock
+
+from observ import computed, reactive, watch
 from observ.proxy import proxy_db
 
 
@@ -53,3 +55,32 @@ def test_deps_delete():
 
     state.clear()
     assert len(proxy_db.attrs(state)["keydep"]) == 3
+
+
+def test_deps_released_after_reevaluation():
+    # Watchers hold strong references to their deps, so check that
+    # deps of containers that the watched expression no longer visits
+    # are released when the watcher re-evaluates
+    state = reactive({"foo": {"bar": 5}})
+    watcher = watch(lambda: state, Mock(), sync=True, deep=True)
+
+    # The deep watcher depends on the outer and the nested container
+    assert len(watcher._deps) == 2
+
+    del state["foo"]
+
+    # The sync watcher re-evaluated and dropped
+    # the dep of the nested container
+    assert len(watcher._deps) == 1
+
+
+def test_deps_released_on_deactivation():
+    state = reactive({"foo": 5})
+    watcher = watch(lambda: state["foo"], Mock(), sync=True)
+
+    assert len(watcher._deps) > 0
+
+    # Deactivating the watcher releases its deps
+    watcher()
+
+    assert len(watcher._deps) == 0
