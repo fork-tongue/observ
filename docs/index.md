@@ -39,6 +39,7 @@ No dirty flags, no manual notification: mutating the state through the reactive 
 * Follow the [Quick Start](getting-started/quick-start.md) to learn the core concepts in a few minutes.
 * Read the [Guide](guide/reactivity.md) for an in-depth look at reactivity, computed state, watchers and scheduling.
 * Browse the [API Reference](reference/api.md) for the complete public API.
+* Curious how it all works? The [Internals](internals/architecture.md) section explains the architecture under the hood.
 * Check out the [Examples](examples/integrations.md) to see observ integrated with Qt and rendercanvas.
 
 ## Related projects
