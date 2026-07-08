@@ -47,6 +47,13 @@ jobs:
             pyversion: "3.13"
           - name: Linux py314
             pyversion: "3.14"
+          # Pre-release of the next CPython, for early feedback ahead of
+          # its stable release. Non-blocking: the job may break on beta
+          # churn without gating PRs.
+          - name: Linux py315 (pre-release)
+            pyversion: "3.15"
+            prerelease: true
+    continue-on-error: ${{ matrix.prerelease == true }}
     steps:
       - uses: actions/checkout@v7
       - name: Install uv and Python ${{ matrix.pyversion }}
@@ -61,7 +68,14 @@ jobs:
           sudo apt-get update -y -qq
           sudo apt-get install -y libgles2-mesa-dev
       - name: Install dependencies
+        if: ${{ !matrix.prerelease }}
         run: uv sync --all-groups
+      # Binary dependencies (PySide6, pygfx, numpy) don't ship wheels
+      # for pre-release CPython; install only the dev group and let the
+      # tests that need them skip themselves.
+      - name: Install dependencies (pre-release Python)
+        if: ${{ matrix.prerelease }}
+        run: uv sync
       - name: Test
         run: uv run --no-sync pytest -v --cov=observ --cov-report=term-missing tests
         env:
