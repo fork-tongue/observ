@@ -32,6 +32,7 @@ qt = [
 pygfx = ["pygfx"]
 numpy = ["numpy"]
 docs = [
+    "mkdocs>=1,<2",
     "mkdocs-material",
     "mkdocstrings[python]",
 ]
