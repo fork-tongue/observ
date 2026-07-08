@@ -1,6 +1,3 @@
-[![PyPI version](https://badge.fury.io/py/observ.svg)](https://pypi.org/project/observ/)
-[![CI status](https://github.com/fork-tongue/observ/workflows/CI/badge.svg)](https://github.com/fork-tongue/observ/actions)
-
 # Observ 👁
 
 **Vue.js-style reactivity for Python.** Wrap your state in a reactive proxy, and observ tracks every read and write for you: computed values invalidate themselves, watchers fire when something they depend on changes. No dirty flags, no manual invalidation, no dependency bookkeeping.
@@ -26,20 +23,30 @@ pip install observ
 ```python
 from observ import computed, reactive, watch
 
-state = reactive({"count": 0, "items": []})
+state = reactive({
+    "todos": [
+        {"title": "groceries", "done": False},
+        {"title": "dishes", "done": True},
+    ],
+})
 
 @computed
-def total():
-    return state["count"] + len(state["items"])
+def progress():
+    done = sum(todo["done"] for todo in state["todos"])
+    return f"{done}/{len(state['todos'])} done"
 
-def on_total_changed(new, old):
-    print(f"total changed from {old} to {new}")
+watcher = watch(progress, lambda new: print(new), sync=True)
 
-watcher = watch(total, on_total_changed, sync=True)
+# Mutate the plain dicts and lists you already have —
+# observ sees every change, no matter how deeply nested:
+state["todos"][0]["done"] = True                            # prints: 2/2 done
+state["todos"].append({"title": "laundry", "done": False})  # prints: 2/3 done
 
-state["items"].append("thing")  # prints: total changed from 0 to 1
-state["count"] += 1             # prints: total changed from 1 to 2
+# ...but you only ever react when a *result* actually changes:
+state["todos"][1]["title"] = "do the dishes"                # (no print)
 ```
+
+No subclasses to inherit, no observable fields to declare, no signals to wire up: `reactive()` takes your existing data, and dependencies are tracked automatically simply by using it.
 
 Continue with the [Quick Start tutorial](https://fork-tongue.github.io/observ/getting-started/quick-start/), or dive into the [Guide](https://fork-tongue.github.io/observ/guide/reactivity/) and [API Reference](https://fork-tongue.github.io/observ/reference/api/).
 
@@ -47,3 +54,4 @@ Continue with the [Quick Start tutorial](https://fork-tongue.github.io/observ/ge
 
 * [Collagraph](https://github.com/fork-tongue/collagraph): reactive user interfaces in Python, built on top of observ.
 * [Reliev](https://github.com/fork-tongue/reliev): the store (with undo/redo support) that used to be part of observ.
+* [Patchdiff](https://github.com/fork-tongue/patchdiff): diffing and patching for plain Python data structures — the same dicts, lists and sets you'd wrap with observ.
