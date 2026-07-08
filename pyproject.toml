@@ -61,7 +61,12 @@ select = [
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 "bench/*" = ["F821"]
+# command line tool that reports through print
+"bench/compare_runs.py" = ["T201"]
 
 [tool.pytest.ini_options]
-addopts = "--benchmark-columns='mean, stddev, rounds'"
+# GC pauses during timed rounds are a major source of benchmark noise
+# (the write traps copy whole containers, generating lots of garbage),
+# so garbage collection is disabled while benchmarks are being timed.
+addopts = "--benchmark-columns='median, mean, stddev, rounds' --benchmark-disable-gc"
 # timeout = 3

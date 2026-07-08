@@ -23,29 +23,47 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      # On PRs: run benchmarks twice (PR code vs master code) and compare
+      # On PRs: run benchmarks alternating between master code and PR
+      # code (3 runs each), then check that the PR is not *consistently*
+      # slower than master. Single runs are far too noisy to gate on:
+      # process-level effects (hash randomization, memory layout, runner
+      # load) shift individual results by 20-40% on identical code.
+      # Interleaving the runs and comparing the fastest PR run against
+      # the slowest master run makes the guard robust against that noise
+      # (see bench/compare_runs.py).
       - name: Run benchmarks
+        env:
+          # Fixed hash seed: hash randomization moves dict/set benchmark
+          # timings between processes, which would make the master and
+          # PR runs incomparable.
+          PYTHONHASHSEED: "0"
         run: |
-          # Checkout master version of observ directory
           git fetch origin master
-          git checkout origin/master -- observ/
 
-          # Run benchmarks with master code as baseline
-          uv run --no-sync pytest bench \
-              --benchmark-only \
-              --benchmark-save=master \
-              --benchmark-sort=mean || true
+          for i in 1 2 3; do
+            # Run benchmarks with master code as baseline. Tolerate
+            # failures: the PR's benchmarks may exercise APIs that don't
+            # exist on master yet.
+            git checkout origin/master -- observ/
+            uv run --no-sync pytest bench \
+                --benchmark-only \
+                --benchmark-save=master$i \
+                --benchmark-sort=mean || true
 
-          # Restore PR code
-          git checkout HEAD -- observ/
+            # Run benchmarks on PR code
+            git checkout HEAD -- observ/
+            uv run --no-sync pytest bench \
+                --benchmark-only \
+                --benchmark-save=branch$i \
+                --benchmark-sort=mean
+          done
 
-          # Run benchmarks on PR code and compare
-          uv run --no-sync pytest bench \
-              --benchmark-only \
-              --benchmark-compare \
-              --benchmark-compare-fail=mean:5% \
-              --benchmark-save=branch \
-              --benchmark-sort=mean
+      - name: Compare benchmarks
+        run: |
+          uv run --no-sync python bench/compare_runs.py \
+              --baseline '.benchmarks/*/*_master?.json' \
+              --branch '.benchmarks/*/*_branch?.json' \
+              --threshold 0.10
 
       - name: Upload benchmarks
         if: always()
