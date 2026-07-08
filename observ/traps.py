@@ -3,7 +3,6 @@ from operator import xor
 
 from .dep import Dep
 from .proxy import proxy
-from .proxy_db import proxy_db
 
 
 class ReadonlyError(Exception):
@@ -20,7 +19,7 @@ def read_trap(method, obj_cls):
     @wraps(fn)
     def trap(self, *args, **kwargs):
         if Dep.stack:
-            proxy_db.attrs(self)["dep"].depend()
+            self.__dep__.depend()
         value = fn(self.__target__, *args, **kwargs)
         if self.__shallow__:
             return value
@@ -37,7 +36,7 @@ def iterate_trap(method, obj_cls):
     @wraps(fn)
     def trap(self, *args, **kwargs):
         if Dep.stack:
-            proxy_db.attrs(self)["dep"].depend()
+            self.__dep__.depend()
         iterator = fn(self.__target__, *args, **kwargs)
         if self.__shallow__:
             return iterator
@@ -59,11 +58,7 @@ def read_key_trap(method, obj_cls):
     @wraps(fn)
     def trap(self, *args, **kwargs):
         if Dep.stack:
-            key = args[0]
-            keydeps = proxy_db.attrs(self)["keydep"]
-            if key not in keydeps:
-                keydeps[key] = Dep()
-            keydeps[key].depend()
+            self.__dep__.keydep(args[0]).depend()
         value = fn(self.__target__, *args, **kwargs)
         if self.__shallow__:
             return value
@@ -74,6 +69,10 @@ def read_key_trap(method, obj_cls):
 
 # Sentinel to distinguish 'key not present' from 'value is None'
 _MISSING = object()
+
+# Stand-in for TargetDep.keydeps when it hasn't been materialized
+# (never written to, only used for lookups)
+_NO_KEYDEPS = {}
 
 
 def write_trap(method, obj_cls):
@@ -117,18 +116,17 @@ def write_dict_trap(method, obj_cls):
             incoming = kwargs
         old_values = {key: target.get(key, _MISSING) for key in incoming}
         retval = fn(target, incoming)
-        attrs = proxy_db.attrs(self)
-        keydeps = attrs["keydep"]
+        dep = self.__dep__
+        keydeps = dep.keydeps if dep.keydeps is not None else _NO_KEYDEPS
         change_detected = False
         for key, old_value in old_values.items():
             if old_value is not target.get(key, _MISSING):
-                if key in keydeps:
-                    keydeps[key].notify()
-                else:
-                    keydeps[key] = Dep()
+                keydep = keydeps.get(key)
+                if keydep is not None:
+                    keydep.notify()
                 change_detected = True
         if change_detected:
-            attrs["dep"].notify()
+            dep.notify()
         return retval
 
     return trap
@@ -143,7 +141,7 @@ def write_len_compare_trap(method, obj_cls):
         old_len = len(target)
         retval = fn(target, *args, **kwargs)
         if len(target) != old_len:
-            proxy_db.attrs(self)["dep"].notify()
+            self.__dep__.notify()
         return retval
 
     return trap
@@ -158,7 +156,7 @@ def write_copy_compare_trap(method, obj_cls):
         old = target.copy()
         retval = fn(target, *args, **kwargs)
         if target != old:
-            proxy_db.attrs(self)["dep"].notify()
+            self.__dep__.notify()
         return retval
 
     return trap
@@ -186,7 +184,7 @@ def write_setitem_trap(method, obj_cls):
             new_value = target[key]
             changed = new_value is not old_value and new_value != old_value
         if changed:
-            proxy_db.attrs(self)["dep"].notify()
+            self.__dep__.notify()
         return retval
 
     return trap
@@ -217,11 +215,13 @@ def write_key_trap(method, obj_cls):
             or xor(old_value is None, new_value is None)
             or old_value != new_value
         ):
-            attrs = proxy_db.attrs(self)
-            keydep = attrs["keydep"].get(key)
-            if keydep is not None:
-                keydep.notify()
-            attrs["dep"].notify()
+            dep = self.__dep__
+            keydeps = dep.keydeps
+            if keydeps is not None:
+                keydep = keydeps.get(key)
+                if keydep is not None:
+                    keydep.notify()
+            dep.notify()
         return retval
 
     return trap
@@ -233,10 +233,15 @@ def delete_trap(method, obj_cls):
     @wraps(fn)
     def trap(self, *args, **kwargs):
         retval = fn(self.__target__, *args, **kwargs)
-        attrs = proxy_db.attrs(self)
-        attrs["dep"].notify()
+        dep = self.__dep__
+        dep.notify()
+        keydeps = dep.keydeps if dep.keydeps is not None else _NO_KEYDEPS
         for key in self._orphaned_keydeps():
-            attrs["keydep"][key].notify()
+            # A (sync) subscriber of the main dep may have released
+            # a keydep already, so guard against dead entries
+            keydep = keydeps.get(key)
+            if keydep is not None:
+                keydep.notify()
         return retval
 
     return trap
@@ -248,14 +253,16 @@ def delete_key_trap(method, obj_cls):
     @wraps(fn)
     def trap(self, *args, **kwargs):
         key = args[0]
-        attrs = proxy_db.attrs(self)
         key_existed = key in self.__target__
         retval = fn(self.__target__, *args, **kwargs)
         if key_existed:
-            attrs["dep"].notify()
-            keydep = attrs["keydep"].get(key)
-            if keydep is not None:
-                keydep.notify()
+            dep = self.__dep__
+            dep.notify()
+            keydeps = dep.keydeps
+            if keydeps is not None:
+                keydep = keydeps.get(key)
+                if keydep is not None:
+                    keydep.notify()
         return retval
 
     return trap

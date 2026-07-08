@@ -1,7 +1,6 @@
 from unittest.mock import Mock
 
 from observ import computed, reactive, watch
-from observ.proxy import proxy_db
 
 
 def test_deps_copy():
@@ -33,11 +32,12 @@ def test_deps_copy():
 
 def test_deps_delete():
     # test that dep objects are _not_ removed on delete
+    # as long as a watcher is subscribed to them
     state = reactive({"foo": 5, "bar": 6})
 
     # keydeps are created lazily: writes don't create them...
     state["baz"] = 5
-    assert len(proxy_db.attrs(state)["keydep"]) == 0
+    assert not state.__dep__.keydeps
 
     # ...but reads with dependency tracking active do
     @computed
@@ -45,16 +45,16 @@ def test_deps_delete():
         return state["foo"] + state["bar"] + state["baz"]
 
     assert prop() == 16
-    assert len(proxy_db.attrs(state)["keydep"]) == 3
+    assert len(state.__dep__.keydeps) == 3
 
     del state["baz"]
-    assert len(proxy_db.attrs(state)["keydep"]) == 3
+    assert len(state.__dep__.keydeps) == 3
 
     state.popitem()
-    assert len(proxy_db.attrs(state)["keydep"]) == 3
+    assert len(state.__dep__.keydeps) == 3
 
     state.clear()
-    assert len(proxy_db.attrs(state)["keydep"]) == 3
+    assert len(state.__dep__.keydeps) == 3
 
 
 def test_deps_released_after_reevaluation():
