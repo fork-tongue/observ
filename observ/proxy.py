@@ -13,8 +13,12 @@ class Proxy(Generic[T]):
     """
     Proxy for an object/target.
 
-    Instantiating a Proxy will add a reference to the global proxy_db and
-    destroying a Proxy will remove that reference.
+    All proxies that wrap the same target share a single TargetDep
+    (stored as `__dep__`), which holds the reactive state for the
+    target. The proxy's strong reference to it keeps that state (and
+    the registry entry for the target) alive; once the last proxy and
+    the last subscribed watcher are gone, it is cleaned up through
+    regular reference counting.
 
     Please use the `proxy` method to get a proxy for a certain object instead
     of directly creating one yourself. The `proxy` method will either create
@@ -24,22 +28,21 @@ class Proxy(Generic[T]):
     __hash__ = None
     # the slots have to be very unique since we also proxy objects
     # which may define the attributes with the same names
-    __slots__ = ("__readonly__", "__shallow__", "__target__", "__weakref__")
+    __slots__ = ("__dep__", "__readonly__", "__shallow__", "__target__", "__weakref__")
 
     def __init__(self, target: T, readonly=False, shallow=False):
         self.__target__ = target
         self.__readonly__ = readonly
         self.__shallow__ = shallow
-        proxy_db.reference(self)
+        dep = proxy_db.target_dep(target)
+        dep.register_proxy((readonly, shallow), self)
+        self.__dep__ = dep
 
     def __copy__(self) -> T:
         return copy(self.__target__)
 
     def __deepcopy__(self, memo: dict) -> T:
         return deepcopy(self.__target__, memo)
-
-    def __del__(self):
-        proxy_db.dereference(self)
 
 
 # Lookup dict for mapping a type (dict, list, set) to a tuple

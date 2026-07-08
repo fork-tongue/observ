@@ -3,7 +3,6 @@ from unittest.mock import Mock
 from observ.dep import Dep
 from observ.dict_proxy import DictProxy, dict_traps
 from observ.list_proxy import ListProxy, list_traps
-from observ.proxy_db import proxy_db
 from observ.set_proxy import SetProxy, set_traps
 
 COLLECTIONS = {
@@ -43,8 +42,7 @@ EXCLUDED = {
     "__reduce_ex__",
     "__hash__",
     "__class_getitem__",
-    # __del__, __copy__, __deepcopy__ are custom methods on Proxy
-    "__del__",
+    # __copy__, __deepcopy__ are custom methods on Proxy
     "__copy__",
     "__deepcopy__",
     "__getstate__",
@@ -56,6 +54,7 @@ EXCLUDED = {
     "__readonly__",
     "__shallow__",
     "__weakref__",
+    "__dep__",
     # exclude attributes added by typing.Generic
     "_is_protocol",
     "__orig_bases__",
@@ -102,7 +101,7 @@ def test_list_notify():
     for name in COLLECTIONS[ListProxy]["WRITERS"]:
         coll = ListProxy([3, 2])
         mock = Mock()
-        proxy_db.attrs(coll)["dep"].add_sub(mock)
+        coll.__dep__.add_sub(mock)
         getattr(coll, name)(*args[name])
         mock.update.assert_called_once()
 
@@ -137,7 +136,7 @@ def test_list_depend():
         try:
             coll = ListProxy([2])
             getattr(coll, name)(*args[name])
-            m.add_dep.assert_called_once_with(proxy_db.attrs(coll)["dep"])
+            m.add_dep.assert_called_once_with(coll.__dep__)
         finally:
             Dep.stack.pop()
 
@@ -157,7 +156,7 @@ def test_set_notify():
     for name in COLLECTIONS[SetProxy]["WRITERS"]:
         coll = SetProxy({2})
         mock = Mock()
-        proxy_db.attrs(coll)["dep"].add_sub(mock)
+        coll.__dep__.add_sub(mock)
         getattr(coll, name)(*args[name])
         mock.update.assert_called_once()
 
@@ -204,7 +203,7 @@ def test_set_depend():
         try:
             coll = SetProxy({2})
             getattr(coll, name)(*args[name])
-            m.add_dep.assert_called_once_with(proxy_db.attrs(coll)["dep"])
+            m.add_dep.assert_called_once_with(coll.__dep__)
         finally:
             Dep.stack.pop()
 
@@ -225,12 +224,13 @@ def test_dict_notify():
         mocks.clear()
         coll = DictProxy({2: 3})
         old_keys = set(coll.keys())
-        proxy_db.attrs(coll)["dep"].add_sub(new_mock())
-        # Keydeps are created lazily, so seed them for the existing keys
-        keydeps = proxy_db.attrs(coll)["keydep"]
+        coll.__dep__.add_sub(new_mock())
+        # Keydeps are created lazily, so seed them for the existing keys.
+        # The keydeps mapping is weak, so hold on to the seeded deps
+        seeded = {}
         for key in old_keys:
-            keydeps[key] = Dep()
-            keydeps[key].add_sub(new_mock(key))
+            seeded[key] = coll.__dep__.keydep(key)
+            seeded[key].add_sub(new_mock(key))
         getattr(coll, name)(*args[name])
         mocks[None].update.assert_called_once()
         for key in old_keys:
@@ -254,17 +254,18 @@ def test_dict_keynotify():
         coll = DictProxy({2: 3})
         key = args[name][0]
         is_new_key = key not in coll.__target__
-        proxy_db.attrs(coll)["dep"].add_sub(new_mock())
-        # Keydeps are created lazily, so seed them for the existing keys
-        keydeps = proxy_db.attrs(coll)["keydep"]
+        coll.__dep__.add_sub(new_mock())
+        # Keydeps are created lazily, so seed them for the existing keys.
+        # The keydeps mapping is weak, so hold on to the seeded deps
+        seeded = {}
         for k in coll.__target__.keys():
-            keydeps[k] = Dep()
-            keydeps[k].add_sub(new_mock(k))
+            seeded[k] = coll.__dep__.keydep(k)
+            seeded[k].add_sub(new_mock(k))
         getattr(coll, name)(*args[name])
         mocks[None].update.assert_called_once()
         if is_new_key:
             # Keydeps are created lazily on read, not on write
-            assert key not in proxy_db.attrs(coll)["keydep"]
+            assert key not in coll.__dep__.keydeps
         else:
             mocks[key].update.assert_called_once()
 
@@ -299,7 +300,7 @@ def test_dict_depend():
         try:
             coll = DictProxy({2: 3})
             getattr(coll, name)(*args[name])
-            m.add_dep.assert_called_once_with(proxy_db.attrs(coll)["dep"])
+            m.add_dep.assert_called_once_with(coll.__dep__)
         finally:
             Dep.stack.pop()
 
@@ -316,9 +317,7 @@ def test_dict_keydepend():
         try:
             coll = DictProxy({2: 3})
             getattr(coll, name)(*args[name])
-            m.add_dep.assert_called_once_with(
-                proxy_db.attrs(coll)["keydep"][args[name][0]]
-            )
+            m.add_dep.assert_called_once_with(coll.__dep__.keydeps[args[name][0]])
         finally:
             Dep.stack.pop()
 
@@ -338,15 +337,16 @@ def test_dict_delete_notify():
     for name in COLLECTIONS[DictProxy]["DELETERS"]:
         mocks.clear()
         coll = DictProxy({2: 3})
-        proxy_db.attrs(coll)["dep"].add_sub(new_mock())
-        # Keydeps are created lazily, so seed them for the existing keys
-        keydeps = proxy_db.attrs(coll)["keydep"]
+        coll.__dep__.add_sub(new_mock())
+        # Keydeps are created lazily, so seed them for the existing keys.
+        # The keydeps mapping is weak, so hold on to the seeded deps
+        seeded = {}
         for key in coll.__target__.keys():
-            keydeps[key] = Dep()
-            keydeps[key].add_sub(new_mock(key))
+            seeded[key] = coll.__dep__.keydep(key)
+            seeded[key].add_sub(new_mock(key))
         getattr(coll, name)(*args[name])
         mocks[None].update.assert_called_once()
-        assert len(proxy_db.attrs(coll)["keydep"]) == 1
+        assert len(coll.__dep__.keydeps) == 1
 
 
 def test_dict_delete_keynotify():
@@ -365,25 +365,26 @@ def test_dict_delete_keynotify():
         mocks.clear()
         coll = DictProxy({2: 3})
         key = args[name][0]
-        proxy_db.attrs(coll)["dep"].add_sub(new_mock())
-        # Keydeps are created lazily, so seed them for the existing keys
-        keydeps = proxy_db.attrs(coll)["keydep"]
+        coll.__dep__.add_sub(new_mock())
+        # Keydeps are created lazily, so seed them for the existing keys.
+        # The keydeps mapping is weak, so hold on to the seeded deps
+        seeded = {}
         for k in coll.__target__.keys():
-            keydeps[k] = Dep()
-            keydeps[k].add_sub(new_mock(k))
+            seeded[k] = coll.__dep__.keydep(k)
+            seeded[k].add_sub(new_mock(k))
         getattr(coll, name)(*args[name])
         mocks[None].update.assert_called_once()
         mocks[key].update.assert_called_once()
-        # keydep entries are preserved so watchers
-        # can be notified when the key is re-added
-        assert key in proxy_db.attrs(coll)["keydep"]
+        # keydep entries are preserved (as long as someone subscribes
+        # to them) so watchers can be notified when the key is re-added
+        assert key in coll.__dep__.keydeps
 
 
 def test_dict_pop_with_default():
     """Test that dict.pop with a default value works for missing keys."""
     coll = DictProxy({2: 3})
     mock = Mock()
-    proxy_db.attrs(coll)["dep"].add_sub(mock)
+    coll.__dep__.add_sub(mock)
 
     # Pop existing key - should notify and return value
     result = coll.pop(2, "default")

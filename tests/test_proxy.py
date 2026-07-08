@@ -1,7 +1,6 @@
-import gc
-
 import pytest
 
+from observ import watch
 from observ.dict_proxy import DictProxy, ReadonlyDictProxy
 from observ.list_proxy import ListProxy, ReadonlyListProxy
 from observ.proxy import Proxy, proxy
@@ -33,17 +32,40 @@ def test_proxy_lifecycle():
     assert obj_id in proxy_db.db
     assert proxy_db.get_proxy(data) is not None
 
-    # Destroy the original proxy
+    # Destroy the original proxy: without any proxy (or subscribed
+    # watcher) left, the registry entry is removed right away, even
+    # though `data` itself is still alive
     del wrapped_data
 
-    assert obj_id in proxy_db.db
+    assert obj_id not in proxy_db.db
     assert proxy_db.get_proxy(data) is None
 
-    # Also delete the original data and run garbage collection
-    del data
-    gc.collect()
 
-    assert obj_id not in proxy_db.db
+def test_proxy_db_entry_kept_alive_by_watcher():
+    state = proxy({"inner": {"count": 0}})
+    inner_id = id(state.__target__["inner"])
+
+    calls = []
+    watcher = watch(
+        lambda: state["inner"]["count"],
+        lambda: calls.append(1),
+        sync=True,
+    )
+
+    # No proxy for the inner dict is alive anymore (the one created
+    # during evaluation was transient), but the watcher keeps the
+    # registry entry alive through the deps it subscribed to, so a
+    # mutation through a fresh proxy notifies the watcher
+    assert inner_id in proxy_db.db
+
+    state["inner"]["count"] += 1
+
+    assert calls == [1]
+
+    # Once the watcher is gone as well, the entry is released
+    del watcher
+
+    assert inner_id not in proxy_db.db
 
 
 def test_proxy_lifecycle_auto():

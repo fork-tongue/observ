@@ -161,13 +161,16 @@ def traverse(obj):
         # Depend on the container's dep (tuples are immutable
         # and have no dep)
         if track and tracked and cls is not tuple:
-            entry = db.get(obj_id)
-            if entry is None:
-                # Materialize the container in the proxy_db
-                # so that it gets a dep to subscribe to
-                proxy(current)
-                entry = db[obj_id]
-            entry["attrs"]["dep"].depend()
+            weak_dep = db.get(obj_id)
+            dep = weak_dep() if weak_dep is not None else None
+            if dep is None:
+                # Materialize the container in the proxy_db so that it
+                # gets a dep to subscribe to. The watcher's strong
+                # reference to the dep (through depend) is what keeps
+                # the registry entry alive after the transient proxy
+                # created here is gone
+                dep = proxy(current).__dep__
+            dep.depend()
 
         # Add children to stack
         if current:
@@ -248,9 +251,11 @@ class Watcher(Generic[T]):
         # Plain sets: WeakSet operations are implemented in Python and
         # dominate the cost of re-collecting deps on every evaluation.
         # Strong references are safe here: deps don't reference watchers
-        # strongly (Dep._subs is a WeakSet), and a dep whose container
-        # was garbage collected is dropped on the next cleanup_deps()
-        # or when the watcher is deactivated or collected.
+        # strongly (Dep._subs is a WeakSet). The strong reference is also
+        # what keeps the registry entry of a dep's container (and with
+        # it, the identity of its deps) alive for exactly as long as
+        # this watcher depends on it; deps are released on the next
+        # cleanup_deps() or when the watcher is deactivated or collected.
         self._deps, self._new_deps = set(), set()
         self._tasks = set()
 

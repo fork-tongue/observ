@@ -2,9 +2,9 @@
 
 ## Keep no references to raw data
 
-Observ keeps references to the object passed to `reactive()` in order to keep track of dependencies and proxies for that object. When the object that is passed into `reactive()` is not managed by other code, observ cleans up its references automatically when the proxy is destroyed. However, if there is another reference to the original object, observ will only release its own reference when the garbage collector runs and all other references to the object are gone.
+Observ keeps a reference to the object passed to `reactive()` in order to keep track of dependencies and proxies for that object. That reference is released automatically — through regular reference counting, without relying on the garbage collector — as soon as the last proxy for the object is destroyed and no watcher depends on it anymore.
 
-For this reason, the **best practice** is to keep **no references** to the raw data, and instead work with the reactive proxies **only**:
+Even so, the **best practice** is to keep **no references** to the raw data, and instead work with the reactive proxies **only**: mutations on the raw data itself bypass the proxies and are therefore not observable.
 
 ```python
 # Good: no reference to the raw dict survives

@@ -1,9 +1,8 @@
 """
 Benchmarks for the cost of creating proxies and watchers.
 
-Creating a proxy for a dict registers the target in the proxy_db and
-eagerly creates a Dep for every key, so proxy creation cost scales
-with the number of keys.
+Creating a proxy registers the target in the proxy_db; deps for the
+keys of a dict are created lazily when they are read or written.
 """
 
 import gc
@@ -26,9 +25,8 @@ def noop():
 def test_proxy_creation_dict(benchmark, size):
     def setup():
         # Collect garbage in between rounds (outside of the measured
-        # code) so that proxy_db entries for the previous rounds are
-        # cleaned up deterministically instead of adding gc noise to
-        # the measurement
+        # code) so that garbage from the previous rounds doesn't add
+        # gc noise to the measurement
         gc.collect()
         return ({f"key_{i}": i for i in range(size)},), {}
 

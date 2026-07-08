@@ -1,147 +1,172 @@
-import gc
-import sys
-from weakref import WeakValueDictionary
+"""
+Registry of the reactive state that observ keeps for each wrapped
+target object.
+
+For every target that is wrapped by one or more proxies there is a
+single TargetDep: the Dep for the container as a whole, which also
+owns everything else observ needs to know about the target (the
+per-key deps and the proxies that wrap it).
+
+Lifetimes are managed purely by reference counting:
+
+- Every Proxy holds a strong reference to the TargetDep of its
+  target (Proxy.__dep__).
+- Every Watcher that depends on a target holds a strong reference
+  to its TargetDep, or to one of its KeyDeps which in turn hold
+  their TargetDep, for as long as the dependency lasts.
+- The registry itself only holds weak references, so as soon as the
+  last proxy and the last interested watcher are gone, the TargetDep
+  (and with it observ's reference to the target) is destroyed and
+  its entry is removed from the registry by a weakref callback.
+
+The registry is keyed on id(target), because the plain containers
+(dict, list, set) do not support weak references and are not
+(reliably) hashable. This is safe against id reuse, because a
+TargetDep keeps its target alive: an id can only be recycled after
+the TargetDep for its previous target has already been destroyed
+and has removed itself from the registry.
+"""
+
+from weakref import WeakValueDictionary, ref
 
 from .dep import Dep
 
 
+class TargetDep(Dep):
+    """
+    The Dep for a target container as a whole. There is at most one
+    TargetDep per wrapped target, shared by all proxies that wrap it,
+    so that watchers and mutations always meet on the same Dep no
+    matter which proxy they go through.
+    """
+
+    __slots__ = ("keydeps", "proxies", "target")
+
+    def __init__(self, target):
+        super().__init__()
+        self.target = target
+        # Per-key deps (dict targets only). Starts out as None and is
+        # only materialized (as a WeakValueDictionary) when a key is
+        # read with dependency tracking active, since constructing a
+        # WeakValueDictionary is relatively expensive. The values are
+        # kept alive by the watchers that depend on them: a keydep
+        # without subscribers has nobody to notify, so it can be
+        # recreated freely whenever the key is read again
+        self.keydeps = None
+        # Weakrefs to the proxies that wrap the target,
+        # keyed on (readonly, shallow)
+        self.proxies = {}
+
+    def keydep(self, key):
+        """
+        Returns the dep for the given key, creating it if needed.
+        Note that the keydeps mapping is weak: the returned dep stays
+        registered only for as long as the caller (or a subscribed
+        watcher) holds a reference to it.
+        """
+        keydeps = self.keydeps
+        if keydeps is None:
+            keydeps = self.keydeps = WeakValueDictionary()
+        else:
+            keydep = keydeps.get(key)
+            if keydep is not None:
+                return keydep
+        keydep = KeyDep(self)
+        keydeps[key] = keydep
+        return keydep
+
+    def register_proxy(self, config, proxy):
+        """
+        Registers the proxy as the proxy that wraps the target with
+        the given (readonly, shallow) configuration. There can be only
+        one proxy per configuration.
+        """
+        proxies = self.proxies
+        existing = proxies.get(config)
+        if existing is not None and existing() is not None:
+            raise RuntimeError("Proxy with existing configuration already in db")
+
+        def remove(weak_proxy, proxies=proxies, config=config):
+            if proxies.get(config) is weak_proxy:
+                del proxies[config]
+
+        proxies[config] = ref(proxy, remove)
+
+    def get_proxy(self, config):
+        """
+        Returns the proxy that wraps the target with the given
+        (readonly, shallow) configuration, or None if there is none.
+        """
+        weak_proxy = self.proxies.get(config)
+        if weak_proxy is None:
+            return None
+        return weak_proxy()
+
+
+class KeyDep(Dep):
+    """
+    The Dep for a single key of a target. It holds a strong reference
+    to the TargetDep that owns it, so that a watcher that depends on
+    just a key still keeps the target's registry entry (and thereby
+    the identity of its deps) alive.
+    """
+
+    __slots__ = ("owner",)
+
+    def __init__(self, owner):
+        super().__init__()
+        self.owner = owner
+
+
 class ProxyDb:
     """
-    Collection of proxies, tracked by the id of the object that they wrap.
-    Each time a Proxy is instantiated, it will register itself for the
-    wrapped object. And when a Proxy is deleted, then it will unregister.
-    When the last proxy that wraps an object is removed, it is uncertain
-    what happens to the wrapped object, so in that case the object id is
-    removed from the collection.
+    Weak registry of TargetDeps, keyed on the id of the target object
+    that they describe. Entries remove themselves when their TargetDep
+    is destroyed.
     """
 
     __slots__ = ("db",)
 
     def __init__(self):
+        # id(target) -> weakref to the TargetDep for that target
         self.db = {}
-        gc.callbacks.append(self.cleanup)
 
-    def cleanup(self, phase, info):
+    def target_dep(self, target):
         """
-        Callback for garbage collector to cleanup the db for targets
-        that have no other references outside of the db
+        Returns the TargetDep for the given target, creating it (and
+        registering it) if there is none yet.
         """
-        if phase != "stop":
-            # Ref counts are only stable after collection
-            return
-
-        if info["generation"] != 2:
-            # Only cleanup on full collection. Python GC runs in C mostly,
-            # and this callback runs in Python land, so we want to minimize
-            # the overhead as much as possible. The full collection happens
-            # rarely compared to the other generations:
-            # - gen 0 triggers constantly
-            # - gen 1 is less frequent but still too often
-            # - gen 2 is the full collection which happens rarely
-            return
-
-        if not (db := self.db):
-            # Early exit: Nothing to cleanup
-            # This happens when observ is imported but not used
-            # For example via transient dependencies or unused codepaths
-            # This if statement avoids creating an iterator just to find out
-            # it is empty
-            return
-
-        getrefcount = sys.getrefcount  # Local lookup is faster
-
-        # First collect keys to delete so we don't have to modify db while iterating
-        # Use a list comprehension so we don't have to call .append in a loop
-        keys_to_delete = [
-            key
-            for key, value in db.items()
-            # Refs:
-            # - sys.getrefcount
-            # - ref in db item
-            # If 2: We are the last to hold a reference!
-            if getrefcount(value["target"]) <= 2
-        ]
-
-        # Only enter this for loop if there is something to delete, this avoids
-        # creating an iterator only to find out there is nothing to delete.
-        if keys_to_delete:
-            for key in keys_to_delete:
-                del db[key]
-
-    def reference(self, proxy):
-        """
-        Adds a reference to the collection for the wrapped object's id
-        """
-        target = proxy.__target__
+        db = self.db
         obj_id = id(target)
+        weak_dep = db.get(obj_id)
+        if weak_dep is not None:
+            dep = weak_dep()
+            if dep is not None:
+                return dep
 
-        entry = self.db.get(obj_id)
-        if entry is None:
-            attrs = {}
-            if isinstance(target, dict):
-                attrs["dep"] = Dep()
-                # keydeps are created lazily: when a key is read
-                # (with dependency tracking active) or written
-                attrs["keydep"] = {}
-            elif isinstance(target, (list, set)):
-                attrs["dep"] = Dep()
-            entry = {
-                "target": target,
-                "attrs": attrs,  # dep, keydep
-                # keyed on tuple(readonly, shallow)
-                "proxies": WeakValueDictionary(),
-            }
-            self.db[obj_id] = entry
+        dep = TargetDep(target)
 
-        # Use setdefault to put the proxy in the proxies dict. If there
-        # was an existing value, it will return that instead. There shouldn't
-        # be an existing value, so we can compare the objects to see if we
-        # should raise an exception.
-        # Seems to be a tiny bit faster than checking beforehand if
-        # there is already an existing value in the proxies dict
-        result = entry["proxies"].setdefault(
-            (proxy.__readonly__, proxy.__shallow__), proxy
-        )
-        if result is not proxy:
-            raise RuntimeError("Proxy with existing configuration already in db")
+        def remove(weak_dep, db=db, obj_id=obj_id):
+            # Guard against the entry having been replaced in the
+            # meantime, so a stale callback can't remove a live entry
+            if db.get(obj_id) is weak_dep:
+                del db[obj_id]
 
-    def dereference(self, proxy):
-        """
-        Removes a reference from the database for the given proxy
-        """
-        obj_id = id(proxy.__target__)
-        entry = self.db.get(obj_id)
-        if entry is None:
-            # When there are failing tests, it might happen that proxies
-            # are garbage collected at a point where the proxy_db is already
-            # cleared. That's why we need this check here.
-            # See fixture [clear_proxy_db](/tests/conftest.py:clear_proxy_db)
-            # for more info.
-            return
-
-        # The given proxy is the last proxy in the WeakValueDictionary,
-        # so now is a good moment to see if can remove clean the deps
-        # for the target object
-        if len(entry["proxies"]) == 1:
-            ref_count = sys.getrefcount(entry["target"])
-            # Ref count is still 3 here because of the reference
-            # through proxy.__target__
-            if ref_count <= 3:
-                # We are the last to hold a reference!
-                del self.db[obj_id]
-
-    def attrs(self, proxy):
-        return self.db[id(proxy.__target__)]["attrs"]
+        db[obj_id] = ref(dep, remove)
+        return dep
 
     def get_proxy(self, target, readonly=False, shallow=False):
         """
-        Returns a proxy from the collection for the given object and configuration.
-        Will return None if there is no proxy for the object's id.
+        Returns the proxy with the given configuration for the given
+        target. Will return None if there is no such proxy.
         """
-        try:
-            return self.db[id(target)]["proxies"].get((readonly, shallow))
-        except KeyError:
+        weak_dep = self.db.get(id(target))
+        if weak_dep is None:
             return None
+        dep = weak_dep()
+        if dep is None:
+            return None
+        return dep.get_proxy((readonly, shallow))
 
 
 # Create a global proxy collection
