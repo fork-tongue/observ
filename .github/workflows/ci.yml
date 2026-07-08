@@ -10,18 +10,23 @@ on:
     branches:
       - master
 
+# Cancel in-flight runs when newer commits are pushed to the same
+# branch/PR, but never cancel a tag run mid-publish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
 jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
-      - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
         with:
-          python-version-file: "pyproject.toml"
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
       - name: Install only dev dependencies
         run: uv sync --only-group ruff
       - name: Lint
@@ -49,13 +54,14 @@ jobs:
           - name: Linux py314
             pyversion: "3.14"
     steps:
-      - uses: actions/checkout@v5
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-      - name: Set up Python ${{ matrix.pyversion }}
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - name: Install uv and Python ${{ matrix.pyversion }}
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
         with:
           python-version: ${{ matrix.pyversion }}
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+          cache-suffix: py${{ matrix.pyversion }}
       - name: Install system dependencies
         run: |
           sudo apt-get update -y -qq
@@ -71,21 +77,15 @@ jobs:
     name: Build and test wheel
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version-file: "pyproject.toml"
+      - uses: actions/checkout@v7
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
-      - name: Install dependencies
-        run: uv sync
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
       - name: Build wheel
         run: uv build
       - name: Twine check
         run: uvx twine check dist/*
       - name: Upload wheel artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           path: dist
           name: dist
@@ -102,14 +102,13 @@ jobs:
       id-token: write
       contents: write
     steps:
-      - uses: actions/checkout@v5
       - name: Download wheel artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist
       - name: Release to GitHub
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           files: |
