@@ -10,6 +10,12 @@ on:
     branches:
       - master
 
+# Cancel in-flight runs when newer commits are pushed to the same
+# branch/PR, but never cancel a tag run mid-publish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
 jobs:
   lint:
     name: Lint

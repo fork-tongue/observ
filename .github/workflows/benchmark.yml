@@ -5,6 +5,11 @@ on:
     branches:
       - master
 
+# Cancel in-flight runs when newer commits are pushed to the same PR.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   benchmark:
     name: Benchmarks
