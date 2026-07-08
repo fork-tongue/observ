@@ -3,9 +3,7 @@
 
 # Observ 👁
 
-Observ is a Python port of [Vue.js](https://vuejs.org/)' [computed properties and watchers](https://v3.vuejs.org/api/basic-reactivity.html). It is event loop/framework agnostic and has no dependencies so it can be used in any project targeting Python >= 3.9.
-
-The store that used to be part of observ is now available as [reliev](https://github.com/fork-tongue/reliev).
+Observ is a Python port of [Vue.js](https://vuejs.org/)' [computed properties and watchers](https://vuejs.org/guide/essentials/reactivity-fundamentals.html). It is event loop/framework agnostic and has no dependencies so it can be used in any project targeting Python >= 3.9.
 
 Observ provides the following two benefits for stateful applications:
 
@@ -17,32 +15,39 @@ Observ provides the following two benefits for stateful applications:
     * the _view_ triggers _input events_ (e.g. a mouse event is triggered in the UI)
     * _input events_ lead to _state changes_ (e.g. a mouse event updates the state)
 
-## API
-
-`from observ import reactive, computed, watch`
-
-* `state = reactive(state)`
-
-Observe nested structures of dicts, lists, tuples and sets. Returns an observable proxy that wraps the state input object.
-
-* `watcher = watch(func, callback, deep=False, immediate=False)`
-
-React to changes in the state accessed in `func` with `callback(old_value, new_value)`. Returns a watcher object. `del`elete it to disable the callback. Use `watcher.pause()` and `watcher.resume()` to temporarily suspend the watcher: if a dependency changed while the watcher was paused, it triggers once upon resume. Call `watcher.stop()` (or the watcher object itself) to stop it permanently.
-
-* `wrapped_func = computed(func)`
-
-Define computed state based on observable state with `func` and recompute lazily. Returns a wrapped copy of the function which only recomputes the output if any of the state it depends on becomes dirty. Can be used as a function decorator.
-
-**Note:** The API has evolved and become more powerful since the original creation of this README. Track issue #10 to follow updates to observ's documentation.
-
-## Quick start and examples
+## Quick start
 
 Install observ with pip/pipenv/poetry/uv:
 
 `pip install observ`
 
-Check out [`examples/observe_qt.py`](https://github.com/fork-tongue/observ/blob/master/examples/observe_qt.py) for a simple example using observ.
+```python
+from observ import computed, reactive, watch
 
-## Caveat
+state = reactive({"count": 0, "items": []})
 
-Observ keeps references to the object passed to the `reactive` in order to keep track of dependencies and proxies for that object. When the object that is passed into `reactive` is not managed by other code, then observ should cleanup its references automatically when the proxy is destroyed. However, if there is another reference to the original object, then observ will only release its own reference when the garbage collector is run and all other references to the object are gone. For this reason, the **best practise** is to keep **no references** to the raw data, and instead work with the reactive proxies **only**.
+@computed
+def total():
+    return state["count"] + len(state["items"])
+
+def on_total_changed(new, old):
+    print(f"total changed from {old} to {new}")
+
+watcher = watch(total, on_total_changed, sync=True)
+
+state["items"].append("thing")  # prints: total changed from 0 to 1
+state["count"] += 1             # prints: total changed from 1 to 2
+```
+
+## Documentation
+
+Full documentation — including a tutorial, guides on reactivity, computed state, watchers and event loop integration, and the complete API reference — is available at:
+
+**[fork-tongue.github.io/observ](https://fork-tongue.github.io/observ)**
+
+Check out [`examples/`](https://github.com/fork-tongue/observ/tree/master/examples) for runnable examples using Qt and rendercanvas.
+
+## Related projects
+
+* [Collagraph](https://github.com/fork-tongue/collagraph): reactive user interfaces in Python, built on top of observ.
+* [Reliev](https://github.com/fork-tongue/reliev): the store (with undo/redo support) that used to be part of observ.

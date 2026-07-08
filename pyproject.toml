@@ -31,6 +31,10 @@ qt = [
 ]
 pygfx = ["pygfx"]
 numpy = ["numpy"]
+docs = [
+    "mkdocs-material",
+    "mkdocstrings[python]",
+]
 
 [tool.uv]
 default-groups = ["dev"]

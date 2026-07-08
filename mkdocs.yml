@@ -1,0 +1,65 @@
+site_name: Observ
+site_description: Reactive state management for Python
+site_url: https://fork-tongue.github.io/observ
+repo_url: https://github.com/fork-tongue/observ
+repo_name: fork-tongue/observ
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: deep orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: deep orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - attr_list
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: false
+            show_root_heading: true
+            heading_level: 3
+            members_order: source
+            separate_signature: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quick-start.md
+  - Guide:
+      - Reactivity: guide/reactivity.md
+      - Computed State: guide/computed.md
+      - Watchers: guide/watchers.md
+      - Readonly and Shallow Proxies: guide/readonly-shallow.md
+      - Scheduling: guide/scheduling.md
+      - Gotchas and Best Practices: guide/gotchas.md
+  - Reference:
+      - API Reference: reference/api.md
+  - Examples:
+      - Integrations: examples/integrations.md
