@@ -36,6 +36,24 @@ def watch(
     deep: bool | None = None,
     immediate: bool = False,
 ) -> Watcher[T]:
+    """
+    Watch the given function (or proxy) and call the optional callback
+    when its value changes. Returns a Watcher object: keep a reference
+    to it to keep the watcher alive, and use it to stop, pause and
+    resume watching.
+
+    fn: Function to watch. Can also be a proxy (or list of proxies),
+        which implies deep watching.
+    callback: Method to call when the watched value has changed.
+        May accept zero, one (new value) or two (new and old value)
+        arguments. When no callback is given, fn is re-evaluated
+        when its dependencies change (see also `watch_effect`).
+    sync: Run the callback immediately on change instead of
+        queueing it on the scheduler.
+    deep: Also watch for changes nested inside the watched value.
+        Defaults to False when fn is callable, True otherwise.
+    immediate: Call the callback right away with the initial value.
+    """
     watcher = Watcher(fn, sync=sync, lazy=False, deep=deep, callback=callback)
     if immediate:
         watcher.dirty = True
@@ -49,12 +67,16 @@ watch_effect = partial(watch, immediate=False, deep=True, callback=None)
 
 
 def computed(_fn: Callable[[], T] | None = None, *, deep=True) -> Callable[[], T]:
+    """
+    Create derived state from a function: the result is cached and
+    only recomputed (lazily) when any of the reactive state it depends
+    on has changed. Can be used as a (parameterized) decorator.
+
+    Make sure fn doesn't need any arguments to run and that no
+    reactive state is changed within the function.
+    """
+
     def decorator_computed(fn: Callable[[], T]) -> Callable[[], T]:
-        """
-        Create a watcher for an expression.
-        Note: make sure fn doesn't need any arguments to run
-        and that no reactive state is changed within the expression
-        """
         watcher = Watcher(fn, deep=deep)
 
         @wraps(fn)

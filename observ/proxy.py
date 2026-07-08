@@ -107,11 +107,19 @@ try:
         value: T
 
     def ref(target: T) -> Ref[T]:
+        """
+        Returns a reactive dict with a single 'value' key, set to the
+        given target. Useful for making a single (plain) value reactive.
+        """
         return proxy(Ref(value=target))
 
 except TypeError:
     # before python 3.11 a TypedDict cannot inherit from a non-TypedDict class
     def ref(target: T) -> dict[Literal["value"], T]:
+        """
+        Returns a reactive dict with a single 'value' key, set to the
+        given target. Useful for making a single (plain) value reactive.
+        """
         return proxy({"value": target})
 
 
