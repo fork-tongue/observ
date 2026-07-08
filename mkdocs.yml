@@ -61,5 +61,7 @@ nav:
       - Gotchas and Best Practices: guide/gotchas.md
   - Reference:
       - API Reference: reference/api.md
+  - Internals:
+      - Architecture: internals/architecture.md
   - Examples:
       - Integrations: examples/integrations.md
