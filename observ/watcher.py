@@ -240,7 +240,7 @@ class Watcher(Generic[T]):
                 self.fn = weak(fn.__self__, fn.__func__)
             else:
                 self.fn = fn
-            self.fn_async = inspect.iscoroutinefunction(fn)
+            self.fn_async = iscoroutinefunction(fn)
         else:
             self.fn = lambda: fn
             self.fn_async = False
@@ -265,7 +265,7 @@ class Watcher(Generic[T]):
                 self.callback = weak(callback.__self__, callback.__func__)
             else:
                 self.callback = callback
-            self.callback_async = inspect.iscoroutinefunction(callback)
+            self.callback_async = iscoroutinefunction(callback)
         else:
             self.callback = callback
             self.callback_async = False
@@ -514,7 +514,7 @@ def weak(obj: Any, method: Callable):
     weak_obj = ref(obj)
 
     sig = inspect.signature(method)
-    iscoro = inspect.iscoroutinefunction(method)
+    iscoro = iscoroutinefunction(method)
     nr_arguments = len(sig.parameters)
 
     if nr_arguments == 1:
@@ -576,3 +576,22 @@ def is_bound_method(fn: Callable):
     Returns whether the given function is a bound method.
     """
     return hasattr(fn, "__self__") and hasattr(fn, "__func__")
+
+
+_CO_COROUTINE = inspect.CO_COROUTINE
+
+
+def iscoroutinefunction(fn: Callable) -> bool:
+    """
+    Same as inspect.iscoroutinefunction, but with a fast path for
+    plain functions and methods (by far the common case), which can
+    be checked directly through their code flags instead of going
+    through the much slower generic inspect machinery.
+    """
+    code = getattr(fn, "__code__", None)
+    if code is None or hasattr(fn, "_is_coroutine_marker"):
+        # No code object (e.g. a functools.partial or another custom
+        # callable), or explicitly marked as a coroutine function with
+        # inspect.markcoroutinefunction: let inspect figure it out
+        return inspect.iscoroutinefunction(fn)
+    return bool(code.co_flags & _CO_COROUTINE)

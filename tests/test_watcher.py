@@ -226,3 +226,52 @@ def test_computed_pause_resume(noop_request_flush):
     double.__watcher__.resume()
 
     assert double() == 4
+
+
+def test_iscoroutinefunction_parity():
+    # The fast-path coroutine check in observ.watcher must agree with
+    # inspect.iscoroutinefunction for every kind of callable that can
+    # be passed as a watched function or callback
+    import inspect
+    from functools import partial
+
+    from observ.watcher import iscoroutinefunction
+
+    def sync_fn():
+        pass
+
+    async def async_fn():
+        pass
+
+    class Methods:
+        def sync_method(self):
+            pass
+
+        async def async_method(self):
+            pass
+
+        def __call__(self):
+            pass
+
+    instance = Methods()
+    callables = [
+        sync_fn,
+        async_fn,
+        lambda: None,
+        instance.sync_method,
+        instance.async_method,
+        instance,
+        partial(sync_fn),
+        partial(async_fn),
+        print,
+    ]
+    if hasattr(inspect, "markcoroutinefunction"):  # Python >= 3.12
+
+        @inspect.markcoroutinefunction
+        def marked_fn():
+            pass
+
+        callables.append(marked_fn)
+
+    for fn in callables:
+        assert iscoroutinefunction(fn) == inspect.iscoroutinefunction(fn), fn
