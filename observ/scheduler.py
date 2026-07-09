@@ -3,14 +3,33 @@ The scheduler queues up and deduplicates re-evaluation of lazy Watchers
 and should be integrated in the event loop of your choosing.
 """
 
+from __future__ import annotations
+
 import asyncio
 import importlib
 import warnings
 from bisect import bisect
 from collections import defaultdict
 from operator import attrgetter
+from typing import TYPE_CHECKING, Any, Protocol
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from .watcher import Watcher
 
 watcher_id = attrgetter("id")
+
+
+class SupportsCallSoon(Protocol):
+    """
+    The part of the (asyncio or rendercanvas) event loop interface
+    that the scheduler needs to schedule flushes.
+    """
+
+    def call_soon(self, callback: Callable[[], Any]) -> object: ...
+
+    def call_soon_threadsafe(self, callback: Callable[[], Any]) -> object: ...
 
 
 class Scheduler:
@@ -28,7 +47,18 @@ class Scheduler:
         "waiting",
     )
 
-    def __init__(self):
+    _queue: list[Watcher[Any]]
+    _queue_indices: list[int]
+    circular: defaultdict[int, int]
+    detect_cycles: bool
+    flushing: bool
+    has: set[int]
+    index: int
+    request_flush: Callable[[], Any]
+    timer: Any
+    waiting: bool
+
+    def __init__(self) -> None:
         self._queue = []
         self._queue_indices = []
         self.flushing = False
@@ -39,23 +69,23 @@ class Scheduler:
         self.request_flush = self.request_flush_raise
         self.detect_cycles = True
 
-    def request_flush_raise(self):
+    def request_flush_raise(self) -> None:
         """
         Error raising default request flusher.
         """
         raise ValueError("No flush request handler registered")
 
-    def register_request_flush(self, callback):
+    def register_request_flush(self, callback: Callable[[], Any]) -> None:
         """
         Register callback for registering a call to flush
         """
         self.request_flush = callback
 
-    def request_flush_asyncio(self):
+    def request_flush_asyncio(self) -> None:
         loop = asyncio.get_event_loop()
         loop.call_soon_threadsafe(self.flush)
 
-    def register_asyncio(self, loop=None):
+    def register_asyncio(self, loop: SupportsCallSoon | None = None) -> None:
         """
         Utility function for integration with asyncio.
 
@@ -67,7 +97,7 @@ class Scheduler:
         else:
             self.register_request_flush(self.request_flush_asyncio)
 
-    def register_qt(self):
+    def register_qt(self) -> None:
         """
         Legacy utility function for integration with Qt event loop. Note that using
         the `register_asyncio` method is preferred over this, together with
@@ -105,7 +135,7 @@ class Scheduler:
         self.timer.setInterval(0)
         self.register_request_flush(self.timer.start)
 
-    def register_rendercanvas(self, loop):
+    def register_rendercanvas(self, loop: SupportsCallSoon) -> None:
         """
         Utility function for integration with rendercanvas loop objects
         """
@@ -117,7 +147,7 @@ class Scheduler:
         # Since rc loop objects look similar to asyncio, we can reuse the method
         self.register_asyncio(loop)
 
-    def flush(self):
+    def flush(self) -> None:
         """
         Flush the queue to evaluate all queued watchers.
         You can call this manually, or register a callback
@@ -148,7 +178,7 @@ class Scheduler:
 
         self.clear()
 
-    def clear(self):
+    def clear(self) -> None:
         self._queue.clear()
         self._queue_indices.clear()
         self.flushing = False
@@ -157,7 +187,7 @@ class Scheduler:
         self.circular.clear()
         self.index = 0
 
-    def queue(self, watcher: "Watcher"):  # noqa: F821
+    def queue(self, watcher: Watcher[Any]) -> None:
         if watcher.id in self.has:
             return
 

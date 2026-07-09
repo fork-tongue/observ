@@ -1,7 +1,11 @@
+from __future__ import annotations
+
+from typing import Any, cast
+
 from .proxy import TYPE_LOOKUP, Proxy
 from .traps import construct_methods_traps_dict, trap_map, trap_map_readonly
 
-list_traps = {
+list_traps: dict[str, set[str]] = {
     "READERS": {
         "count",
         "index",
@@ -48,28 +52,38 @@ class ListProxyBase(Proxy[list]):
     __slots__ = ()
 
 
-def readonly_list_proxy_init(self, target, shallow=False, **kwargs):
+def readonly_list_proxy_init(
+    self: ListProxyBase, target: list, shallow: bool = False, **kwargs: Any
+) -> None:
     super(ReadonlyListProxy, self).__init__(
         target, shallow=shallow, **{**kwargs, "readonly": True}
     )
 
 
-ListProxy = type(
-    "ListProxy",
-    (ListProxyBase,),
-    {
-        "__slots__": (),
-        **construct_methods_traps_dict(list, list_traps, trap_map),
-    },
+# The proxy classes are assembled dynamically from the trap functions,
+# which the type system cannot see; cast them to their actual shape
+ListProxy = cast(
+    "type[ListProxyBase]",
+    type(
+        "ListProxy",
+        (ListProxyBase,),
+        {
+            "__slots__": (),
+            **construct_methods_traps_dict(list, list_traps, trap_map),
+        },
+    ),
 )
-ReadonlyListProxy = type(
-    "ReadonlyListProxy",
-    (ListProxyBase,),
-    {
-        "__slots__": (),
-        "__init__": readonly_list_proxy_init,
-        **construct_methods_traps_dict(list, list_traps, trap_map_readonly),
-    },
+ReadonlyListProxy = cast(
+    "type[ListProxyBase]",
+    type(
+        "ReadonlyListProxy",
+        (ListProxyBase,),
+        {
+            "__slots__": (),
+            "__init__": readonly_list_proxy_init,
+            **construct_methods_traps_dict(list, list_traps, trap_map_readonly),
+        },
+    ),
 )
 
 

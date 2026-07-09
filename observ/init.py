@@ -1,9 +1,20 @@
+from __future__ import annotations
+
 import asyncio
+from typing import TYPE_CHECKING
 
 from .scheduler import scheduler
 
+if TYPE_CHECKING:
+    from typing import Literal
 
-def init(mode="asyncio", loop=None):
+    from .scheduler import SupportsCallSoon
+
+
+def init(
+    mode: Literal["asyncio", "qt", "rendercanvas"] = "asyncio",
+    loop: SupportsCallSoon | None = None,
+) -> None:
     """
     Integrate the scheduler with an event loop, so that watcher
     callbacks are batched and run on the loop. Supported modes are
@@ -23,7 +34,7 @@ def init(mode="asyncio", loop=None):
         scheduler.register_rendercanvas(loop)
 
 
-def loop_factory():
+def loop_factory() -> asyncio.AbstractEventLoop:
     """
     Creates a new asyncio event loop with the eager task factory
     enabled (Python 3.12+), which reduces the latency of the tasks

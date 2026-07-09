@@ -27,9 +27,18 @@ the TargetDep for its previous target has already been destroyed
 and has removed itself from the registry.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 from weakref import WeakValueDictionary, ref
 
 from .dep import Dep
+
+if TYPE_CHECKING:
+    from .proxy import Proxy
+
+    # A proxy configuration: the (readonly, shallow) flags
+    ProxyConfig = tuple[bool, bool]
 
 
 class TargetDep(Dep):
@@ -42,7 +51,10 @@ class TargetDep(Dep):
 
     __slots__ = ("keydeps", "proxies", "target")
 
-    def __init__(self, target):
+    keydeps: WeakValueDictionary[Any, KeyDep] | None
+    proxies: dict[ProxyConfig, ref[Proxy[Any]]]
+
+    def __init__(self, target: Any) -> None:
         super().__init__()
         self.target = target
         # Per-key deps (dict targets only). Starts out as None and is
@@ -57,7 +69,7 @@ class TargetDep(Dep):
         # keyed on (readonly, shallow)
         self.proxies = {}
 
-    def keydep(self, key):
+    def keydep(self, key: Any) -> KeyDep:
         """
         Returns the dep for the given key, creating it if needed.
         Note that the keydeps mapping is weak: the returned dep stays
@@ -75,7 +87,7 @@ class TargetDep(Dep):
         keydeps[key] = keydep
         return keydep
 
-    def register_proxy(self, config, proxy):
+    def register_proxy(self, config: ProxyConfig, proxy: Proxy[Any]) -> None:
         """
         Registers the proxy as the proxy that wraps the target with
         the given (readonly, shallow) configuration. There can be only
@@ -86,13 +98,17 @@ class TargetDep(Dep):
         if existing is not None and existing() is not None:
             raise RuntimeError("Proxy with existing configuration already in db")
 
-        def remove(weak_proxy, proxies=proxies, config=config):
+        def remove(
+            weak_proxy: ref[Proxy[Any]],
+            proxies: dict[ProxyConfig, ref[Proxy[Any]]] = proxies,
+            config: ProxyConfig = config,
+        ) -> None:
             if proxies.get(config) is weak_proxy:
                 del proxies[config]
 
         proxies[config] = ref(proxy, remove)
 
-    def get_proxy(self, config):
+    def get_proxy(self, config: ProxyConfig) -> Proxy[Any] | None:
         """
         Returns the proxy that wraps the target with the given
         (readonly, shallow) configuration, or None if there is none.
@@ -113,7 +129,7 @@ class KeyDep(Dep):
 
     __slots__ = ("owner",)
 
-    def __init__(self, owner):
+    def __init__(self, owner: TargetDep) -> None:
         super().__init__()
         self.owner = owner
 
@@ -127,11 +143,11 @@ class ProxyDb:
 
     __slots__ = ("db",)
 
-    def __init__(self):
+    def __init__(self) -> None:
         # id(target) -> weakref to the TargetDep for that target
-        self.db = {}
+        self.db: dict[int, ref[TargetDep]] = {}
 
-    def target_dep(self, target):
+    def target_dep(self, target: Any) -> TargetDep:
         """
         Returns the TargetDep for the given target, creating it (and
         registering it) if there is none yet.
@@ -146,7 +162,11 @@ class ProxyDb:
 
         dep = TargetDep(target)
 
-        def remove(weak_dep, db=db, obj_id=obj_id):
+        def remove(
+            weak_dep: ref[TargetDep],
+            db: dict[int, ref[TargetDep]] = db,
+            obj_id: int = obj_id,
+        ) -> None:
             # Guard against the entry having been replaced in the
             # meantime, so a stale callback can't remove a live entry
             if db.get(obj_id) is weak_dep:
@@ -155,7 +175,9 @@ class ProxyDb:
         db[obj_id] = ref(dep, remove)
         return dep
 
-    def get_proxy(self, target, readonly=False, shallow=False):
+    def get_proxy(
+        self, target: Any, readonly: bool = False, shallow: bool = False
+    ) -> Proxy[Any] | None:
         """
         Returns the proxy with the given configuration for the given
         target. Will return None if there is no such proxy.
