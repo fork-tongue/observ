@@ -16,12 +16,19 @@ run by more than the threshold. A whole-process outlier on either side
 then can't produce a false positive, because the comparison always uses
 the branch's luckiest run against the baseline's unluckiest run.
 
+Even that gate has a noise floor: on shared CI runners, whole runs of
+identical code have been observed to differ by 10-30%. The threshold
+therefore has to sit above that floor, which makes this a tripwire for
+gross accidental regressions rather than a precision instrument --
+changes too small to trip it should be measured with deliberate
+repeated local runs instead.
+
 Usage:
 
     python bench/compare_runs.py \
         --baseline '.benchmarks/*/*_master?.json' \
         --branch '.benchmarks/*/*_branch?.json' \
-        --threshold 0.10
+        --threshold 0.25
 """
 
 import argparse
@@ -118,8 +125,8 @@ def main(argv=None):
     parser.add_argument(
         "--threshold",
         type=float,
-        default=0.10,
-        help="max allowed consistent slowdown, as a fraction (default: 0.10)",
+        default=0.25,
+        help="max allowed consistent slowdown, as a fraction (default: 0.25)",
     )
     args = parser.parse_args(argv)
 

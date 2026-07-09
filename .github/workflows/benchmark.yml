@@ -62,9 +62,20 @@ jobs:
                 --benchmark-sort=mean
           done
 
+      # The 25% threshold makes this guard a tripwire for gross
+      # accidental regressions (an accidental copy in a hot path, an
+      # algorithmic slip), not a precision instrument. Even with the
+      # interleaved fastest-vs-slowest gate above, whole runs of
+      # identical code on hosted runners have been observed to differ
+      # by 10-30% (the same commit went fail/fail/pass across three
+      # attempts at a 10% threshold, flagging code paths its diff never
+      # touched). Gating below that noise floor just breeds re-run
+      # rituals. Regressions too small to trip this guard should be
+      # measured deliberately instead: repeated local runs of the bench
+      # suite on an idle machine.
       - name: Compare benchmarks
         run: |
           uv run --no-sync python bench/compare_runs.py \
               --baseline '.benchmarks/*/*_master?.json' \
               --branch '.benchmarks/*/*_branch?.json' \
-              --threshold 0.10
+              --threshold 0.25
