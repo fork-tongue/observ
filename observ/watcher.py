@@ -10,7 +10,7 @@ import asyncio
 import inspect
 from collections import deque
 from collections.abc import Awaitable, Container
-from functools import partial, wraps
+from functools import wraps
 from itertools import count
 from typing import Any, Callable, Generic, Optional, TypeVar, Union
 from weakref import ref
@@ -63,7 +63,17 @@ def watch(
     return watcher
 
 
-watch_effect = partial(watch, immediate=False, deep=True, callback=None)
+def watch_effect(
+    fn: Watchable[T],
+    sync: bool = False,
+    deep: bool = True,
+) -> Watcher[T]:
+    """
+    Run the given function immediately to collect its dependencies
+    and re-run it whenever they change. Equivalent to calling `watch`
+    without a callback.
+    """
+    return watch(fn, callback=None, sync=sync, deep=deep, immediate=False)
 
 
 def computed(_fn: Callable[[], T] | None = None, *, deep=True) -> Callable[[], T]:
@@ -442,17 +452,20 @@ class Watcher(Generic[T]):
             # figure out if the TypeError was caused by wrong number of arguments
             # by checking the exception's traceback
             wrong_number_of_arguments = False
-            try:
+            tb = e.__traceback__
+            if tb is not None:
                 _run_callback_is_top_frame = (
-                    e.__traceback__.tb_frame.f_code == self._run_callback.__code__
+                    tb.tb_frame.f_code == self._run_callback.__code__
                 )
-                _no_lower_frames = e.__traceback__.tb_next is None
+                _no_lower_frames = tb.tb_next is None
+                # The traceback references the current frame, so delete
+                # the local reference to it to avoid a reference cycle
+                # that would keep this watcher (and everything it
+                # references) alive until the next gc collection
+                del tb
                 wrong_number_of_arguments = (
                     _run_callback_is_top_frame and _no_lower_frames
                 )
-            except AttributeError:
-                # if there's no traceback we can't figure this out
-                pass
 
             if wrong_number_of_arguments:
                 raise WrongNumberOfArgumentsError(str(e)) from e

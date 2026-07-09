@@ -52,13 +52,7 @@ Combination of `shallow_reactive` and `readonly`.
 
 ::: observ.watcher.watch
 
-### `watch_effect`
-
-```python
-watch_effect(fn: Callable[[], Any]) -> Watcher
-```
-
-Runs `fn` immediately to collect its dependencies and re-runs it (via the scheduler) whenever they change. Equivalent to `watch(fn, deep=True)` without a callback. See [Watchers](../guide/watchers.md#watch_effect).
+::: observ.watcher.watch_effect
 
 ::: observ.watcher.computed
 

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from copy import copy, deepcopy
-from functools import partial
-from typing import Generic, Literal, TypedDict, TypeVar, cast
+from typing import TYPE_CHECKING, Generic, TypeVar, cast
 
 from .proxy_db import proxy_db
+
+if TYPE_CHECKING:
+    from typing import TypedDict
 
 T = TypeVar("T")
 
@@ -104,32 +106,46 @@ def proxy(target: T, readonly=False, shallow=False) -> T:
     return cast(T, target)
 
 
-try:
-    # for Python >= 3.11
+if TYPE_CHECKING:
+    # Only used for typing: at runtime a Ref is a plain (proxied) dict.
+    # Defined here (instead of unconditionally) because a generic
+    # TypedDict requires Python 3.11
     class Ref(TypedDict, Generic[T]):
         value: T
 
-    def ref(target: T) -> Ref[T]:
-        """
-        Returns a reactive dict with a single 'value' key, set to the
-        given target. Useful for making a single (plain) value reactive.
-        """
-        return proxy(Ref(value=target))
 
-except TypeError:
-    # before python 3.11 a TypedDict cannot inherit from a non-TypedDict class
-    def ref(target: T) -> dict[Literal["value"], T]:
-        """
-        Returns a reactive dict with a single 'value' key, set to the
-        given target. Useful for making a single (plain) value reactive.
-        """
-        return proxy({"value": target})
+def ref(target: T) -> Ref[T]:
+    """
+    Returns a reactive dict with a single 'value' key, set to the
+    given target. Useful for making a single (plain) value reactive.
+    """
+    return proxy(cast("Ref[T]", {"value": target}))
 
 
 reactive = proxy
-readonly = partial(proxy, readonly=True)
-shallow_reactive = partial(proxy, shallow=True)
-shallow_readonly = partial(proxy, shallow=True, readonly=True)
+
+
+def readonly(target: T) -> T:
+    """
+    Returns a readonly proxy for the given target: reads are tracked,
+    but any write raises a ReadonlyError.
+    """
+    return proxy(target, readonly=True)
+
+
+def shallow_reactive(target: T) -> T:
+    """
+    Returns a shallow proxy for the given target: only the first level
+    of the target is made reactive, nested values are returned raw.
+    """
+    return proxy(target, shallow=True)
+
+
+def shallow_readonly(target: T) -> T:
+    """
+    Combination of `shallow_reactive` and `readonly`.
+    """
+    return proxy(target, readonly=True, shallow=True)
 
 
 def to_raw(target: Proxy[T] | T) -> T:
