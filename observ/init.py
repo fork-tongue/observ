@@ -18,6 +18,8 @@ def init(mode="asyncio", loop=None):
         scheduler.register_asyncio(loop)
 
     elif mode == "rendercanvas":
+        if loop is None:
+            raise TypeError("A loop object is required for the 'rendercanvas' mode")
         scheduler.register_rendercanvas(loop)
 
 
@@ -28,6 +30,7 @@ def loop_factory():
     that observ schedules for async functions and callbacks.
     """
     loop = asyncio.new_event_loop()
-    if hasattr(asyncio, "eager_task_factory"):
-        loop.set_task_factory(asyncio.eager_task_factory)
+    eager_task_factory = getattr(asyncio, "eager_task_factory", None)
+    if eager_task_factory is not None:
+        loop.set_task_factory(eager_task_factory)
     return loop
