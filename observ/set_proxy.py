@@ -1,7 +1,11 @@
+from __future__ import annotations
+
+from typing import Any, cast
+
 from .proxy import TYPE_LOOKUP, Proxy
 from .traps import construct_methods_traps_dict, trap_map, trap_map_readonly
 
-set_traps = {
+set_traps: dict[str, set[str]] = {
     "READERS": {
         "copy",
         "difference",
@@ -57,25 +61,35 @@ class SetProxyBase(Proxy[set]):
     __slots__ = ()
 
 
-def readonly_set_proxy_init(self, target, shallow=False, **kwargs):
+def readonly_set_proxy_init(
+    self: SetProxyBase, target: set, shallow: bool = False, **kwargs: Any
+) -> None:
     super(ReadonlySetProxy, self).__init__(
         target, shallow=shallow, **{**kwargs, "readonly": True}
     )
 
 
-SetProxy = type(
-    "SetProxy",
-    (SetProxyBase,),
-    {"__slots__": (), **construct_methods_traps_dict(set, set_traps, trap_map)},
+# The proxy classes are assembled dynamically from the trap functions,
+# which the type system cannot see; cast them to their actual shape
+SetProxy = cast(
+    "type[SetProxyBase]",
+    type(
+        "SetProxy",
+        (SetProxyBase,),
+        {"__slots__": (), **construct_methods_traps_dict(set, set_traps, trap_map)},
+    ),
 )
-ReadonlySetProxy = type(
-    "ReadonlysetProxy",
-    (SetProxyBase,),
-    {
-        "__slots__": (),
-        "__init__": readonly_set_proxy_init,
-        **construct_methods_traps_dict(set, set_traps, trap_map_readonly),
-    },
+ReadonlySetProxy = cast(
+    "type[SetProxyBase]",
+    type(
+        "ReadonlysetProxy",
+        (SetProxyBase,),
+        {
+            "__slots__": (),
+            "__init__": readonly_set_proxy_init,
+            **construct_methods_traps_dict(set, set_traps, trap_map_readonly),
+        },
+    ),
 )
 
 

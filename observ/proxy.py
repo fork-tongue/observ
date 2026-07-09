@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from copy import copy, deepcopy
-from typing import TYPE_CHECKING, Generic, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
 
 from .proxy_db import proxy_db
 
 if TYPE_CHECKING:
     from typing import TypedDict
+
+    from .proxy_db import TargetDep
 
 T = TypeVar("T")
 
@@ -27,38 +29,42 @@ class Proxy(Generic[T]):
     or return an existing proxy and makes sure that the db stays consistent.
     """
 
-    __hash__ = None
+    __hash__ = None  # type: ignore[assignment]
     # the slots have to be very unique since we also proxy objects
-    # which may define the attributes with the same names
+    # which may define the attributes with the same names.
+    # NB: deliberately not annotated in the class body (the slot types
+    # are inferred from __init__): class-level annotations would add an
+    # __annotations__ attribute to the class, which would leak through
+    # to the container proxies (see test_wrapping_complete)
     __slots__ = ("__dep__", "__readonly__", "__shallow__", "__target__", "__weakref__")
 
-    def __init__(self, target: T, readonly=False, shallow=False):
+    def __init__(self, target: T, readonly: bool = False, shallow: bool = False):
         self.__target__ = target
         self.__readonly__ = readonly
         self.__shallow__ = shallow
-        dep = proxy_db.target_dep(target)
+        dep: TargetDep = proxy_db.target_dep(target)
         dep.register_proxy((readonly, shallow), self)
         self.__dep__ = dep
 
     def __copy__(self) -> T:
         return copy(self.__target__)
 
-    def __deepcopy__(self, memo: dict) -> T:
+    def __deepcopy__(self, memo: dict[int, Any]) -> T:
         return deepcopy(self.__target__, memo)
 
 
 # Lookup dict for mapping a type (dict, list, set) to a tuple
 # of proxy types (writable, readonly) for that type. Keyed on the
 # exact type, so subclasses are (deliberately) not proxied
-TYPE_LOOKUP = {}
+TYPE_LOOKUP: dict[type, tuple[type[Proxy[Any]], type[Proxy[Any]]]] = {}
 
 # Types of values that can't be proxied. Note the exact type is
 # checked (no subclasses) so that these can be ruled out with a
 # single set containment check
-PLAIN_TYPES = frozenset({type(None), bool, int, float, str, bytes})
+PLAIN_TYPES: frozenset[type] = frozenset({type(None), bool, int, float, str, bytes})
 
 
-def proxy(target: T, readonly=False, shallow=False) -> T:
+def proxy(target: T, readonly: bool = False, shallow: bool = False) -> T:
     """
     Returns a Proxy for the given object. If a proxy for the given
     configuration already exists, it will return that instead of
@@ -67,6 +73,14 @@ def proxy(target: T, readonly=False, shallow=False) -> T:
     Please be aware: this only works on plain data types: dict, list,
     set and tuple!
     """
+    # Note on the typing in this function: a proxy behaves exactly like
+    # its target (all methods are delegated to it), but the type system
+    # cannot express that relationship, so proxy-creating functions are
+    # typed as returning the target's own type (see also the discussion
+    # in https://github.com/fork-tongue/observ/pull/111). Since this is
+    # the hottest code path in observ, Any-typed locals are used instead
+    # of typing.cast, which would incur a function call at runtime
+
     # Plain values can't be proxied, so return them as-is. This is the
     # most common case since this function is called on the result of
     # every read from a proxied container, so it is checked first
@@ -83,11 +97,12 @@ def proxy(target: T, readonly=False, shallow=False) -> T:
             # unwrap the target from the proxy so that the right
             # kind of proxy can be returned in the next part of
             # this function
-            target = target.__target__
+            unwrapped: Any = target.__target__
+            target = unwrapped
 
     # Note that at this point, target is always a non-proxy object
     # Check the proxy_db to see if there's already a proxy for the target object
-    existing_proxy = proxy_db.get_proxy(target, readonly=readonly, shallow=shallow)
+    existing_proxy: Any = proxy_db.get_proxy(target, readonly=readonly, shallow=shallow)
     if existing_proxy is not None:
         return existing_proxy
 
@@ -95,7 +110,8 @@ def proxy(target: T, readonly=False, shallow=False) -> T:
     proxy_types = TYPE_LOOKUP.get(type(target))
     if proxy_types is not None:
         proxy_type = proxy_types[1] if readonly else proxy_types[0]
-        return proxy_type(target, readonly=readonly, shallow=shallow)
+        new_proxy: Any = proxy_type(target, readonly=readonly, shallow=shallow)
+        return new_proxy
 
     if isinstance(target, tuple):
         return cast(
@@ -103,7 +119,7 @@ def proxy(target: T, readonly=False, shallow=False) -> T:
         )
 
     # We can't proxy a plain value
-    return cast(T, target)
+    return target
 
 
 if TYPE_CHECKING:
@@ -153,6 +169,9 @@ def to_raw(target: Proxy[T] | T) -> T:
     Returns a raw object from which any trace of proxy has been replaced
     with its wrapped target value.
     """
+    # The casts below are needed because the type system cannot know
+    # that rebuilding a container from its (recursively unproxied)
+    # items yields a value of the same type as the original target
     if isinstance(target, Proxy):
         return to_raw(target.__target__)
 

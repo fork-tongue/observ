@@ -9,10 +9,10 @@ from __future__ import annotations
 import asyncio
 import inspect
 from collections import deque
-from collections.abc import Awaitable, Container
+from collections.abc import Container
 from functools import wraps
 from itertools import count
-from typing import Any, Callable, Generic, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast, overload
 from weakref import ref
 
 from .dep import Dep
@@ -21,12 +21,30 @@ from .proxy_db import proxy_db
 from .scheduler import scheduler
 
 T = TypeVar("T")
-Watchable = Union[
-    Callable[[], T],
-    Callable[[], Awaitable[T]],
-    T,
-]
-WatchCallback = Union[Callable[[], Any], Callable[[T], Any], Callable[[T, T], Any]]
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+    from types import MethodType
+    from typing import ClassVar, Protocol
+
+    from typing_extensions import TypeIs
+
+    # Something that can be watched: a function (which doesn't have to
+    # return anything) or a coroutine function, or a proxy (or other
+    # container of proxies), which implies deep watching
+    Watchable = Callable[[], T] | Callable[[], Awaitable[T]] | T
+    # Callbacks may accept zero, one (new value) or two
+    # (new and old value) arguments
+    WatchCallback = Callable[[], Any] | Callable[[T], Any] | Callable[[T, T], Any]
+
+    class Computed(Protocol[T]):
+        """
+        The cached getter returned by `computed`.
+        """
+
+        __watcher__: Watcher[T]
+
+        def __call__(self) -> T: ...
 
 
 def watch(
@@ -76,7 +94,17 @@ def watch_effect(
     return watch(fn, callback=None, sync=sync, deep=deep, immediate=False)
 
 
-def computed(_fn: Callable[[], T] | None = None, *, deep=True) -> Callable[[], T]:
+@overload
+def computed(_fn: Callable[[], T]) -> Computed[T]: ...
+
+
+@overload
+def computed(*, deep: bool = True) -> Callable[[Callable[[], T]], Computed[T]]: ...
+
+
+def computed(
+    _fn: Callable[[], T] | None = None, *, deep: bool = True
+) -> Computed[T] | Callable[[Callable[[], T]], Computed[T]]:
     """
     Create derived state from a function: the result is cached and
     only recomputed (lazily) when any of the reactive state it depends
@@ -86,26 +114,34 @@ def computed(_fn: Callable[[], T] | None = None, *, deep=True) -> Callable[[], T
     reactive state is changed within the function.
     """
 
-    def decorator_computed(fn: Callable[[], T]) -> Callable[[], T]:
-        watcher = Watcher(fn, deep=deep)
+    def decorator_computed(fn: Callable[[], T]) -> Computed[T]:
+        # The cast pins T for the watcher: inference against the
+        # Watchable union cannot rule out that fn is a watched (plain)
+        # callable value rather than the function to evaluate
+        watcher = cast("Watcher[T]", Watcher(fn, deep=deep))
 
         @wraps(fn)
-        def getter():
+        def getter() -> T:
             if watcher.dirty:
                 watcher.evaluate()
             if Dep.stack:
                 watcher.depend()
-            return watcher.value
+            # An Any-typed local instead of typing.cast, which would
+            # incur a function call at runtime in this hot path (the
+            # value is a T here: the watcher has been evaluated)
+            value: Any = watcher.value
+            return value
 
-        getter.__watcher__ = watcher
-        return getter
+        computed_getter = cast("Computed[T]", getter)
+        computed_getter.__watcher__ = watcher
+        return computed_getter
 
     if _fn is None:
         return decorator_computed
     return decorator_computed(_fn)
 
 
-def traverse(obj):
+def traverse(obj: Any) -> None:
     """
     Non-recursively traverse the whole tree to make sure that the dep of
     every (nested) container has been depended on.
@@ -133,8 +169,8 @@ def traverse(obj):
     tree that is being traversed, so ids can't be reused for the
     duration of this method.
     """
-    seen_ids = set()
-    stack = deque([(obj, False)])
+    seen_ids: set[int] = set()
+    stack: deque[tuple[Any, bool]] = deque([(obj, False)])
     db = proxy_db.db
     track = bool(Dep.stack)
 
@@ -224,8 +260,31 @@ class Watcher(Generic[T]):
         "sync",
         "value",
     )
-    on_created: Optional[Callable[[Watcher[T]], None]] = None
-    on_destroyed: Optional[Callable[[Watcher[T]], None]] = None
+
+    id: int
+    _active: bool
+    _paused: bool
+    _pending_update: bool
+    # The watched function, normalized to a plain callable: a watched
+    # plain value or proxy is wrapped in a lambda, a bound method in a
+    # weakref-checking wrapper, and stop() resets it to a stub
+    fn: Callable[[], Any]
+    fn_async: bool
+    _deps: set[Dep]
+    _new_deps: set[Dep]
+    _tasks: set[asyncio.Task[Any]]
+    sync: bool
+    callback: Callable[..., Any] | None
+    callback_async: bool
+    no_recurse: bool
+    deep: bool
+    lazy: bool
+    dirty: bool
+    value: T | None
+    _number_of_callback_args: int | None
+
+    on_created: ClassVar[Callable[[Watcher[Any]], None] | None] = None
+    on_destroyed: ClassVar[Callable[[Watcher[Any]], None] | None] = None
 
     def __init__(
         self,
@@ -249,7 +308,10 @@ class Watcher(Generic[T]):
             if is_bound_method(fn):
                 self.fn = weak(fn.__self__, fn.__func__)
             else:
-                self.fn = fn
+                # A callable fn is always a 0-arg (or coroutine)
+                # function, which the type system cannot infer from
+                # the Watchable union
+                self.fn = cast("Callable[[], Any]", fn)
             self.fn_async = inspect.iscoroutinefunction(fn)
         else:
             self.fn = lambda: fn
@@ -289,7 +351,7 @@ class Watcher(Generic[T]):
         if Watcher.on_created:
             Watcher.on_created(self)
 
-    def __call__(self):
+    def __call__(self) -> None:
         """
         Calling a watcher will stop the watcher and clean up
         any used resource. This can be used when special
@@ -336,12 +398,12 @@ class Watcher(Generic[T]):
             self._pending_update = False
             self.update()
 
-    def __del__(self):
+    def __del__(self) -> None:
         if Watcher.on_destroyed:
             Watcher.on_destroyed(self)
 
     @property
-    def active(self):
+    def active(self) -> bool:
         """
         Returns whether this watcher is still active.
         To manually deactivate simply call the watcher object.
@@ -349,7 +411,7 @@ class Watcher(Generic[T]):
         return self._active
 
     @property
-    def paused(self):
+    def paused(self) -> bool:
         """
         Returns whether this watcher is currently paused.
         Use `pause()` and `resume()` to control this state.
@@ -393,7 +455,7 @@ class Watcher(Generic[T]):
             if self.callback:
                 self.run_callback(self.value, old_value)
 
-    def run_callback(self, new, old) -> None:
+    def run_callback(self, new: T | None, old: T | None) -> None:
         """
         Runs the callback. When the number of arguments is still unknown
         for the callback, it will fall into the try/except contstruct
@@ -402,13 +464,16 @@ class Watcher(Generic[T]):
         is known and the callback can be called with the correct
         amount of arguments.
         """
+        callback = self.callback
+        assert callback is not None
+        maybe_coro: Any = None
         if self._number_of_callback_args is not None:
             if self._number_of_callback_args == 1:
-                maybe_coro = self.callback(new)
+                maybe_coro = callback(new)
             elif self._number_of_callback_args == 2:
-                maybe_coro = self.callback(new, old)
+                maybe_coro = callback(new, old)
             elif self._number_of_callback_args == 0:
-                maybe_coro = self.callback()
+                maybe_coro = callback()
 
         else:
             try:
@@ -437,7 +502,7 @@ class Watcher(Generic[T]):
                 self._tasks.add(task)
                 task.add_done_callback(self._tasks.discard)
 
-    def _run_callback(self, *args) -> None:
+    def _run_callback(self, *args: Any) -> Any:
         """
         Run the callback with the given arguments. When the callback
         raises a TypeError, check to see if the error results from
@@ -446,17 +511,29 @@ class Watcher(Generic[T]):
         Raises WrongNumberOfArgumentsError if callback was called
         with the wrong number of arguments.
         """
+        callback = self.callback
+        assert callback is not None
         try:
-            return self.callback(*args)
+            return callback(*args)
         except TypeError as e:
             # figure out if the TypeError was caused by wrong number of arguments
             # by checking the exception's traceback
             wrong_number_of_arguments = False
             try:
+                # e.__traceback__ is deliberately not bound to a local:
+                # Python auto-deletes `e` (and thus its traceback) at the
+                # end of this except clause, but a local we introduce
+                # ourselves isn't covered by that, and the traceback's
+                # tb_frame is this very frame, so binding it would form
+                # a frame<->traceback reference cycle that keeps this
+                # watcher alive until the next gc collection
                 _run_callback_is_top_frame = (
-                    e.__traceback__.tb_frame.f_code == self._run_callback.__code__
+                    e.__traceback__.tb_frame.f_code  # ty: ignore[unresolved-attribute]
+                    == self._run_callback.__code__
                 )
-                _no_lower_frames = e.__traceback__.tb_next is None
+                _no_lower_frames = (
+                    e.__traceback__.tb_next is None  # ty: ignore[unresolved-attribute]
+                )
                 wrong_number_of_arguments = (
                     _run_callback_is_top_frame and _no_lower_frames
                 )
@@ -469,7 +546,7 @@ class Watcher(Generic[T]):
             else:
                 raise
 
-    def get(self) -> Any:
+    def get(self) -> T | None:
         Dep.stack.append(self)
         try:
             value_or_coro = self.fn()
@@ -481,7 +558,7 @@ class Watcher(Generic[T]):
                     task = loop.create_task(value_or_coro)
                     self._tasks.add(task)
                     task.add_done_callback(self._tasks.discard)
-                    return
+                    return None
             if self.deep:
                 traverse(value_or_coro)
         finally:
@@ -511,10 +588,11 @@ class Watcher(Generic[T]):
 
     @property
     def fn_fqn(self) -> str:
-        return f"{self.fn.__module__}.{self.fn.__qualname__}"
+        fn = self.fn
+        return f"{getattr(fn, '__module__', None)}.{getattr(fn, '__qualname__', None)}"
 
 
-def weak(obj: Any, method: Callable):
+def weak(obj: Any, method: Callable[..., Any]) -> Callable[..., Any]:
     """
     Returns a wrapper for the given method that will only call the method if the
     given object is not garbage collected yet. It does so by using a weakref.ref
@@ -531,14 +609,14 @@ def weak(obj: Any, method: Callable):
         if iscoro:
 
             @wraps(method)
-            async def wrapped():
+            async def wrapped() -> Any:
                 if this := weak_obj():
                     return await method(this)
 
         else:
 
             @wraps(method)
-            def wrapped():
+            def wrapped() -> Any:
                 if this := weak_obj():
                     return method(this)
 
@@ -547,41 +625,41 @@ def weak(obj: Any, method: Callable):
         if iscoro:
 
             @wraps(method)
-            async def wrapped(new):
+            async def wrapped_new(new: Any) -> Any:
                 if this := weak_obj():
                     return await method(this, new)
 
         else:
 
             @wraps(method)
-            def wrapped(new):
+            def wrapped_new(new: Any) -> Any:
                 if this := weak_obj():
                     return method(this, new)
 
-        return wrapped
+        return wrapped_new
     elif nr_arguments == 3:
         if iscoro:
 
             @wraps(method)
-            async def wrapped(new, old):
+            async def wrapped_new_old(new: Any, old: Any) -> Any:
                 if this := weak_obj():
                     return await method(this, new, old)
 
         else:
 
             @wraps(method)
-            def wrapped(new, old):
+            def wrapped_new_old(new: Any, old: Any) -> Any:
                 if this := weak_obj():
                     return method(this, new, old)
 
-        return wrapped
+        return wrapped_new_old
     else:
         raise WrongNumberOfArgumentsError(
             "Please use 1, 2 or 3 arguments for callbacks"
         )
 
 
-def is_bound_method(fn: Callable):
+def is_bound_method(fn: Callable[..., Any]) -> TypeIs[MethodType]:
     """
     Returns whether the given function is a bound method.
     """

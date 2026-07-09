@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.9"
 readme = "README.md"
 license = "MIT"
+classifiers = ["Typing :: Typed"]
 dependencies = []
 
 [project.urls]
@@ -22,8 +23,10 @@ dev = [
     "pytest-benchmark",
     "pytest-cov",
     "pytest-timeout",
+    "ty",
 ]
 ruff = ["ruff"]
+ty = ["ty"]
 qt = [
     "PySide6>=6.7,!=6.8.3",
     "pytest-qt",
@@ -63,6 +66,14 @@ select = [
 "bench/*" = ["F821"]
 # command line tool that reports through print
 "bench/compare_runs.py" = ["T201"]
+
+[tool.ty.src]
+include = ["observ"]
+
+[tool.ty.environment]
+# Match the oldest supported Python version (requires-python), so
+# that the type checker catches use of newer typing features
+python-version = "3.9"
 
 [tool.pytest.ini_options]
 # GC pauses during timed rounds are a major source of benchmark noise
