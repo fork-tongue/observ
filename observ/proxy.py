@@ -164,13 +164,18 @@ def shallow_readonly(target: T) -> T:
     return proxy(target, readonly=True, shallow=True)
 
 
-def trigger_ref(target: Any) -> None:
+def trigger_ref(target: Proxy[T] | T) -> None:
     """
     Force-notify the watchers that depend on the given proxy, as if
     its first level was written to. This is typically used together
     with a shallow proxy (`shallow_reactive`, `shallow_readonly`),
     after making deep mutations to a value nested inside it — those
     mutations bypass the proxy, so observ cannot see them by itself.
+
+    Note that the parameter is annotated `Proxy[T] | T` (like
+    `to_raw`) rather than just `Proxy[T]`: proxies are typed as their
+    target's own type, so requiring `Proxy` would reject every
+    correctly-typed call site. A proxy is still required at runtime.
     """
     if not isinstance(target, Proxy):
         raise TypeError(
