@@ -6,25 +6,28 @@ are attached to observable datastructures.
 from __future__ import annotations
 
 from operator import attrgetter
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 from weakref import WeakSet
+
+if TYPE_CHECKING:
+    from .watcher import Watcher
 
 sub_id = attrgetter("id")
 
 
 class Dep:
     __slots__ = ("__weakref__", "_subs")
-    stack: ClassVar[list["Watcher"]] = []  # noqa: F821
+    stack: ClassVar[list[Watcher]] = []
 
     def __init__(self) -> None:
-        self._subs: WeakSet["Watcher"] = None  # noqa: F821
+        self._subs: WeakSet[Watcher] | None = None
 
-    def add_sub(self, sub: "Watcher") -> None:  # noqa: F821
+    def add_sub(self, sub: Watcher) -> None:
         if self._subs is None:
             self._subs = WeakSet()
         self._subs.add(sub)
 
-    def remove_sub(self, sub: "Watcher") -> None:  # noqa: F821
+    def remove_sub(self, sub: Watcher) -> None:
         if self._subs:
             self._subs.remove(sub)
 

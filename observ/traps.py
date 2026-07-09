@@ -1,8 +1,23 @@
+from __future__ import annotations
+
 from functools import partial, wraps
 from operator import xor
+from typing import TYPE_CHECKING, Any
 
 from .dep import Dep
-from .proxy import proxy
+from .proxy import Proxy, proxy
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from .dict_proxy import DictProxyBase
+
+    # A trap wraps a method of a container type (dict, list or set)
+    # with dependency tracking and/or change notification
+    Trap = Callable[..., Any]
+    # A trap factory builds a trap for the given method of the
+    # given container type
+    TrapFactory = Callable[[str, type], Trap]
 
 
 class ReadonlyError(Exception):
@@ -13,11 +28,11 @@ class ReadonlyError(Exception):
     pass
 
 
-def read_trap(method, obj_cls):
+def read_trap(method: str, obj_cls: type) -> Trap:
     fn = getattr(obj_cls, method)
 
     @wraps(fn)
-    def trap(self, *args, **kwargs):
+    def trap(self: Proxy[Any], *args: Any, **kwargs: Any) -> Any:
         if Dep.stack:
             self.__dep__.depend()
         value = fn(self.__target__, *args, **kwargs)
@@ -28,13 +43,13 @@ def read_trap(method, obj_cls):
     return trap
 
 
-def iterate_trap(method, obj_cls):
+def iterate_trap(method: str, obj_cls: type) -> Trap:
     fn = getattr(obj_cls, method)
     # Hoist the method check out of the trap
     is_items = method == "items"
 
     @wraps(fn)
-    def trap(self, *args, **kwargs):
+    def trap(self: Proxy[Any], *args: Any, **kwargs: Any) -> Any:
         if Dep.stack:
             self.__dep__.depend()
         iterator = fn(self.__target__, *args, **kwargs)
@@ -52,11 +67,11 @@ def iterate_trap(method, obj_cls):
     return trap
 
 
-def read_key_trap(method, obj_cls):
+def read_key_trap(method: str, obj_cls: type) -> Trap:
     fn = getattr(obj_cls, method)
 
     @wraps(fn)
-    def trap(self, *args, **kwargs):
+    def trap(self: Proxy[Any], *args: Any, **kwargs: Any) -> Any:
         if Dep.stack:
             self.__dep__.keydep(args[0]).depend()
         value = fn(self.__target__, *args, **kwargs)
@@ -75,7 +90,7 @@ _MISSING = object()
 _NO_KEYDEPS = {}
 
 
-def write_trap(method, obj_cls):
+def write_trap(method: str, obj_cls: type) -> Trap:
     """
     Returns a trap with the cheapest change detection strategy that
     is correct for the given method, so that writes don't need a copy
@@ -97,11 +112,11 @@ def write_trap(method, obj_cls):
     return write_len_compare_trap(method, obj_cls)
 
 
-def write_dict_trap(method, obj_cls):
+def write_dict_trap(method: str, obj_cls: type) -> Trap:
     fn = getattr(obj_cls, method)
 
     @wraps(fn)
-    def trap(self, *args, **kwargs):
+    def trap(self: Proxy[Any], *args: Any, **kwargs: Any) -> Any:
         target = self.__target__
         # Normalize the arguments (an optional mapping or iterable of
         # key/value pairs, plus optional keyword arguments) into a
@@ -132,11 +147,11 @@ def write_dict_trap(method, obj_cls):
     return trap
 
 
-def write_len_compare_trap(method, obj_cls):
+def write_len_compare_trap(method: str, obj_cls: type) -> Trap:
     fn = getattr(obj_cls, method)
 
     @wraps(fn)
-    def trap(self, *args, **kwargs):
+    def trap(self: Proxy[Any], *args: Any, **kwargs: Any) -> Any:
         target = self.__target__
         old_len = len(target)
         retval = fn(target, *args, **kwargs)
@@ -147,11 +162,11 @@ def write_len_compare_trap(method, obj_cls):
     return trap
 
 
-def write_copy_compare_trap(method, obj_cls):
+def write_copy_compare_trap(method: str, obj_cls: type) -> Trap:
     fn = getattr(obj_cls, method)
 
     @wraps(fn)
-    def trap(self, *args, **kwargs):
+    def trap(self: Proxy[Any], *args: Any, **kwargs: Any) -> Any:
         target = self.__target__
         old = target.copy()
         retval = fn(target, *args, **kwargs)
@@ -162,11 +177,11 @@ def write_copy_compare_trap(method, obj_cls):
     return trap
 
 
-def write_setitem_trap(method, obj_cls):
+def write_setitem_trap(method: str, obj_cls: type) -> Trap:
     fn = getattr(obj_cls, method)
 
     @wraps(fn)
-    def trap(self, key, value):
+    def trap(self: Proxy[Any], key: Any, value: Any) -> Any:
         target = self.__target__
         try:
             old_value = target[key]
@@ -190,14 +205,14 @@ def write_setitem_trap(method, obj_cls):
     return trap
 
 
-def write_key_trap(method, obj_cls):
+def write_key_trap(method: str, obj_cls: type) -> Trap:
     fn = getattr(obj_cls, method)
     getitem_fn = getattr(obj_cls, "get")
     # Hoist the method check out of the trap
     is_setdefault = method == "setdefault"
 
     @wraps(fn)
-    def trap(self, *args, **kwargs):
+    def trap(self: Proxy[Any], *args: Any, **kwargs: Any) -> Any:
         target = self.__target__
         key = args[0]
         old_value = getitem_fn(target, key, _MISSING)
@@ -227,11 +242,11 @@ def write_key_trap(method, obj_cls):
     return trap
 
 
-def delete_trap(method, obj_cls):
+def delete_trap(method: str, obj_cls: type) -> Trap:
     fn = getattr(obj_cls, method)
 
     @wraps(fn)
-    def trap(self, *args, **kwargs):
+    def trap(self: DictProxyBase, *args: Any, **kwargs: Any) -> Any:
         retval = fn(self.__target__, *args, **kwargs)
         dep = self.__dep__
         dep.notify()
@@ -247,11 +262,11 @@ def delete_trap(method, obj_cls):
     return trap
 
 
-def delete_key_trap(method, obj_cls):
+def delete_key_trap(method: str, obj_cls: type) -> Trap:
     fn = getattr(obj_cls, method)
 
     @wraps(fn)
-    def trap(self, *args, **kwargs):
+    def trap(self: Proxy[Any], *args: Any, **kwargs: Any) -> Any:
         key = args[0]
         key_existed = key in self.__target__
         retval = fn(self.__target__, *args, **kwargs)
@@ -268,7 +283,7 @@ def delete_key_trap(method, obj_cls):
     return trap
 
 
-trap_map = {
+trap_map: dict[str, TrapFactory] = {
     "READERS": read_trap,
     "KEYREADERS": read_key_trap,
     "ITERATORS": iterate_trap,
@@ -279,17 +294,17 @@ trap_map = {
 }
 
 
-def readonly_trap(method, obj_cls):
+def readonly_trap(method: str, obj_cls: type) -> Trap:
     fn = getattr(obj_cls, method)
 
     @wraps(fn)
-    def trap(self, *args, **kwargs):
+    def trap(self: Proxy[Any], *args: Any, **kwargs: Any) -> Any:
         raise ReadonlyError()
 
     return trap
 
 
-trap_map_readonly = {
+trap_map_readonly: dict[str, TrapFactory] = {
     "READERS": read_trap,
     "KEYREADERS": read_key_trap,
     "ITERATORS": iterate_trap,
@@ -300,7 +315,9 @@ trap_map_readonly = {
 }
 
 
-def construct_methods_traps_dict(obj_cls, traps, trap_map):
+def construct_methods_traps_dict(
+    obj_cls: type, traps: dict[str, set[str]], trap_map: dict[str, TrapFactory]
+) -> dict[str, Trap]:
     return {
         method: trap_map[trap_type](method, obj_cls)
         for trap_type, methods in traps.items()

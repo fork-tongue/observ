@@ -13,6 +13,13 @@ repos:
         language: system
         types: [python]
         require_serial: true
+      - id: ty
+        name: Typecheck
+        entry: uv run ty check
+        language: system
+        types: [python]
+        pass_filenames: false
+        require_serial: true
       - id: pytest
         name: Test
         entry: uv run pytest tests
