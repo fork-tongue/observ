@@ -164,6 +164,29 @@ def shallow_readonly(target: T) -> T:
     return proxy(target, readonly=True, shallow=True)
 
 
+def trigger_ref(target: Any) -> None:
+    """
+    Force-notify the watchers that depend on the given proxy, as if
+    its first level was written to. This is typically used together
+    with a shallow proxy (`shallow_reactive`, `shallow_readonly`),
+    after making deep mutations to a value nested inside it — those
+    mutations bypass the proxy, so observ cannot see them by itself.
+    """
+    if not isinstance(target, Proxy):
+        raise TypeError(
+            "trigger_ref() expects a proxy "
+            "(e.g. the result of ref, reactive or shallow_reactive)"
+        )
+    dep = target.__dep__
+    keydeps = dep.keydeps
+    if keydeps is not None:
+        # Notifying may run sync watchers, which can release keydeps
+        # and thereby mutate the (weak) mapping, so iterate a snapshot
+        for keydep in list(keydeps.values()):
+            keydep.notify()
+    dep.notify()
+
+
 def to_raw(target: Proxy[T] | T) -> T:
     """
     Returns a raw object from which any trace of proxy has been replaced

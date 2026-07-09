@@ -13,6 +13,7 @@ from .proxy import (
     shallow_reactive,
     shallow_readonly,
     to_raw,
+    trigger_ref,
 )
 from .scheduler import scheduler
 from .watcher import Watcher, computed, watch, watch_effect
