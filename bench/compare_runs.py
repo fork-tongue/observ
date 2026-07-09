@@ -121,6 +121,11 @@ def main(argv=None):
         default=0.10,
         help="max allowed consistent slowdown, as a fraction (default: 0.10)",
     )
+    parser.add_argument(
+        "--failed-out",
+        help="if given, write the names of failed benchmarks to this file, "
+        "one per line (for a caller to collect more rounds and retry)",
+    )
     args = parser.parse_args(argv)
 
     baseline_runs = load_runs(args.baseline)
@@ -159,6 +164,9 @@ def main(argv=None):
         )
         for name in failed:
             print(f"  {name}")
+        if args.failed_out:
+            with open(args.failed_out, "w") as fh:
+                fh.writelines(f"{name}\n" for name in failed)
         return 1
     print("\nNo benchmark consistently regressed beyond the threshold.")
     return 0

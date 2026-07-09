@@ -35,6 +35,12 @@ jobs:
       # Interleaving the runs and comparing the fastest PR run against
       # the slowest master run makes the guard robust against that noise
       # (see bench/compare_runs.py).
+      #
+      # Which side runs first alternates every round: a job that runs
+      # for several minutes can drift (CPU frequency scaling, thermal
+      # throttling, noisy neighbours), and always running master first
+      # would let that drift systematically favor (or disfavor) one
+      # side rather than average out.
       - name: Run benchmarks
         env:
           # Fixed hash seed: hash randomization moves dict/set benchmark
@@ -44,26 +50,78 @@ jobs:
         run: |
           git fetch origin master
 
-          for i in 1 2 3; do
-            # Run benchmarks with master code as baseline. Tolerate
-            # failures: the PR's benchmarks may exercise APIs that don't
-            # exist on master yet.
+          run_master() {
+            # Tolerate failures: the PR's benchmarks may exercise APIs
+            # that don't exist on master yet.
             git checkout origin/master -- observ/
-            uv run --no-sync pytest bench \
+            uv run --no-sync pytest bench "${PYTEST_ARGS[@]}" \
                 --benchmark-only \
-                --benchmark-save=master$i \
+                --benchmark-save="master$1" \
                 --benchmark-sort=mean || true
+          }
 
-            # Run benchmarks on PR code
+          run_branch() {
             git checkout HEAD -- observ/
-            uv run --no-sync pytest bench \
+            uv run --no-sync pytest bench "${PYTEST_ARGS[@]}" \
                 --benchmark-only \
-                --benchmark-save=branch$i \
+                --benchmark-save="branch$1" \
                 --benchmark-sort=mean
-          done
+          }
+
+          PYTEST_ARGS=()
+          run_master 1; run_branch 1
+          run_branch 2; run_master 2
+          run_master 3; run_branch 3
 
       - name: Compare benchmarks
+        id: compare
         run: |
+          uv run --no-sync python bench/compare_runs.py \
+              --baseline '.benchmarks/*/*_master?.json' \
+              --branch '.benchmarks/*/*_branch?.json' \
+              --threshold 0.10 \
+              --failed-out failed_benchmarks.txt \
+            || echo "initial_failed=1" >> "$GITHUB_OUTPUT"
+
+      # A regression flagged by only 3 rounds is still consistent with
+      # noise (see compare_runs.py's docstring). Rather than re-running
+      # the whole ~50-benchmark suite from scratch, collect 2 more
+      # rounds for just the benchmark(s) that were flagged -- cheap,
+      # since it's normally 1-3 out of ~50 -- and only fail the build
+      # if the regression survives that larger, still-targeted sample.
+      - name: Re-check flagged benchmarks with more targeted rounds
+        if: steps.compare.outputs.initial_failed == '1'
+        env:
+          PYTHONHASHSEED: "0"
+        run: |
+          names=()
+          while IFS= read -r name; do
+            names+=("$name")
+          done < failed_benchmarks.txt
+          echo "Initial 3 rounds flagged: ${names[*]}"
+          echo "Collecting 2 more rounds for just these before failing the build..."
+
+          run_master() {
+            git checkout origin/master -- observ/
+            uv run --no-sync pytest bench "${PYTEST_ARGS[@]}" \
+                --benchmark-only \
+                --benchmark-save="master$1" \
+                --benchmark-sort=mean || true
+          }
+
+          run_branch() {
+            git checkout HEAD -- observ/
+            uv run --no-sync pytest bench "${PYTEST_ARGS[@]}" \
+                --benchmark-only \
+                --benchmark-save="branch$1" \
+                --benchmark-sort=mean
+          }
+
+          k_expr=$(printf ' or %s' "${names[@]}")
+          PYTEST_ARGS=(-k "${k_expr# or }")
+          run_branch 4; run_master 4
+          run_master 5; run_branch 5
+
           uv run --no-sync python bench/compare_runs.py \
               --baseline '.benchmarks/*/*_master?.json' \
               --branch '.benchmarks/*/*_branch?.json' \
