@@ -10,7 +10,7 @@ import asyncio
 import inspect
 from collections import deque
 from collections.abc import Awaitable, Container
-from functools import partial, wraps
+from functools import wraps
 from itertools import count
 from typing import Any, Callable, Generic, Optional, TypeVar, Union
 from weakref import ref
@@ -63,7 +63,17 @@ def watch(
     return watcher
 
 
-watch_effect = partial(watch, immediate=False, deep=True, callback=None)
+def watch_effect(
+    fn: Watchable[T],
+    sync: bool = False,
+    deep: bool = True,
+) -> Watcher[T]:
+    """
+    Run the given function immediately to collect its dependencies
+    and re-run it whenever they change. Equivalent to calling `watch`
+    without a callback.
+    """
+    return watch(fn, callback=None, sync=sync, deep=deep, immediate=False)
 
 
 def computed(_fn: Callable[[], T] | None = None, *, deep=True) -> Callable[[], T]:
