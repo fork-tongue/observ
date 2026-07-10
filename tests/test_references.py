@@ -107,3 +107,54 @@ def test_check_nr_arguments_of_weak_callback():
             sync=True,
             deep=True,
         )
+
+
+def test_weak_callback_decorated_method():
+    """
+    A decorated bound-method callback resolves its number of arguments
+    through the decorator's wrapper (this exercises the
+    inspect.signature fallback of the fast argument-count path).
+    """
+    from functools import wraps
+
+    calls = []
+
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            return f(*args, **kwargs)
+
+        return wrapper
+
+    class Counter:
+        @decorator
+        def cb(self, new):
+            calls.append(new)
+
+    counter = Counter()
+    state = reactive({"count": 0})
+    counter.watcher = watch(lambda: state["count"], counter.cb, sync=True)
+
+    state["count"] = 1
+
+    assert calls == [1]
+
+
+def test_weak_callback_star_args_method():
+    """
+    A bound-method callback that takes *args counts as accepting a
+    single (new) argument, like inspect.signature reports it.
+    """
+    calls = []
+
+    class Counter:
+        def cb(self, *args):
+            calls.append(args)
+
+    counter = Counter()
+    state = reactive({"count": 0})
+    counter.watcher = watch(lambda: state["count"], counter.cb, sync=True)
+
+    state["count"] = 1
+
+    assert calls == [(1,)]

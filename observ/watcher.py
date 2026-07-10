@@ -592,6 +592,31 @@ class Watcher(Generic[T]):
         return f"{getattr(fn, '__module__', None)}.{getattr(fn, '__qualname__', None)}"
 
 
+# Code flags that mark parameters the plain co_argcount doesn't count
+_CO_VAR_FLAGS = inspect.CO_VARARGS | inspect.CO_VARKEYWORDS
+
+
+def _number_of_arguments(method: Callable[..., Any]) -> int:
+    """
+    Returns the number of parameters that the given method accepts.
+    For a plain function whose parameters are all regular positional
+    ones, the count can be read straight off the code object, which is
+    ~100x cheaper than building an inspect.Signature. Anything else
+    (wrapped/decorated functions, *args/**kwargs, keyword-only
+    parameters) falls back to inspect.signature, which knows how to
+    resolve those the same way this function's callers used to
+    """
+    code = getattr(method, "__code__", None)
+    if (
+        code is not None
+        and not hasattr(method, "__wrapped__")
+        and not code.co_flags & _CO_VAR_FLAGS
+        and code.co_kwonlyargcount == 0
+    ):
+        return code.co_argcount
+    return len(inspect.signature(method).parameters)
+
+
 def weak(obj: Any, method: Callable[..., Any]) -> Callable[..., Any]:
     """
     Returns a wrapper for the given method that will only call the method if the
@@ -601,9 +626,8 @@ def weak(obj: Any, method: Callable[..., Any]) -> Callable[..., Any]:
     """
     weak_obj = ref(obj)
 
-    sig = inspect.signature(method)
     iscoro = inspect.iscoroutinefunction(method)
-    nr_arguments = len(sig.parameters)
+    nr_arguments = _number_of_arguments(method)
 
     if nr_arguments == 1:
         if iscoro:
