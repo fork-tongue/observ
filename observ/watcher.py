@@ -573,9 +573,11 @@ class Watcher(Generic[T]):
                 dep.add_sub(self)
 
     def cleanup_deps(self) -> None:
-        for dep in self._deps:
-            if dep not in self._new_deps:
-                dep.remove_sub(self)
+        # A C-level set difference beats a Python-level loop with a
+        # containment check per dep, and this runs after every watcher
+        # evaluation (where the difference is typically empty)
+        for dep in self._deps - self._new_deps:
+            dep.remove_sub(self)
         self._deps, self._new_deps = self._new_deps, self._deps
         self._new_deps.clear()
 
