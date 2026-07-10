@@ -64,11 +64,12 @@ class DictProxyBase(Proxy[dict]):
 
 
 def readonly_dict_proxy_init(
-    self: DictProxyBase, target: dict, shallow: bool = False, **kwargs: Any
+    self: DictProxyBase, target: dict, readonly: bool = True, shallow: bool = False
 ) -> None:
-    super(ReadonlyDictProxy, self).__init__(
-        target, shallow=shallow, **{**kwargs, "readonly": True}
-    )
+    # The signature lines up with Proxy.__init__ so that proxy() can
+    # construct any proxy type positionally; the readonly argument is
+    # ignored, a ReadonlyDictProxy is always readonly
+    super(ReadonlyDictProxy, self).__init__(target, True, shallow)
 
 
 # The proxy classes are assembled dynamically from the trap functions,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import cast
 
 from .proxy import TYPE_LOOKUP, Proxy
 from .traps import construct_methods_traps_dict, trap_map, trap_map_readonly
@@ -53,11 +53,12 @@ class ListProxyBase(Proxy[list]):
 
 
 def readonly_list_proxy_init(
-    self: ListProxyBase, target: list, shallow: bool = False, **kwargs: Any
+    self: ListProxyBase, target: list, readonly: bool = True, shallow: bool = False
 ) -> None:
-    super(ReadonlyListProxy, self).__init__(
-        target, shallow=shallow, **{**kwargs, "readonly": True}
-    )
+    # The signature lines up with Proxy.__init__ so that proxy() can
+    # construct any proxy type positionally; the readonly argument is
+    # ignored, a ReadonlyListProxy is always readonly
+    super(ReadonlyListProxy, self).__init__(target, True, shallow)
 
 
 # The proxy classes are assembled dynamically from the trap functions,

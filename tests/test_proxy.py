@@ -356,3 +356,59 @@ def test_proxy_types_registered_without_extra_imports():
         ],
         check=True,
     )
+
+
+def test_proxy_flag_call_conventions():
+    """
+    The readonly and shallow flags resolve identically whether they
+    are passed positionally or as keywords: every combination maps to
+    the same (cached) proxy for the same target.
+    """
+    data = {"foo": "bar"}
+    writable = proxy(data, readonly=False, shallow=False)
+    readonly_proxy = proxy(data, readonly=True)
+    shallow = proxy(data, shallow=True)
+    readonly_shallow = proxy(data, readonly=True, shallow=True)
+
+    # All four configurations are distinct proxies
+    configs = (writable, readonly_proxy, shallow, readonly_shallow)
+    assert len({id(p) for p in configs}) == 4
+
+    # Positional calls resolve to the same proxies as keyword calls
+    assert proxy(data, False, False) is writable
+    assert proxy(data, True) is readonly_proxy
+    assert proxy(data, False, True) is shallow
+    assert proxy(data, True, True) is readonly_shallow
+
+    assert writable.__readonly__ is False and writable.__shallow__ is False
+    assert readonly_proxy.__readonly__ is True
+    assert readonly_proxy.__shallow__ is False
+    assert shallow.__readonly__ is False and shallow.__shallow__ is True
+    assert readonly_shallow.__readonly__ is True
+    assert readonly_shallow.__shallow__ is True
+
+
+def test_readonly_proxy_construction_forces_readonly():
+    """
+    Constructing a Readonly* proxy class directly always yields a
+    readonly proxy, whatever flags are passed, and the shallow flag
+    still comes through.
+    """
+    for proxy_type, target in (
+        (ReadonlyDictProxy, {"foo": "bar"}),
+        (ReadonlyListProxy, ["foo"]),
+        (ReadonlySetProxy, {"foo"}),
+    ):
+        readonly_proxy = proxy_type(target)
+        assert readonly_proxy.__readonly__ is True
+        assert readonly_proxy.__shallow__ is False
+
+        # A passed readonly flag is ignored
+        del readonly_proxy
+        overridden = proxy_type(target, readonly=False)
+        assert overridden.__readonly__ is True
+
+        del overridden
+        shallow = proxy_type(target, shallow=True)
+        assert shallow.__readonly__ is True
+        assert shallow.__shallow__ is True

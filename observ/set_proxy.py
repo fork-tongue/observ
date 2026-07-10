@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import cast
 
 from .proxy import TYPE_LOOKUP, Proxy
 from .traps import construct_methods_traps_dict, trap_map, trap_map_readonly
@@ -62,11 +62,12 @@ class SetProxyBase(Proxy[set]):
 
 
 def readonly_set_proxy_init(
-    self: SetProxyBase, target: set, shallow: bool = False, **kwargs: Any
+    self: SetProxyBase, target: set, readonly: bool = True, shallow: bool = False
 ) -> None:
-    super(ReadonlySetProxy, self).__init__(
-        target, shallow=shallow, **{**kwargs, "readonly": True}
-    )
+    # The signature lines up with Proxy.__init__ so that proxy() can
+    # construct any proxy type positionally; the readonly argument is
+    # ignored, a ReadonlySetProxy is always readonly
+    super(ReadonlySetProxy, self).__init__(target, True, shallow)
 
 
 # The proxy classes are assembled dynamically from the trap functions,
