@@ -102,7 +102,9 @@ def proxy(target: T, readonly: bool = False, shallow: bool = False) -> T:
 
     # Note that at this point, target is always a non-proxy object
     # Check the proxy_db to see if there's already a proxy for the target object
-    existing_proxy: Any = proxy_db.get_proxy(target, readonly=readonly, shallow=shallow)
+    # NB: the calls below pass the flags positionally, since keyword
+    # arguments make a call measurably slower
+    existing_proxy: Any = proxy_db.get_proxy(target, readonly, shallow)
     if existing_proxy is not None:
         return existing_proxy
 
@@ -110,13 +112,11 @@ def proxy(target: T, readonly: bool = False, shallow: bool = False) -> T:
     proxy_types = TYPE_LOOKUP.get(type(target))
     if proxy_types is not None:
         proxy_type = proxy_types[1] if readonly else proxy_types[0]
-        new_proxy: Any = proxy_type(target, readonly=readonly, shallow=shallow)
+        new_proxy: Any = proxy_type(target, readonly, shallow)
         return new_proxy
 
     if isinstance(target, tuple):
-        return cast(
-            T, tuple(proxy(x, readonly=readonly, shallow=shallow) for x in target)
-        )
+        return cast(T, tuple(proxy(x, readonly, shallow) for x in target))
 
     # We can't proxy a plain value
     return target
