@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from functools import partial, wraps
-from operator import xor
 from typing import TYPE_CHECKING, Any
 
 from .dep import Dep
@@ -19,6 +18,22 @@ if TYPE_CHECKING:
     # given container type
     TrapFactory = Callable[[str, type], Trap]
 
+# Performance notes that apply to all trap factories below. Traps are
+# the per-read/per-write entry points of observ, so their call overhead
+# is felt in every interaction with a proxy:
+# - The Dep.stack list (a ClassVar that is only ever mutated, never
+#   reassigned) is bound to a closure variable, which is cheaper to
+#   load than a global plus an attribute
+# - Dep.depend() is inlined as dep_stack[-1].add_dep(dep), which saves
+#   a method call plus a second check of the stack per tracked read
+# - proxy() is called with positional arguments; keyword arguments
+#   make a call measurably slower
+# - Trap signatures only take **kwargs when a wrapped method actually
+#   accepts keyword arguments (only list.sort does; dict.update is
+#   handled explicitly), because **kwargs allocates a dict on every
+#   call. The wrapped plain containers raise TypeError for unexpected
+#   keyword arguments, and so do the traps
+
 
 class ReadonlyError(Exception):
     """
@@ -30,38 +45,46 @@ class ReadonlyError(Exception):
 
 def read_trap(method: str, obj_cls: type) -> Trap:
     fn = getattr(obj_cls, method)
+    dep_stack = Dep.stack
 
     @wraps(fn)
-    def trap(self: Proxy[Any], *args: Any, **kwargs: Any) -> Any:
-        if Dep.stack:
-            self.__dep__.depend()
-        value = fn(self.__target__, *args, **kwargs)
+    def trap(self: Proxy[Any], *args: Any) -> Any:
+        if dep_stack:
+            dep_stack[-1].add_dep(self.__dep__)
+        value = fn(self.__target__, *args)
         if self.__shallow__:
             return value
-        return proxy(value, readonly=self.__readonly__)
+        return proxy(value, self.__readonly__)
 
     return trap
+
+
+# The proxy function with the readonly flag pre-bound, for both flag
+# values, so that iterate_trap doesn't construct a partial per call
+_PROXY_PARTIAL = partial(proxy, readonly=False)
+_PROXY_PARTIAL_READONLY = partial(proxy, readonly=True)
 
 
 def iterate_trap(method: str, obj_cls: type) -> Trap:
     fn = getattr(obj_cls, method)
     # Hoist the method check out of the trap
     is_items = method == "items"
+    dep_stack = Dep.stack
 
+    # The wrapped iterator methods (items, values, keys, __iter__,
+    # __reversed__) take no arguments at all
     @wraps(fn)
-    def trap(self: Proxy[Any], *args: Any, **kwargs: Any) -> Any:
-        if Dep.stack:
-            self.__dep__.depend()
-        iterator = fn(self.__target__, *args, **kwargs)
+    def trap(self: Proxy[Any]) -> Any:
+        if dep_stack:
+            dep_stack[-1].add_dep(self.__dep__)
+        iterator = fn(self.__target__)
         if self.__shallow__:
             return iterator
+        readonly = self.__readonly__
         if is_items:
-            return (
-                (key, proxy(value, readonly=self.__readonly__))
-                for key, value in iterator
-            )
+            return ((key, proxy(value, readonly)) for key, value in iterator)
         else:
-            proxied = partial(proxy, readonly=self.__readonly__)
+            proxied = _PROXY_PARTIAL_READONLY if readonly else _PROXY_PARTIAL
             return map(proxied, iterator)
 
     return trap
@@ -69,15 +92,16 @@ def iterate_trap(method: str, obj_cls: type) -> Trap:
 
 def read_key_trap(method: str, obj_cls: type) -> Trap:
     fn = getattr(obj_cls, method)
+    dep_stack = Dep.stack
 
     @wraps(fn)
-    def trap(self: Proxy[Any], *args: Any, **kwargs: Any) -> Any:
-        if Dep.stack:
-            self.__dep__.keydep(args[0]).depend()
-        value = fn(self.__target__, *args, **kwargs)
+    def trap(self: Proxy[Any], key: Any, *args: Any) -> Any:
+        if dep_stack:
+            dep_stack[-1].add_dep(self.__dep__.keydep(key))
+        value = fn(self.__target__, key, *args)
         if self.__shallow__:
             return value
-        return proxy(value, readonly=self.__readonly__)
+        return proxy(value, self.__readonly__)
 
     return trap
 
@@ -115,27 +139,29 @@ def write_trap(method: str, obj_cls: type) -> Trap:
 def write_dict_trap(method: str, obj_cls: type) -> Trap:
     fn = getattr(obj_cls, method)
 
+    # The signature mirrors dict.update: at most one positional-only
+    # argument (a mapping or an iterable of key/value pairs), plus
+    # arbitrary keyword arguments
     @wraps(fn)
-    def trap(self: Proxy[Any], *args: Any, **kwargs: Any) -> Any:
+    def trap(self: Proxy[Any], positional: Any = _MISSING, /, **kwargs: Any) -> Any:
         target = self.__target__
-        # Normalize the arguments (an optional mapping or iterable of
-        # key/value pairs, plus optional keyword arguments) into a
-        # single dict, so that only the incoming keys have to be
-        # diffed for changes. This also makes sure that an iterable
-        # argument is not consumed twice
-        if args:
-            incoming = dict(args[0])
+        target_get = target.get
+        # Normalize the arguments into a single dict, so that only the
+        # incoming keys have to be diffed for changes. This also makes
+        # sure that an iterable argument is not consumed twice
+        if positional is not _MISSING:
+            incoming = dict(positional)
             if kwargs:
                 incoming.update(kwargs)
         else:
             incoming = kwargs
-        old_values = {key: target.get(key, _MISSING) for key in incoming}
+        old_values = {key: target_get(key, _MISSING) for key in incoming}
         retval = fn(target, incoming)
         dep = self.__dep__
         keydeps = dep.keydeps if dep.keydeps is not None else _NO_KEYDEPS
         change_detected = False
         for key, old_value in old_values.items():
-            if old_value is not target.get(key, _MISSING):
+            if old_value is not target_get(key, _MISSING):
                 keydep = keydeps.get(key)
                 if keydep is not None:
                     keydep.notify()
@@ -151,10 +177,10 @@ def write_len_compare_trap(method: str, obj_cls: type) -> Trap:
     fn = getattr(obj_cls, method)
 
     @wraps(fn)
-    def trap(self: Proxy[Any], *args: Any, **kwargs: Any) -> Any:
+    def trap(self: Proxy[Any], *args: Any) -> Any:
         target = self.__target__
         old_len = len(target)
-        retval = fn(target, *args, **kwargs)
+        retval = fn(target, *args)
         if len(target) != old_len:
             self.__dep__.notify()
         return retval
@@ -165,6 +191,8 @@ def write_len_compare_trap(method: str, obj_cls: type) -> Trap:
 def write_copy_compare_trap(method: str, obj_cls: type) -> Trap:
     fn = getattr(obj_cls, method)
 
+    # list.sort takes keyword arguments (key and reverse), so this is
+    # the one write trap that must accept **kwargs
     @wraps(fn)
     def trap(self: Proxy[Any], *args: Any, **kwargs: Any) -> Any:
         target = self.__target__
@@ -212,11 +240,10 @@ def write_key_trap(method: str, obj_cls: type) -> Trap:
     is_setdefault = method == "setdefault"
 
     @wraps(fn)
-    def trap(self: Proxy[Any], *args: Any, **kwargs: Any) -> Any:
+    def trap(self: Proxy[Any], key: Any, *args: Any) -> Any:
         target = self.__target__
-        key = args[0]
         old_value = getitem_fn(target, key, _MISSING)
-        retval = fn(target, *args, **kwargs)
+        retval = fn(target, key, *args)
         if is_setdefault and not self.__shallow__:
             # This method is only available when readonly is false
             retval = proxy(retval)
@@ -227,7 +254,7 @@ def write_key_trap(method: str, obj_cls: type) -> Trap:
         # (e.g. PySide6's ItemFlags), see test_use_weird_types_as_value
         if old_value is not new_value and (
             old_value is _MISSING
-            or xor(old_value is None, new_value is None)
+            or (old_value is None) != (new_value is None)
             or old_value != new_value
         ):
             dep = self.__dep__
@@ -245,9 +272,10 @@ def write_key_trap(method: str, obj_cls: type) -> Trap:
 def delete_trap(method: str, obj_cls: type) -> Trap:
     fn = getattr(obj_cls, method)
 
+    # The wrapped deleter methods (clear, popitem) take no arguments
     @wraps(fn)
-    def trap(self: DictProxyBase, *args: Any, **kwargs: Any) -> Any:
-        retval = fn(self.__target__, *args, **kwargs)
+    def trap(self: DictProxyBase) -> Any:
+        retval = fn(self.__target__)
         dep = self.__dep__
         dep.notify()
         keydeps = dep.keydeps if dep.keydeps is not None else _NO_KEYDEPS
@@ -266,10 +294,9 @@ def delete_key_trap(method: str, obj_cls: type) -> Trap:
     fn = getattr(obj_cls, method)
 
     @wraps(fn)
-    def trap(self: Proxy[Any], *args: Any, **kwargs: Any) -> Any:
-        key = args[0]
+    def trap(self: Proxy[Any], key: Any, *args: Any) -> Any:
         key_existed = key in self.__target__
-        retval = fn(self.__target__, *args, **kwargs)
+        retval = fn(self.__target__, key, *args)
         if key_existed:
             dep = self.__dep__
             dep.notify()
