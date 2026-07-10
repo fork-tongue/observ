@@ -50,6 +50,25 @@ This is an escape hatch for performance-sensitive cases: when a value is a large
 
 `shallow_readonly()` combines both behaviors: a read-only view where only first-level reads are tracked.
 
+## Force-triggering with `trigger_ref`
+
+Sometimes you *do* mutate a value nested inside a shallow proxy in place — for example when the structure is too large to replace wholesale. Since those mutations bypass the proxy, observ cannot see them. `trigger_ref()` (named after [Vue's `triggerRef`](https://vuejs.org/api/reactivity-advanced.html#triggerref)) force-notifies the watchers that depend on a proxy, as if its first level was written to:
+
+```python
+from observ import shallow_reactive, trigger_ref, watch_effect
+
+state = shallow_reactive({"big": {"huge": [...]}})
+
+watcher = watch_effect(lambda: render(state["big"]))
+
+state["big"]["huge"].append(item)  # NOT tracked: deep mutation
+trigger_ref(state)                 # force: re-runs the effect
+```
+
+Watchers re-evaluate their watched function; whether a `watch()` *callback* then fires follows the normal rules: watchers on a container value (or with `deep=True`) always fire, while a watcher on a plain value only fires when that value actually differs from the previous evaluation.
+
+`trigger_ref` accepts any proxy (it works on the result of `ref()` and `reactive()` too). All proxies for the same target share their bookkeeping, so triggering one view notifies the watchers on all of them.
+
 ## Overview
 
 | Function             | Writable | Deep |

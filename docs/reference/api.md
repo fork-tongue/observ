@@ -4,7 +4,7 @@ Everything documented on this page is available from the top-level `observ` pack
 
 ```python
 from observ import (
-    reactive, readonly, shallow_reactive, shallow_readonly, ref, to_raw,
+    reactive, readonly, shallow_reactive, shallow_readonly, ref, to_raw, trigger_ref,
     computed, watch, watch_effect, Watcher,
     init, loop_factory, scheduler,
 )
@@ -45,6 +45,8 @@ shallow_readonly(target: T) -> T
 Combination of `shallow_reactive` and `readonly`.
 
 ::: observ.proxy.ref
+
+::: observ.proxy.trigger_ref
 
 ::: observ.proxy.to_raw
 
