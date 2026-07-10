@@ -167,8 +167,11 @@ class Scheduler:
             watcher.run()
 
             if self.detect_cycles:
-                self.circular[watcher.id] += 1
-                if self.circular[watcher.id] > 100:
+                # A single read-increment-write instead of the three
+                # dict operations of += followed by a re-read
+                runs = self.circular[watcher.id] + 1
+                self.circular[watcher.id] = runs
+                if runs > 100:
                     raise RecursionError(
                         "Infinite update loop detected in watched"
                         f" expression {watcher.fn_fqn}"
