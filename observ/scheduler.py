@@ -203,8 +203,7 @@ class Scheduler:
             # If already past its id, it will be run next immediately.
             # Last part of the queue should stay ordered, in order to
             # properly make use of bisect and avoid deadlocks
-            i = bisect(self._queue_indices[self.index + 1 :], watcher.id)
-            i += self.index + 1
+            i = bisect(self._queue_indices, watcher.id, self.index + 1)
             self._queue.insert(i, watcher)
             self._queue_indices.insert(i, watcher.id)
 
