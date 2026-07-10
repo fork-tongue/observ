@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast, overload
 from weakref import ref
 
 from .dep import Dep
-from .proxy import Proxy, proxy
+from .proxy import PLAIN_TYPES, Proxy, proxy
 from .proxy_db import proxy_db
 from .scheduler import scheduler
 
@@ -218,9 +218,16 @@ def traverse(obj: Any) -> None:
                 dep = proxy(current).__dep__
             dep.depend()
 
-        # Add children to stack
+        # Add children to stack. Plain-typed values are filtered out
+        # right here: they can never be a proxy or a traversable
+        # container, so pushing them just to discard them on the next
+        # pop would double the cost of scalar-heavy containers
         if current:
-            stack.extend((value, child_tracked) for value in val_iter)
+            stack.extend(
+                (value, child_tracked)
+                for value in val_iter
+                if type(value) not in PLAIN_TYPES
+            )
 
 
 # Every Watcher gets a unique ID which is used to
