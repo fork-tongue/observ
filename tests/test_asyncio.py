@@ -22,10 +22,6 @@ def plain_loop():
 
 
 def create_eager_loop():
-    # only python>=3.12
-    if not hasattr(asyncio, "eager_task_factory"):
-        pytest.skip()
-
     loop = create_plain_loop()
     loop.set_task_factory(asyncio.eager_task_factory)
     return loop

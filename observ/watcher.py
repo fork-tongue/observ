@@ -12,7 +12,7 @@ from collections import deque
 from collections.abc import Container
 from functools import wraps
 from itertools import count
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, cast, overload
 from weakref import ref
 
 from .dep import Dep
@@ -20,24 +20,22 @@ from .proxy import PLAIN_TYPES, Proxy, proxy
 from .proxy_db import proxy_db
 from .scheduler import scheduler
 
-T = TypeVar("T")
-
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
     from types import MethodType
-    from typing import ClassVar, Protocol
-
-    from typing_extensions import TypeIs
+    from typing import ClassVar, Protocol, TypeIs
 
     # Something that can be watched: a function (which doesn't have to
     # return anything) or a coroutine function, or a proxy (or other
     # container of proxies), which implies deep watching
-    Watchable = Callable[[], T] | Callable[[], Awaitable[T]] | T
+    type Watchable[T] = Callable[[], T] | Callable[[], Awaitable[T]] | T
     # Callbacks may accept zero, one (new value) or two
     # (new and old value) arguments
-    WatchCallback = Callable[[], Any] | Callable[[T], Any] | Callable[[T, T], Any]
+    type WatchCallback[T] = (
+        Callable[[], Any] | Callable[[T], Any] | Callable[[T, T], Any]
+    )
 
-    class Computed(Protocol[T]):
+    class Computed[T](Protocol):
         """
         The cached getter returned by `computed`.
         """
@@ -47,7 +45,7 @@ if TYPE_CHECKING:
         def __call__(self) -> T: ...
 
 
-def watch(
+def watch[T](
     fn: Watchable[T],
     callback: WatchCallback[T] | None = None,
     sync: bool = False,
@@ -81,7 +79,7 @@ def watch(
     return watcher
 
 
-def watch_effect(
+def watch_effect[T](
     fn: Watchable[T],
     sync: bool = False,
     deep: bool = True,
@@ -95,14 +93,14 @@ def watch_effect(
 
 
 @overload
-def computed(_fn: Callable[[], T]) -> Computed[T]: ...
+def computed[T](_fn: Callable[[], T]) -> Computed[T]: ...
 
 
 @overload
-def computed(*, deep: bool = True) -> Callable[[Callable[[], T]], Computed[T]]: ...
+def computed[T](*, deep: bool = True) -> Callable[[Callable[[], T]], Computed[T]]: ...
 
 
-def computed(
+def computed[T](
     _fn: Callable[[], T] | None = None, *, deep: bool = True
 ) -> Computed[T] | Callable[[Callable[[], T]], Computed[T]]:
     """
@@ -245,7 +243,7 @@ class WrongNumberOfArgumentsError(TypeError):
     pass
 
 
-class Watcher(Generic[T]):
+class Watcher[T]:
     __slots__ = (
         "__weakref__",
         "_active",
