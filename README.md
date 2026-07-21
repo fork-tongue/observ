@@ -12,7 +12,7 @@
 
 * **Automatic dependency tracking** — computed state knows exactly what it depends on and lazily re-evaluates only when needed.
 * **React to any change** — watch plain state or computed state and build unidirectional data flow: state changes drive view changes, input events drive state changes.
-* **Zero dependencies, framework agnostic** — a pure Python library (≥ 3.9) that plugs into any event loop: asyncio, Qt, or your own.
+* **Zero dependencies, framework agnostic** — a pure Python library (≥ 3.13) that plugs into any event loop: asyncio, Qt, or your own.
 * **Fully typed** — a [PEP 561](https://peps.python.org/pep-0561/) typed package, checked with [ty](https://github.com/astral-sh/ty) in CI.
 
 ## Quick start

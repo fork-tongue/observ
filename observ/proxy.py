@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from copy import copy, deepcopy
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from .proxy_db import proxy_db
 
@@ -10,10 +10,8 @@ if TYPE_CHECKING:
 
     from .proxy_db import TargetDep
 
-T = TypeVar("T")
 
-
-class Proxy(Generic[T]):
+class Proxy[T]:
     """
     Proxy for an object/target.
 
@@ -64,7 +62,7 @@ TYPE_LOOKUP: dict[type, tuple[type[Proxy[Any]], type[Proxy[Any]]]] = {}
 PLAIN_TYPES: frozenset[type] = frozenset({type(None), bool, int, float, str, bytes})
 
 
-def proxy(target: T, readonly: bool = False, shallow: bool = False) -> T:
+def proxy[T](target: T, readonly: bool = False, shallow: bool = False) -> T:
     """
     Returns a Proxy for the given object. If a proxy for the given
     configuration already exists, it will return that instead of
@@ -123,14 +121,13 @@ def proxy(target: T, readonly: bool = False, shallow: bool = False) -> T:
 
 
 if TYPE_CHECKING:
-    # Only used for typing: at runtime a Ref is a plain (proxied) dict.
-    # Defined here (instead of unconditionally) because a generic
-    # TypedDict requires Python 3.11
-    class Ref(TypedDict, Generic[T]):
+    # Only used for typing: at runtime a Ref is a plain (proxied) dict,
+    # so it is kept behind TYPE_CHECKING and never constructed.
+    class Ref[T](TypedDict):
         value: T
 
 
-def ref(target: T) -> Ref[T]:
+def ref[T](target: T) -> Ref[T]:
     """
     Returns a reactive dict with a single 'value' key, set to the
     given target. Useful for making a single (plain) value reactive.
@@ -141,7 +138,7 @@ def ref(target: T) -> Ref[T]:
 reactive = proxy
 
 
-def readonly(target: T) -> T:
+def readonly[T](target: T) -> T:
     """
     Returns a readonly proxy for the given target: reads are tracked,
     but any write raises a ReadonlyError.
@@ -149,7 +146,7 @@ def readonly(target: T) -> T:
     return proxy(target, readonly=True)
 
 
-def shallow_reactive(target: T) -> T:
+def shallow_reactive[T](target: T) -> T:
     """
     Returns a shallow proxy for the given target: only the first level
     of the target is made reactive, nested values are returned raw.
@@ -157,14 +154,14 @@ def shallow_reactive(target: T) -> T:
     return proxy(target, shallow=True)
 
 
-def shallow_readonly(target: T) -> T:
+def shallow_readonly[T](target: T) -> T:
     """
     Combination of `shallow_reactive` and `readonly`.
     """
     return proxy(target, readonly=True, shallow=True)
 
 
-def trigger_ref(target: Proxy[T] | T) -> None:
+def trigger_ref[T](target: Proxy[T] | T) -> None:
     """
     Force-notify the watchers that depend on the given proxy, as if
     its first level was written to. This is typically used together
@@ -192,7 +189,7 @@ def trigger_ref(target: Proxy[T] | T) -> None:
     dep.notify()
 
 
-def to_raw(target: Proxy[T] | T) -> T:
+def to_raw[T](target: Proxy[T] | T) -> T:
     """
     Returns a raw object from which any trace of proxy has been replaced
     with its wrapped target value.
@@ -201,7 +198,7 @@ def to_raw(target: Proxy[T] | T) -> T:
     # that rebuilding a container from its (recursively unproxied)
     # items yields a value of the same type as the original target
     if isinstance(target, Proxy):
-        return to_raw(target.__target__)
+        return cast(T, to_raw(target.__target__))
 
     if isinstance(target, list):
         return cast(T, [to_raw(t) for t in target])

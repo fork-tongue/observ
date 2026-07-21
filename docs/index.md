@@ -1,6 +1,6 @@
 # Observ 👁
 
-Observ is a Python port of [Vue.js](https://vuejs.org/)' [computed properties and watchers](https://vuejs.org/guide/essentials/reactivity-fundamentals.html). It is event loop/framework agnostic and has no dependencies, so it can be used in any project targeting Python >= 3.9.
+Observ is a Python port of [Vue.js](https://vuejs.org/)' [computed properties and watchers](https://vuejs.org/guide/essentials/reactivity-fundamentals.html). It is event loop/framework agnostic and has no dependencies, so it can be used in any project targeting Python >= 3.13.
 
 Observ provides two benefits for stateful applications:
 

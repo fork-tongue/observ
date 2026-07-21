@@ -1,6 +1,6 @@
 # Installation
 
-Observ is published on [PyPI](https://pypi.org/project/observ/) and has **no dependencies**. It supports Python 3.9 and up.
+Observ is published on [PyPI](https://pypi.org/project/observ/) and has **no dependencies**. It supports Python 3.13 and up.
 
 === "uv"
 

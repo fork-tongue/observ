@@ -37,11 +37,9 @@ def init(
 def loop_factory() -> asyncio.AbstractEventLoop:
     """
     Creates a new asyncio event loop with the eager task factory
-    enabled (Python 3.12+), which reduces the latency of the tasks
-    that observ schedules for async functions and callbacks.
+    enabled, which reduces the latency of the tasks that observ
+    schedules for async functions and callbacks.
     """
     loop = asyncio.new_event_loop()
-    eager_task_factory = getattr(asyncio, "eager_task_factory", None)
-    if eager_task_factory is not None:
-        loop.set_task_factory(eager_task_factory)
+    loop.set_task_factory(asyncio.eager_task_factory)
     return loop

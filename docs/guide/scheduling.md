@@ -21,7 +21,7 @@ You can also pass a specific loop: `scheduler.register_asyncio(loop)`.
 
 !!! tip "Eager task factory"
 
-    On Python 3.12+, observ's `loop_factory()` helper creates a new event loop with the [eager task factory](https://docs.python.org/3/library/asyncio-task.html#asyncio.eager_task_factory) enabled, which reduces the latency of the async callbacks and watched functions that observ schedules as tasks:
+    observ's `loop_factory()` helper creates a new event loop with the [eager task factory](https://docs.python.org/3/library/asyncio-task.html#asyncio.eager_task_factory) enabled, which reduces the latency of the async callbacks and watched functions that observ schedules as tasks:
 
     ```python
     import asyncio

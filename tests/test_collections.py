@@ -55,10 +55,12 @@ EXCLUDED = {
     "__shallow__",
     "__weakref__",
     "__dep__",
-    # exclude attributes added by typing.Generic
+    # exclude attributes added by generics (typing.Generic and the
+    # native PEP 695 type parameters on Proxy[T])
     "_is_protocol",
     "__orig_bases__",
     "__parameters__",
+    "__type_params__",
     # New in Python 3.13
     "__firstlineno__",
     "__static_attributes__",
