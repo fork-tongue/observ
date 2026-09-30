@@ -7,9 +7,11 @@ from observ import computed, reactive
 
 state = reactive({"first": "Ada", "last": "Lovelace"})
 
+
 @computed
 def full_name():
     return f"{state['first']} {state['last']}"
+
 
 print(full_name())  # "Ada Lovelace"
 ```
@@ -32,12 +34,13 @@ def expensive():
     print("crunching...")
     return sum(state["numbers"])
 
+
 state = reactive({"numbers": list(range(1000))})
 
-expensive()          # prints: crunching...
-expensive()          # cached: no print
+expensive()  # prints: crunching...
+expensive()  # cached: no print
 state["numbers"].append(1)  # only marks it dirty: no print
-expensive()          # prints: crunching...
+expensive()  # prints: crunching...
 ```
 
 This means you can define lots of derived state without worrying about paying for state you never read.
@@ -50,6 +53,7 @@ Computed functions can freely use other computed functions, forming a dependency
 @computed
 def subtotal():
     return sum(item["price"] for item in state["items"])
+
 
 @computed
 def total():

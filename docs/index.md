@@ -19,17 +19,20 @@ from observ import computed, reactive, watch
 
 state = reactive({"count": 0, "items": []})
 
+
 @computed
 def total():
     return state["count"] + len(state["items"])
 
+
 def on_total_changed(new, old):
     print(f"total changed from {old} to {new}")
+
 
 watcher = watch(total, on_total_changed, sync=True)
 
 state["items"].append("thing")  # prints: total changed from 0 to 1
-state["count"] += 1             # prints: total changed from 1 to 2
+state["count"] += 1  # prints: total changed from 1 to 2
 ```
 
 No dirty flags, no manual notification: mutating the state through the reactive proxy is enough for observ to figure out what changed and who needs to know about it.
