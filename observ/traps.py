@@ -4,7 +4,7 @@ from functools import partial, wraps
 from typing import TYPE_CHECKING, Any
 
 from .dep import Dep
-from .proxy import PLAIN_TYPES, TYPE_LOOKUP, Proxy, proxy
+from .proxy import PLAIN_TYPES, Proxy, proxy
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -119,37 +119,22 @@ def value_changed(old: Any, new: Any) -> bool:
     Returns whether replacing old with new is a change that watchers
     have to be notified of.
 
-    Plain values are compared by equality. Containers that observ tracks
-    (dict, list, set) are compared by identity instead: watchers depend
-    on the deps of the container they read, so replacing it with an
-    equal copy must re-run them, or they keep tracking the old (detached)
-    container and miss changes to the new one. Tuples are compared
-    element-wise, since they can hold such containers.
+    Plain values (None, bool, int, float, str, bytes) are compared by
+    equality, everything else by identity, like Vue does. Watchers depend
+    on the deps of the objects they read, so replacing one with an equal
+    copy must re-run them, or they keep tracking the old (detached)
+    object and miss changes to the new one.
     """
     if old is new:
         return False
-    old_type = type(old)
-    new_type = type(new)
-    if old_type in PLAIN_TYPES and new_type in PLAIN_TYPES:
+    if type(old) in PLAIN_TYPES and type(new) in PLAIN_TYPES:
         return old != new
     # Raw targets can hold proxies, so compare what they wrap
     if isinstance(old, Proxy):
         old = old.__target__
-        old_type = type(old)
     if isinstance(new, Proxy):
         new = new.__target__
-        new_type = type(new)
-    if old is new:
-        return False
-    if old_type in TYPE_LOOKUP or new_type in TYPE_LOOKUP:
-        return True
-    if old_type is tuple and new_type is tuple:
-        return len(old) != len(new) or any(map(value_changed, old, new))
-    # Some types raise TypeError when compared to None (e.g. PySide6's
-    # ItemFlags), see test_use_weird_types_as_value
-    if old is None or new is None:
-        return True
-    return old != new
+    return old is not new
 
 
 def write_trap(method: str, obj_cls: type) -> Trap:
@@ -228,9 +213,8 @@ def write_len_compare_trap(method: str, obj_cls: type) -> Trap:
 
 def write_copy_compare_trap(method: str, obj_cls: type) -> Trap:
     fn = getattr(obj_cls, method)
-    # sort and reverse keep a list equal when it holds equal but distinct
-    # containers, while moving those containers to other indices, so
-    # compare the items (sets only hold hashable, untracked values)
+    # sort and reverse can move equal but distinct objects to other
+    # indices, so compare the items of lists by value_changed()
     compare_items = obj_cls is list
 
     # list.sort takes keyword arguments (key and reverse), so this is
@@ -273,12 +257,7 @@ def write_setitem_trap(method: str, obj_cls: type) -> Trap:
         else:
             retval = fn(target, key, value)
             new_value = target[key]
-            # Check equality first: it decides the common case at no
-            # extra cost, value_changed() only has to decide on equal
-            # values that are not identical
-            changed = new_value is not old_value and (
-                new_value != old_value or value_changed(old_value, new_value)
-            )
+            changed = value_changed(old_value, new_value)
         if changed:
             self.__dep__.notify()
         return retval
@@ -302,17 +281,7 @@ def write_key_trap(method: str, obj_cls: type) -> Trap:
             retval = proxy(retval)
 
         new_value = getitem_fn(target, key)
-        # The equality check runs only when neither value is _MISSING
-        # or None: some types raise TypeError when compared to None
-        # (e.g. PySide6's ItemFlags), see test_use_weird_types_as_value.
-        # It decides the common case at no extra cost, value_changed()
-        # only has to decide on equal values that are not identical
-        if old_value is not new_value and (
-            old_value is _MISSING
-            or (old_value is None) != (new_value is None)
-            or old_value != new_value
-            or value_changed(old_value, new_value)
-        ):
+        if value_changed(old_value, new_value):
             dep = self.__dep__
             keydeps = dep.keydeps
             if keydeps is not None:

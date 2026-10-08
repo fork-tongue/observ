@@ -8,7 +8,7 @@ subscribed to the old, now detached object. Changes to the new object
 are then never picked up.
 """
 
-from observ import reactive, watch_effect
+from observ import reactive, scheduler, watch_effect
 
 
 class Tracker:
@@ -67,6 +67,15 @@ def test_dict_setitem_equal_nested_in_tuple():
     assert tracker.values[-1] == "B"
 
 
+def test_dict_setitem_equal_nested_in_nested_tuple():
+    state = reactive({"pair": (({"text": "A"},), 1)})
+    tracker = Tracker(lambda: state["pair"][0][0]["text"])
+
+    state["pair"] = (({"text": "A"},), 1)
+    state["pair"][0][0]["text"] = "B"
+    assert tracker.values[-1] == "B"
+
+
 def test_dict_update_equal_dict():
     state = reactive({"item": {"text": "A"}})
     tracker = Tracker(lambda: state["item"]["text"])
@@ -74,6 +83,26 @@ def test_dict_update_equal_dict():
     state.update({"item": {"text": "A"}})
     state["item"]["text"] = "B"
     assert tracker.values[-1] == "B"
+
+
+def test_scheduled_watcher_equal_dict(noop_request_flush):
+    state = reactive({"item": {"text": "A"}})
+    values = []
+    watcher = watch_effect(lambda: values.append(state["item"]["text"]))  # noqa: F841
+    assert values == ["A"]
+
+    # Both writes happen before the flush, so the watcher runs once
+    state["item"] = {"text": "A"}
+    state["item"]["text"] = "B"
+    scheduler.flush()
+    assert values == ["A", "B"]
+
+    # And across separate flushes
+    state["item"] = {"text": "B"}
+    scheduler.flush()
+    state["item"]["text"] = "C"
+    scheduler.flush()
+    assert values == ["A", "B", "B", "C"]
 
 
 def test_list_setitem_equal_dict():
@@ -132,12 +161,13 @@ def test_dict_setitem_equal_plain_values_do_not_notify():
     assert tracker.runs == 1
 
 
-def test_dict_setitem_equal_plain_tuple_does_not_notify():
+def test_dict_setitem_equal_tuple_notifies():
+    # Only plain values are compared by equality, tuples by identity
     state = reactive({"position": (1.0, 2.0)})
     tracker = Tracker(lambda: state["position"])
 
     state["position"] = (float("1"), float("2"))
-    assert tracker.runs == 1
+    assert tracker.runs == 2
 
 
 def test_dict_setitem_same_container_does_not_notify():
