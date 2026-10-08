@@ -257,7 +257,12 @@ def write_setitem_trap(method: str, obj_cls: type) -> Trap:
         else:
             retval = fn(target, key, value)
             new_value = target[key]
-            changed = value_changed(old_value, new_value)
+            # Check equality first: it decides the common case at no
+            # extra cost, value_changed() only has to decide on equal
+            # values that are not identical
+            changed = new_value is not old_value and (
+                new_value != old_value or value_changed(old_value, new_value)
+            )
         if changed:
             self.__dep__.notify()
         return retval
@@ -281,7 +286,17 @@ def write_key_trap(method: str, obj_cls: type) -> Trap:
             retval = proxy(retval)
 
         new_value = getitem_fn(target, key)
-        if value_changed(old_value, new_value):
+        # The equality check runs only when neither value is _MISSING
+        # or None: some types raise TypeError when compared to None
+        # (e.g. PySide6's ItemFlags), see test_use_weird_types_as_value.
+        # It decides the common case at no extra cost, value_changed()
+        # only has to decide on equal values that are not identical
+        if old_value is not new_value and (
+            old_value is _MISSING
+            or (old_value is None) != (new_value is None)
+            or old_value != new_value
+            or value_changed(old_value, new_value)
+        ):
             dep = self.__dep__
             keydeps = dep.keydeps
             if keydeps is not None:
