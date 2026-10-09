@@ -27,9 +27,11 @@ You can also pass a specific loop: `scheduler.register_asyncio(loop)`.
     import asyncio
     from observ import init, loop_factory
 
+
     async def main():
         init("asyncio")
         ...
+
 
     with asyncio.Runner(loop_factory=loop_factory) as runner:
         runner.run(main())
@@ -89,8 +91,8 @@ from observ import scheduler
 
 scheduler.register_request_flush(lambda: None)  # queue silently
 
-state["count"] += 1   # watcher is queued, callback hasn't run yet
-scheduler.flush()     # callback runs now
+state["count"] += 1  # watcher is queued, callback hasn't run yet
+scheduler.flush()  # callback runs now
 ```
 
 Or sidestep the scheduler entirely with `sync=True` watchers, which run their callbacks synchronously on every change — see [Watchers](watchers.md#sync).

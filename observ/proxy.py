@@ -132,7 +132,7 @@ def ref[T](target: T) -> Ref[T]:
     Returns a reactive dict with a single 'value' key, set to the
     given target. Useful for making a single (plain) value reactive.
     """
-    return proxy(cast("Ref[T]", {"value": target}))
+    return proxy({"value": target})
 
 
 reactive = proxy

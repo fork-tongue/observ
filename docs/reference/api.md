@@ -4,9 +4,20 @@ Everything documented on this page is available from the top-level `observ` pack
 
 ```python
 from observ import (
-    reactive, readonly, shallow_reactive, shallow_readonly, ref, to_raw, trigger_ref,
-    computed, watch, watch_effect, Watcher,
-    init, loop_factory, scheduler,
+    reactive,
+    readonly,
+    shallow_reactive,
+    shallow_readonly,
+    ref,
+    to_raw,
+    trigger_ref,
+    computed,
+    watch,
+    watch_effect,
+    Watcher,
+    init,
+    loop_factory,
+    scheduler,
 )
 ```
 

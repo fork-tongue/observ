@@ -24,27 +24,31 @@ pip install observ
 ```python
 from observ import computed, reactive, watch
 
-state = reactive({
-    "todos": [
-        {"title": "groceries", "done": False},
-        {"title": "dishes", "done": True},
-    ],
-})
+state = reactive(
+    {
+        "todos": [
+            {"title": "groceries", "done": False},
+            {"title": "dishes", "done": True},
+        ],
+    }
+)
+
 
 @computed
 def progress():
     done = sum(todo["done"] for todo in state["todos"])
     return f"{done}/{len(state['todos'])} done"
 
+
 watcher = watch(progress, lambda new: print(new), sync=True)
 
 # Mutate the plain dicts and lists you already have —
 # observ sees every change, no matter how deeply nested:
-state["todos"][0]["done"] = True                            # prints: 2/2 done
+state["todos"][0]["done"] = True  # prints: 2/2 done
 state["todos"].append({"title": "laundry", "done": False})  # prints: 2/3 done
 
 # ...but you only ever react when a *result* actually changes:
-state["todos"][1]["title"] = "do the dishes"                # (no print)
+state["todos"][1]["title"] = "do the dishes"  # (no print)
 ```
 
 No subclasses to inherit, no observable fields to declare, no signals to wire up: `reactive()` takes your existing data, and dependencies are tracked automatically simply by using it.

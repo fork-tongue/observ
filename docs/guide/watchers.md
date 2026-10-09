@@ -60,8 +60,10 @@ When watching a function, only the state that is actually read is tracked, and t
 ```python
 state = reactive({"items": [{"done": False}]})
 
-watch(lambda: state["items"], callback)             # fires when the list itself changes
-watch(lambda: state["items"], callback, deep=True)  # also fires when an item's "done" flips
+# Fires when the list itself changes
+watch(lambda: state["items"], callback)
+# Also fires when an item's "done" flips
+watch(lambda: state["items"], callback, deep=True)
 ```
 
 !!! note
@@ -81,8 +83,10 @@ from observ import reactive, watch_effect
 
 state = reactive({"count": 0})
 
+
 def persist():
     save_to_disk(state["count"])
+
 
 watcher = watch_effect(persist)
 ```
@@ -96,10 +100,10 @@ The returned `Watcher` object gives you full control over the reaction:
 ```python
 watcher = watch(lambda: state["count"], callback)
 
-watcher.pause()   # dependency changes no longer trigger the callback
+watcher.pause()  # dependency changes no longer trigger the callback
 watcher.resume()  # if anything changed while paused, triggers once now
 
-watcher.stop()    # permanently stop and release resources
+watcher.stop()  # permanently stop and release resources
 ```
 
 * `pause()` / `resume()` — temporarily suspend the watcher. If a dependency changed while paused, the watcher triggers once upon resume. Check the state with the `paused` property.
@@ -115,8 +119,7 @@ class Display:
     def __init__(self, state):
         self.watcher = watch(lambda: state["count"], self.update)
 
-    def update(self, new):
-        ...
+    def update(self, new): ...
 ```
 
 Here the `Display` instance can be garbage collected normally, even though its watcher references `self.update`.
