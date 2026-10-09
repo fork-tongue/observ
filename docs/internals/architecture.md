@@ -51,6 +51,8 @@ Write traps only notify when the container *actually changed*, so that no-op wri
 * **Incoming-keys diff** — `dict.update` and `__ior__` can only change the keys they receive, so only those keys are compared before and after.
 * **Copy and compare** — `sort`, `reverse` and `symmetric_difference_update` can change the container without changing its length, so they fall back to copying; the cost of the copy is proportional to the operation itself.
 
+What counts as a changed value is decided by `value_changed()`. Like Vue, only plain values (`None`, `bool`, `int`, `float`, `str`, `bytes`) are compared by equality; everything else is compared by identity, so replacing an object with an equal copy is still a change. Watchers depend on the deps of the objects they read, so if they are not re-run they keep tracking the old, detached object and miss every later change to the new one.
+
 Key-level traps (`__setitem__`, `pop`, `setdefault`, …) additionally notify the *keydep* for the affected key, so that watchers that only depend on `state["count"]` are not disturbed by writes to other keys.
 
 ## Deps and dependency tracking

@@ -4,7 +4,7 @@ from functools import partial, wraps
 from typing import TYPE_CHECKING, Any
 
 from .dep import Dep
-from .proxy import Proxy, proxy
+from .proxy import PLAIN_TYPES, Proxy, proxy
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -114,6 +114,29 @@ _MISSING = object()
 _NO_KEYDEPS = {}
 
 
+def value_changed(old: Any, new: Any) -> bool:
+    """
+    Returns whether replacing old with new is a change that watchers
+    have to be notified of.
+
+    Plain values (None, bool, int, float, str, bytes) are compared by
+    equality, everything else by identity, like Vue does. Watchers depend
+    on the deps of the objects they read, so replacing one with an equal
+    copy must re-run them, or they keep tracking the old (detached)
+    object and miss changes to the new one.
+    """
+    if old is new:
+        return False
+    if type(old) in PLAIN_TYPES and type(new) in PLAIN_TYPES:
+        return old != new
+    # Raw targets can hold proxies, so compare what they wrap
+    if isinstance(old, Proxy):
+        old = old.__target__
+    if isinstance(new, Proxy):
+        new = new.__target__
+    return old is not new
+
+
 def write_trap(method: str, obj_cls: type) -> Trap:
     """
     Returns a trap with the cheapest change detection strategy that
@@ -190,6 +213,9 @@ def write_len_compare_trap(method: str, obj_cls: type) -> Trap:
 
 def write_copy_compare_trap(method: str, obj_cls: type) -> Trap:
     fn = getattr(obj_cls, method)
+    # sort and reverse can move equal but distinct objects to other
+    # indices, so compare the items of lists by value_changed()
+    compare_items = obj_cls is list
 
     # list.sort takes keyword arguments (key and reverse), so this is
     # the one write trap that must accept **kwargs
@@ -198,7 +224,11 @@ def write_copy_compare_trap(method: str, obj_cls: type) -> Trap:
         target = self.__target__
         old = target.copy()
         retval = fn(target, *args, **kwargs)
-        if target != old:
+        if compare_items:
+            changed = any(map(value_changed, old, target))
+        else:
+            changed = target != old
+        if changed:
             self.__dep__.notify()
         return retval
 
@@ -221,11 +251,18 @@ def write_setitem_trap(method: str, obj_cls: type) -> Trap:
             # replace a same-length stretch of items
             old_len = len(target)
             retval = fn(target, key, value)
-            changed = len(target) != old_len or target[key] != old_value
+            changed = len(target) != old_len or any(
+                map(value_changed, old_value, target[key])
+            )
         else:
             retval = fn(target, key, value)
             new_value = target[key]
-            changed = new_value is not old_value and new_value != old_value
+            # Check equality first: it decides the common case at no
+            # extra cost, value_changed() only has to decide on equal
+            # values that are not identical
+            changed = new_value is not old_value and (
+                new_value != old_value or value_changed(old_value, new_value)
+            )
         if changed:
             self.__dep__.notify()
         return retval
@@ -251,11 +288,14 @@ def write_key_trap(method: str, obj_cls: type) -> Trap:
         new_value = getitem_fn(target, key)
         # The equality check runs only when neither value is _MISSING
         # or None: some types raise TypeError when compared to None
-        # (e.g. PySide6's ItemFlags), see test_use_weird_types_as_value
+        # (e.g. PySide6's ItemFlags), see test_use_weird_types_as_value.
+        # It decides the common case at no extra cost, value_changed()
+        # only has to decide on equal values that are not identical
         if old_value is not new_value and (
             old_value is _MISSING
             or (old_value is None) != (new_value is None)
             or old_value != new_value
+            or value_changed(old_value, new_value)
         ):
             dep = self.__dep__
             keydeps = dep.keydeps
