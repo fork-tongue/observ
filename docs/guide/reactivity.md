@@ -5,11 +5,13 @@ The heart of observ is `reactive()`: it wraps a plain data structure in a *proxy
 ```python
 from observ import reactive
 
-state = reactive({
-    "user": {"name": "Ada"},
-    "todos": ["invent programming"],
-    "tags": {"science", "history"},
-})
+state = reactive(
+    {
+        "user": {"name": "Ada"},
+        "todos": ["invent programming"],
+        "tags": {"science", "history"},
+    }
+)
 ```
 
 When a watcher (or computed) runs a function, every read through a proxy — a key lookup, an iteration, a `len()` call — registers that piece of state as a dependency of the function. Every write — item assignment, `append()`, `add()`, `del`, and so on — notifies the watchers that depend on it.
@@ -29,7 +31,7 @@ These can be nested arbitrarily. Nesting is handled *lazily*: a proxy for a nest
 state = reactive({"nested": {"deep": [1, 2, 3]}})
 
 nested = state["nested"]  # nested is itself a reactive proxy
-deep = nested["deep"]     # and so is this list
+deep = nested["deep"]  # and so is this list
 ```
 
 Since tuples are immutable, they are not proxied themselves; instead a new tuple is returned in which each *element* is made reactive.

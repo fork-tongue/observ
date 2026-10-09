@@ -27,7 +27,7 @@ Only `dict`, `list`, `set` and `tuple` (and their contents) are proxied — deli
 state = reactive({"point": MyPoint(0, 0)})
 
 state["point"] = MyPoint(1, 1)  # tracked: item write on the dict
-state["point"].x = 1            # NOT tracked
+state["point"].x = 1  # NOT tracked
 ```
 
 Model your observable state as plain data (as you would for JSON), and keep rich objects at the edges.
@@ -41,7 +41,7 @@ Computed functions should be pure derivations of state. Mutating reactive state 
 `watch()` and `watch_effect()` return a `Watcher` object, and observ holds no strong reference to it. If you drop the return value the watcher is garbage collected and the callback silently stops firing:
 
 ```python
-watch(lambda: state["count"], callback)                # wrong: dies immediately
+watch(lambda: state["count"], callback)  # wrong: dies immediately
 self.watcher = watch(lambda: state["count"], callback)  # right
 ```
 

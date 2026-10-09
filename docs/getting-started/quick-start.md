@@ -23,11 +23,14 @@ from observ import reactive, watch
 
 state = reactive({"name": "World"})
 
+
 def greeting():
     return f"Hello {state['name']}!"
 
+
 def greeting_changed(new, old):
     print(f"was: {old!r}, now: {new!r}")
+
 
 watcher = watch(greeting, greeting_changed, sync=True)
 
@@ -51,10 +54,12 @@ from observ import computed, reactive
 
 state = reactive({"todos": ["groceries", "dishes"]})
 
+
 @computed
 def todo_count():
     print("computing!")
     return len(state["todos"])
+
 
 print(todo_count())  # prints: computing! 2
 print(todo_count())  # prints: 2  (cached, no recompute)
@@ -71,13 +76,16 @@ from observ import computed, reactive, watch
 
 state = reactive({"todos": ["groceries"]})
 
+
 @computed
 def todo_count():
     return len(state["todos"])
 
+
 @computed
 def all_done():
     return todo_count() == 0
+
 
 watcher = watch(all_done, lambda done: print(f"all done: {done}"), sync=True)
 

@@ -14,7 +14,7 @@ view = readonly(state)
 
 print(view["count"])  # reads work fine, and are tracked
 
-view["count"] = 1     # raises ReadonlyError
+view["count"] = 1  # raises ReadonlyError
 ```
 
 The readonly proxy wraps the *same* underlying data: changes made through the writable proxy are visible through the readonly proxy and trigger its watchers.
@@ -42,7 +42,7 @@ from observ import shallow_reactive
 
 state = shallow_reactive({"big": {"huge": [...]}})
 
-state["big"] = other      # tracked: first-level write
+state["big"] = other  # tracked: first-level write
 state["big"]["huge"] = x  # NOT tracked: state["big"] is a plain dict
 ```
 
@@ -62,7 +62,7 @@ state = shallow_reactive({"big": {"huge": [...]}})
 watcher = watch_effect(lambda: render(state["big"]))
 
 state["big"]["huge"].append(item)  # NOT tracked: deep mutation
-trigger_ref(state)                 # force: re-runs the effect
+trigger_ref(state)  # force: re-runs the effect
 ```
 
 Watchers re-evaluate their watched function; whether a `watch()` *callback* then fires follows the normal rules: watchers on a container value (or with `deep=True`) always fire, while a watcher on a plain value only fires when that value actually differs from the previous evaluation.
